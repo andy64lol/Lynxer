@@ -5,25 +5,48 @@
 #include <cerrno>
 #include <cctype>
 #include <cstdint>
+#include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <iconv.h>
 #include <sstream>
 #include <string>
 #include <system_error>
 #include <vector>
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <sys/stat.h>
+#else
+#include <iconv.h>
 #include <pwd.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#endif
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
 
 namespace fs = std::filesystem;
+
+static fs::path pathFromUtf8(const std::string& value) {
+#if defined(_WIN32)
+    return fs::u8path(value);
+#else
+    return fs::path(value);
+#endif
+}
+static std::string pathToUtf8(const fs::path& value) {
+#if defined(_WIN32)
+    return value.u8string();
+#else
+    return value.string();
+#endif
+}
 
 static const char* stable(std::string value) {
     thread_local std::string result;
@@ -53,7 +76,7 @@ static std::vector<std::string> splitComponents(const std::string& value) {
     std::vector<std::string> parts;
     std::string current;
     for (const char character : value) {
-        if (character == '/') {
+        if (character == '/' || character == '\\') {
             if (!current.empty()) {
                 parts.push_back(current);
                 current.clear();
@@ -161,16 +184,24 @@ static std::string expandHome(const std::string& input) {
     if (input.empty() || input[0] != '~') {
         return input;
     }
-    const std::size_t slash = input.find('/');
+    const std::size_t slash = input.find_first_of("/\\");
     const std::string user = input.substr(
         1, slash == std::string::npos ? std::string::npos : slash - 1);
     std::string home;
     if (user.empty()) {
+#if defined(_WIN32)
+        const char* value = std::getenv("USERPROFILE");
+#else
         const char* value = std::getenv("HOME");
+#endif
         home = value == nullptr ? "" : value;
-    } else if (passwd* entry = ::getpwnam(user.c_str()); entry != nullptr) {
+    }
+#if !defined(_WIN32)
+    else if (passwd* entry = ::getpwnam(user.c_str()); entry != nullptr) {
         home = entry->pw_dir;
-    } else {
+    }
+#endif
+    else {
         return input;
     }
     if (home.empty()) {
@@ -181,7 +212,7 @@ static std::string expandHome(const std::string& input) {
 }
 
 static bool readWholeFile(const std::string& path, std::string& output) {
-    std::ifstream input(path, std::ios::binary);
+    std::ifstream input(pathFromUtf8(path), std::ios::binary);
     if (!input) {
         return false;
     }
@@ -196,6 +227,8 @@ static bool readWholeFile(const std::string& path, std::string& output) {
 extern "C" const char* path_platform() {
 #if defined(__linux__)
     return "linux";
+#elif defined(_WIN32)
+    return "windows";
 #elif defined(__APPLE__)
     return "darwin";
 #elif defined(__FreeBSD__)
@@ -211,31 +244,47 @@ extern "C" const char* path_platform() {
 #endif
 }
 
-extern "C" const char* path_separator() { return "/"; }
-extern "C" const char* path_listSeparator() { return ":"; }
+extern "C" const char* path_separator() {
+#if defined(_WIN32)
+    return "\\";
+#else
+    return "/";
+#endif
+}
+extern "C" const char* path_listSeparator() {
+#if defined(_WIN32)
+    return ";";
+#else
+    return ":";
+#endif
+}
 
 extern "C" const char* path_cwd() {
     std::error_code error;
     const fs::path current = fs::current_path(error);
-    return stable(error ? std::string() : current.string());
+    return stable(error ? std::string() : pathToUtf8(current));
 }
 
 extern "C" const char* path_home() {
+#if defined(_WIN32)
+    const char* value = std::getenv("USERPROFILE");
+#else
     const char* value = std::getenv("HOME");
+#endif
     return stable(value == nullptr ? std::string() : std::string(value));
 }
 
 extern "C" const char* path_absolute(const char* value) {
     std::error_code error;
-    const fs::path result = fs::absolute(fs::path(textOrEmpty(value)), error);
-    return stable(error ? std::string() : result.string());
+    const fs::path result = fs::absolute(pathFromUtf8(textOrEmpty(value)), error);
+    return stable(error ? std::string() : pathToUtf8(result));
 }
 
 extern "C" const char* path_resolve(const char* value) {
     std::error_code error;
     const fs::path result =
-        fs::weakly_canonical(fs::path(textOrEmpty(value)), error);
-    return stable(error ? std::string() : result.string());
+        fs::weakly_canonical(pathFromUtf8(textOrEmpty(value)), error);
+    return stable(error ? std::string() : pathToUtf8(result));
 }
 
 extern "C" const char* path_expandUser(const char* value) {
@@ -244,14 +293,14 @@ extern "C" const char* path_expandUser(const char* value) {
 
 extern "C" const char* path_join(const char* base, const char* child) {
     return stable(
-        (fs::path(textOrEmpty(base)) / fs::path(textOrEmpty(child))).string());
+        pathToUtf8(pathFromUtf8(textOrEmpty(base)) / pathFromUtf8(textOrEmpty(child))));
 }
 
 extern "C" const char* path_join3(const char* first, const char* second,
                                   const char* third) {
-    return stable((fs::path(textOrEmpty(first)) / fs::path(textOrEmpty(second)) /
-                   fs::path(textOrEmpty(third)))
-                      .string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(first)) /
+                             pathFromUtf8(textOrEmpty(second)) /
+                             pathFromUtf8(textOrEmpty(third))));
 }
 
 extern "C" const char* path_normalize(const char* value) {
@@ -259,25 +308,25 @@ extern "C" const char* path_normalize(const char* value) {
     if (input.empty()) {
         return stable(".");
     }
-    return stable(fs::path(input).lexically_normal().string());
+    return stable(pathToUtf8(pathFromUtf8(input).lexically_normal()));
 }
 
 /* ---------- Components ---------- */
 
 extern "C" const char* path_name(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).filename().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).filename()));
 }
 
 extern "C" const char* path_stem(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).stem().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).stem()));
 }
 
 extern "C" const char* path_suffix(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).extension().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).extension()));
 }
 
 extern "C" const char* path_suffixes(const char* value) {
-    std::string name = fs::path(textOrEmpty(value)).filename().string();
+    std::string name = pathToUtf8(pathFromUtf8(textOrEmpty(value)).filename());
     if (name.empty() || name.back() == '.') {
         return stable("");
     }
@@ -298,21 +347,32 @@ extern "C" const char* path_suffixes(const char* value) {
 }
 
 extern "C" const char* path_parent(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).parent_path().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).parent_path()));
 }
 
 extern "C" const char* path_anchor(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).is_absolute() ? "/" : "");
+#if defined(_WIN32)
+    const fs::path path = pathFromUtf8(textOrEmpty(value));
+    return stable(path.has_root_name() ? pathToUtf8(path.root_name() / path.root_directory()) : "");
+#else
+    return stable(pathFromUtf8(textOrEmpty(value)).is_absolute() ? "/" : "");
+#endif
 }
 
 extern "C" const char* path_root(const char* value) {
-    return stable(fs::path(textOrEmpty(value)).is_absolute() ? "/" : "");
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).root_directory()));
 }
 
-extern "C" const char* path_drive(const char*) { return ""; }
+extern "C" const char* path_drive(const char* value) {
+#if defined(_WIN32)
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(value)).root_name()));
+#else
+    (void)value; return "";
+#endif
+}
 
 extern "C" std::int64_t path_isAbsolute(const char* value) {
-    return fs::path(textOrEmpty(value)).is_absolute() ? 1 : 0;
+    return pathFromUtf8(textOrEmpty(value)).is_absolute() ? 1 : 0;
 }
 
 extern "C" const char* path_parts(const char* value) {
@@ -322,7 +382,7 @@ extern "C" const char* path_parts(const char* value) {
         parts.push_back("/");
     }
     for (const auto& component : target) {
-        const std::string text = component.string();
+        const std::string text = pathToUtf8(component);
         if (text == "/" || text.empty()) {
             continue;
         }
@@ -338,7 +398,7 @@ extern "C" std::int64_t path_match(const char* value, const char* pattern) {
         splitComponents(patternText);
     const bool absolutePattern =
         !patternText.empty() && patternText.front() == '/';
-    std::vector<std::string> targetParts = splitComponents(target.string());
+    std::vector<std::string> targetParts = splitComponents(pathToUtf8(target));
     if (!absolutePattern && targetParts.size() > patternParts.size()) {
         targetParts.erase(
             targetParts.begin(),
@@ -349,11 +409,11 @@ extern "C" std::int64_t path_match(const char* value, const char* pattern) {
 }
 
 extern "C" const char* path_relativeTo(const char* value, const char* base) {
-    const fs::path target = fs::path(textOrEmpty(value)).lexically_normal();
-    const fs::path root = fs::path(textOrEmpty(base)).lexically_normal();
+    const fs::path target = pathFromUtf8(textOrEmpty(value)).lexically_normal();
+    const fs::path root = pathFromUtf8(textOrEmpty(base)).lexically_normal();
     const std::vector<std::string> targetParts =
-        splitComponents(target.string());
-    const std::vector<std::string> baseParts = splitComponents(root.string());
+        splitComponents(pathToUtf8(target));
+    const std::vector<std::string> baseParts = splitComponents(pathToUtf8(root));
     if (baseParts.size() > targetParts.size()) {
         return stable("");
     }
@@ -378,14 +438,14 @@ extern "C" const char* path_withName(const char* value, const char* newName) {
     if (target.filename().empty()) {
         return stable("");
     }
-    return stable((target.parent_path() / name).string());
+    return stable(pathToUtf8(target.parent_path() / pathFromUtf8(name)));
 }
 
 extern "C" const char* path_withSuffix(const char* value,
                                        const char* newSuffix) {
     const fs::path target(textOrEmpty(value));
     const std::string suffix = textOrEmpty(newSuffix);
-    const std::string name = target.filename().string();
+    const std::string name = pathToUtf8(target.filename());
     if (name.empty()) {
         return stable("");
     }
@@ -396,30 +456,30 @@ extern "C" const char* path_withSuffix(const char* value,
         return stable("");
     }
     fs::path replaced = target;
-    replaced.replace_extension(suffix.empty() ? fs::path() : fs::path(suffix));
-    return stable(replaced.string());
+    replaced.replace_extension(suffix.empty() ? fs::path() : pathFromUtf8(suffix));
+    return stable(pathToUtf8(replaced));
 }
 
 /* ---------- Predicates ---------- */
 
 extern "C" std::int64_t path_exists(const char* value) {
     std::error_code error;
-    return fs::exists(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::exists(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isFile(const char* value) {
     std::error_code error;
-    return fs::is_regular_file(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::is_regular_file(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isDir(const char* value) {
     std::error_code error;
-    return fs::is_directory(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::is_directory(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isSymlink(const char* value) {
     std::error_code error;
-    return fs::is_symlink(fs::symlink_status(fs::path(textOrEmpty(value)),
+    return fs::is_symlink(fs::symlink_status(pathFromUtf8(textOrEmpty(value)),
                                              error)) &&
                    !error
                ? 1
@@ -431,20 +491,33 @@ extern "C" std::int64_t path_isMount(const char* value) {
     if (target.empty()) {
         return 0;
     }
+#if defined(_WIN32)
+    const std::wstring wide = pathFromUtf8(target).wstring();
+    wchar_t volume[MAX_PATH + 1]{};
+    if (!::GetVolumePathNameW(wide.c_str(), volume, MAX_PATH)) return 0;
+    std::error_code volumeError;
+    return fs::equivalent(pathFromUtf8(target), fs::path(volume), volumeError) && !volumeError ? 1 : 0;
+#else
     struct stat info {};
     if (::stat(target.c_str(), &info) != 0) {
         return 0;
     }
     struct stat parent {};
     const std::string parentPath =
-        fs::path(target).parent_path().string();
+        pathToUtf8(pathFromUtf8(target).parent_path());
     if (parentPath.empty() || ::stat(parentPath.c_str(), &parent) != 0) {
         return 0;
     }
     return info.st_dev != parent.st_dev ? 1 : 0;
+#endif
 }
 
 extern "C" std::int64_t path_sameFile(const char* first, const char* second) {
+#if defined(_WIN32)
+    std::error_code error;
+    return fs::equivalent(pathFromUtf8(textOrEmpty(first)),
+                          pathFromUtf8(textOrEmpty(second)), error) && !error ? 1 : 0;
+#else
     struct stat left {};
     struct stat right {};
     if (::stat(textOrEmpty(first).c_str(), &left) != 0) {
@@ -454,19 +527,20 @@ extern "C" std::int64_t path_sameFile(const char* first, const char* second) {
         return 0;
     }
     return left.st_dev == right.st_dev && left.st_ino == right.st_ino ? 1 : 0;
+#endif
 }
 
 /* ---------- Traversal ---------- */
 
 static std::string listDirectory(const std::string& base) {
     std::error_code error;
-    fs::directory_iterator iterator(fs::path(base), error);
+    fs::directory_iterator iterator(pathFromUtf8(base), error);
     if (error) {
         return "";
     }
     std::vector<std::string> entries;
     for (const auto& entry : iterator) {
-        entries.push_back(entry.path().string());
+        entries.push_back(pathToUtf8(entry.path()));
     }
     return joinLines(entries, true);
 }
@@ -487,9 +561,9 @@ extern "C" const char* path_glob(const char* value, const char* pattern) {
         }
         for (const auto& entry : iterator) {
             const std::string relative =
-                fs::relative(entry.path(), base, error).string();
+                pathToUtf8(fs::relative(entry.path(), base, error));
             if (!error && globMatch(patternText, relative)) {
-                matches.push_back(entry.path().string());
+                matches.push_back(pathToUtf8(entry.path()));
             }
         }
     } else {
@@ -501,7 +575,7 @@ extern "C" const char* path_glob(const char* value, const char* pattern) {
         }
         for (const auto& entry : iterator) {
             const std::string relative =
-                fs::relative(entry.path(), base, error).string();
+                pathToUtf8(fs::relative(entry.path(), base, error));
             if (error) {
                 continue;
             }
@@ -509,7 +583,7 @@ extern "C" const char* path_glob(const char* value, const char* pattern) {
                 iterator.disable_recursion_pending();
             }
             if (globMatch(patternText, relative)) {
-                matches.push_back(entry.path().string());
+                matches.push_back(pathToUtf8(entry.path()));
             }
         }
     }
@@ -525,40 +599,40 @@ extern "C" const char* path_rglob(const char* value, const char* pattern) {
 
 extern "C" std::int64_t path_mkdir(const char* value) {
     std::error_code error;
-    return fs::create_directory(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::create_directory(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_mkdirs(const char* value) {
     std::error_code error;
-    fs::create_directories(fs::path(textOrEmpty(value)), error);
+    fs::create_directories(pathFromUtf8(textOrEmpty(value)), error);
     return error ? 0 : 1;
 }
 
 extern "C" std::int64_t path_rmdir(const char* value) {
     std::error_code error;
-    return fs::remove(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::remove(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_unlink(const char* value) {
     std::error_code error;
-    return fs::remove(fs::path(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::remove(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_unlinkMissingOk(const char* value) {
     std::error_code error;
-    fs::remove(fs::path(textOrEmpty(value)), error);
+    fs::remove(pathFromUtf8(textOrEmpty(value)), error);
     return 1;
 }
 
 extern "C" std::int64_t path_touch(const char* value) {
-    std::ofstream output(textOrEmpty(value),
+    std::ofstream output(pathFromUtf8(textOrEmpty(value)),
                          std::ios::binary | std::ios::app);
     if (!output) {
         return 0;
     }
     output.close();
     std::error_code error;
-    fs::last_write_time(fs::path(textOrEmpty(value)),
+    fs::last_write_time(pathFromUtf8(textOrEmpty(value)),
                         fs::file_time_type::clock::now(), error);
     return error ? 0 : 1;
 }
@@ -566,15 +640,15 @@ extern "C" std::int64_t path_touch(const char* value) {
 extern "C" const char* path_rename(const char* value, const char* target) {
     std::error_code error;
     const fs::path destination(textOrEmpty(target));
-    fs::rename(fs::path(textOrEmpty(value)), destination, error);
-    return stable(error ? std::string() : destination.string());
+    fs::rename(pathFromUtf8(textOrEmpty(value)), destination, error);
+    return stable(error ? std::string() : pathToUtf8(destination));
 }
 
 extern "C" const char* path_replace(const char* value, const char* target) {
     std::error_code error;
     const fs::path destination(textOrEmpty(target));
-    fs::rename(fs::path(textOrEmpty(value)), destination, error);
-    return stable(error ? std::string() : destination.string());
+    fs::rename(pathFromUtf8(textOrEmpty(value)), destination, error);
+    return stable(error ? std::string() : pathToUtf8(destination));
 }
 
 /* ---------- Text helpers ---------- */
@@ -649,6 +723,96 @@ static bool parseTextEncoding(const std::string& raw, std::string& out) {
 
 static bool convertEncoding(const std::string& input, const std::string& from,
                             const std::string& to, std::string& output) {
+#if defined(_WIN32)
+    auto codePage = [](const std::string& name) -> UINT {
+        if (name == "UTF-8") return CP_UTF8;
+        if (name == "ASCII") return 20127;
+        if (name == "ISO-8859-1") return 28591;
+        if (name == "CP1252") return 1252;
+        if (name == "CP1250") return 1250;
+        if (name == "CP1251") return 1251;
+        if (name == "CP1254") return 1254;
+        if (name == "CP1255") return 1255;
+        if (name == "CP1256") return 1256;
+        if (name == "CP1257") return 1257;
+        if (name == "CP1258") return 1258;
+        if (name == "CP932" || name == "SHIFT-JIS" || name == "SHIFT_JIS") return 932;
+        if (name == "CP936" || name == "GBK") return 936;
+        if (name == "CP949") return 949;
+        if (name == "CP950" || name == "BIG5") return 950;
+        if (name == "CP437") return 437;
+        if (name == "CP850") return 850;
+        return 0;
+    };
+    auto fromWide = [&](const std::wstring& wide, const std::string& encoding, std::string& result) {
+        if (encoding == "UTF-32" || encoding == "UTF-32LE" || encoding == "UTF-32BE") {
+            result.clear();
+            const bool be = encoding == "UTF-32BE";
+            for (std::size_t i = 0; i < wide.size(); ++i) {
+                std::uint32_t cp = static_cast<std::uint16_t>(wide[i]);
+                if (cp >= 0xd800 && cp <= 0xdbff) {
+                    if (i + 1 >= wide.size()) return false;
+                    const std::uint32_t low = static_cast<std::uint16_t>(wide[++i]);
+                    if (low < 0xdc00 || low > 0xdfff) return false;
+                    cp = 0x10000 + ((cp - 0xd800) << 10) + (low - 0xdc00);
+                } else if (cp >= 0xdc00 && cp <= 0xdfff) return false;
+                for (int n = 0; n < 4; ++n) result.push_back(static_cast<char>((cp >> ((be ? 3 - n : n) * 8)) & 255));
+            }
+            return true;
+        }
+        if (encoding == "UTF-16" || encoding == "UTF-16LE") {
+            result.assign(reinterpret_cast<const char*>(wide.data()), wide.size() * sizeof(wchar_t));
+            return true;
+        }
+        if (encoding == "UTF-16BE") {
+            result.clear();
+            for (wchar_t ch : wide) { result.push_back(static_cast<char>((ch >> 8) & 255)); result.push_back(static_cast<char>(ch & 255)); }
+            return true;
+        }
+        const UINT cp = codePage(encoding);
+        if (!cp) return false;
+        const DWORD flags = cp == CP_UTF8 ? 0 : WC_NO_BEST_FIT_CHARS;
+        const int n = ::WideCharToMultiByte(cp, flags, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
+        if (n <= 0) return wide.empty();
+        result.resize(static_cast<std::size_t>(n));
+        return ::WideCharToMultiByte(cp, flags, wide.data(), static_cast<int>(wide.size()), result.data(), n, nullptr, nullptr) == n;
+    };
+    auto toWide = [&](const std::string& bytes, const std::string& encoding, std::wstring& wide) {
+        if (encoding == "UTF-32" || encoding == "UTF-32LE" || encoding == "UTF-32BE") {
+            if (bytes.size() % 4) return false;
+            const bool be = encoding == "UTF-32BE";
+            wide.clear();
+            for (std::size_t i = 0; i < bytes.size(); i += 4) {
+                std::uint32_t cp = 0;
+                for (int n = 0; n < 4; ++n) cp |= static_cast<std::uint32_t>(static_cast<unsigned char>(bytes[i + n])) << ((be ? 3 - n : n) * 8);
+                if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return false;
+                if (cp < 0x10000) wide.push_back(static_cast<wchar_t>(cp));
+                else { cp -= 0x10000; wide.push_back(static_cast<wchar_t>(0xd800 + (cp >> 10))); wide.push_back(static_cast<wchar_t>(0xdc00 + (cp & 0x3ff))); }
+            }
+            return true;
+        }
+        if (encoding == "UTF-16" || encoding == "UTF-16LE") {
+            if (bytes.size() % 2) return false;
+            wide.resize(bytes.size() / 2);
+            std::memcpy(wide.data(), bytes.data(), bytes.size());
+            return true;
+        }
+        if (encoding == "UTF-16BE") {
+            if (bytes.size() % 2) return false;
+            wide.resize(bytes.size() / 2);
+            for (std::size_t i = 0; i < wide.size(); ++i) wide[i] = static_cast<unsigned char>(bytes[i*2]) * 256 + static_cast<unsigned char>(bytes[i*2+1]);
+            return true;
+        }
+        const UINT cp = codePage(encoding);
+        if (!cp) return false;
+        const int n = ::MultiByteToWideChar(cp, 0, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
+        if (n <= 0) return bytes.empty();
+        wide.resize(static_cast<std::size_t>(n));
+        return ::MultiByteToWideChar(cp, 0, bytes.data(), static_cast<int>(bytes.size()), wide.data(), n) == n;
+    };
+    std::wstring wide;
+    return toWide(input, from, wide) && fromWide(wide, to, output);
+#else
     iconv_t converter = ::iconv_open(to.c_str(), from.c_str());
     if (converter == reinterpret_cast<iconv_t>(-1)) {
         return false;
@@ -690,6 +854,7 @@ static bool convertEncoding(const std::string& input, const std::string& from,
     }
     ::iconv_close(converter);
     return true;
+#endif
 }
 
 extern "C" const char* path_readTextEncoding(const char* value,
@@ -710,7 +875,7 @@ extern "C" const char* path_readTextEncoding(const char* value,
 
 extern "C" std::int64_t path_writeText(const char* value,
                                        const char* content) {
-    std::ofstream output(textOrEmpty(value), std::ios::binary | std::ios::trunc);
+    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
     if (!output) {
         return 0;
     }
@@ -732,7 +897,7 @@ extern "C" std::int64_t path_writeTextEncoding(const char* value,
     } else if (!convertEncoding(text, "UTF-8", kind, bytes)) {
         return 0;
     }
-    std::ofstream output(textOrEmpty(value), std::ios::binary | std::ios::trunc);
+    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
     if (!output) {
         return 0;
     }
@@ -742,7 +907,7 @@ extern "C" std::int64_t path_writeTextEncoding(const char* value,
 
 extern "C" std::int64_t path_appendText(const char* value,
                                         const char* content) {
-    std::ofstream output(textOrEmpty(value), std::ios::binary | std::ios::app);
+    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::app);
     if (!output) {
         return 0;
     }
@@ -753,11 +918,19 @@ extern "C" std::int64_t path_appendText(const char* value,
 extern "C" std::int64_t path_size(const char* value) {
     std::error_code error;
     const std::uintmax_t size =
-        fs::file_size(fs::path(textOrEmpty(value)), error);
+        fs::file_size(pathFromUtf8(textOrEmpty(value)), error);
     return error ? -1 : static_cast<std::int64_t>(size);
 }
 
 extern "C" double path_modifiedTime(const char* value) {
+#if defined(_WIN32)
+    std::error_code error;
+    const auto stamp = fs::last_write_time(pathFromUtf8(textOrEmpty(value)), error);
+    if (error) return -1.0;
+    const auto systemStamp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+        stamp - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
+    return std::chrono::duration<double>(systemStamp.time_since_epoch()).count();
+#else
     struct stat info {};
     if (::stat(textOrEmpty(value).c_str(), &info) != 0) {
         return -1.0;
@@ -769,16 +942,17 @@ extern "C" double path_modifiedTime(const char* value) {
     return static_cast<double>(info.st_mtime) +
            static_cast<double>(info.st_mtim.tv_nsec) / 1000000000.0;
 #endif
+#endif
 }
 
 extern "C" const char* path_asUri(const char* value) {
     std::error_code error;
-    const fs::path absolute = fs::absolute(fs::path(textOrEmpty(value)), error);
+    const fs::path absolute = fs::absolute(pathFromUtf8(textOrEmpty(value)), error);
     if (error) {
         return stable("");
     }
     std::string uri = "file://";
-    for (const char character : absolute.string()) {
+    for (const char character : pathToUtf8(absolute)) {
         const bool unreserved =
             std::isalnum(static_cast<unsigned char>(character)) != 0 ||
             character == '-' || character == '.' || character == '_' ||

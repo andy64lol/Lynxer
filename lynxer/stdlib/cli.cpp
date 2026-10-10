@@ -23,11 +23,22 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-
+#include <filesystem>
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <io.h>
+#include <direct.h>
+#include <cstdlib>
+#include <sys/stat.h>
+extern char** _environ;
+#else
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+extern char** environ;
+#endif
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
@@ -43,8 +54,6 @@ extern "C" int lynxer_module_attach_v1(const LynxerHostApi* host) {
     return 0;
 }
 
-extern char** environ;
-
 static const char* stable(std::string value) {
     thread_local std::string result;
     result = std::move(value);
@@ -55,8 +64,42 @@ static std::string textOrEmpty(const char* text) {
     return text == nullptr ? std::string() : std::string(text);
 }
 
+#if defined(_WIN32)
+static std::wstring cliUtf8ToWide(const std::string& text) {
+    if (text.empty()) return {};
+    const int size = ::MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+    if (size <= 0) return {};
+    std::wstring result(static_cast<std::size_t>(size), L'\0');
+    ::MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), size);
+    return result;
+}
+static std::string cliWideToUtf8(const std::wstring& text) {
+    if (text.empty()) return {};
+    const int size = ::WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
+    if (size <= 0) return {};
+    std::string result(static_cast<std::size_t>(size), '\0');
+    ::WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), result.data(), size, nullptr, nullptr);
+    return result;
+}
+static std::int64_t writeCliOutput(DWORD which, const char* text) {
+    const std::string value = textOrEmpty(text);
+    HANDLE handle = ::GetStdHandle(which);
+    DWORD mode = 0;
+    if (handle != nullptr && handle != INVALID_HANDLE_VALUE && ::GetConsoleMode(handle, &mode)) {
+        const std::wstring wide = cliUtf8ToWide(value);
+        DWORD written = 0;
+        return ::WriteConsoleW(handle, wide.data(), static_cast<DWORD>(wide.size()), &written, nullptr) && written == static_cast<DWORD>(wide.size()) ? 0 : -1;
+    }
+    FILE* stream = which == STD_ERROR_HANDLE ? stderr : stdout;
+    return std::fwrite(value.data(), 1, value.size(), stream) == value.size() ? 0 : -1;
+}
+#endif
+
 static std::vector<std::string> processArguments() {
     std::vector<std::string> arguments;
+#if defined(_WIN32)
+    for (int i = 0; i < __argc; ++i) arguments.emplace_back(__argv[i]);
+#else
     std::ifstream input("/proc/self/cmdline", std::ios::binary);
     if (!input) {
         return arguments;
@@ -75,6 +118,7 @@ static std::vector<std::string> processArguments() {
     if (!current.empty()) {
         arguments.push_back(current);
     }
+#endif
     return arguments;
 }
 
@@ -109,7 +153,12 @@ extern "C" std::int64_t cli_envHas(const char* name) {
 
 extern "C" const char* cli_envAll() {
     native_json::Value object = native_json::makeObject();
-    for (char** entry = environ; entry != nullptr && *entry != nullptr;
+#if defined(_WIN32)
+    char** environment = _environ;
+#else
+    char** environment = environ;
+#endif
+    for (char** entry = environment; entry != nullptr && *entry != nullptr;
          ++entry) {
         const std::string pair(*entry);
         const std::size_t equals = pair.find('=');
@@ -124,42 +173,90 @@ extern "C" const char* cli_envAll() {
 
 extern "C" const char* cli_cwd() {
     std::array<char, 4096> buffer {};
+#if defined(_WIN32)
+    return ::_getcwd(buffer.data(), static_cast<int>(buffer.size())) == nullptr
+               ? stable("") : stable(std::string(buffer.data()));
+#else
     return ::getcwd(buffer.data(), buffer.size()) == nullptr
                ? stable("")
                : stable(std::string(buffer.data()));
+#endif
 }
 
 extern "C" std::int64_t cli_chdir(const char* path) {
+#if defined(_WIN32)
+    return ::_chdir(textOrEmpty(path).c_str()) == 0 ? 1 : 0;
+#else
     return ::chdir(textOrEmpty(path).c_str()) == 0 ? 1 : 0;
+#endif
 }
 
 extern "C" std::int64_t cli_stdinIsTty() {
+#if defined(_WIN32)
+    return ::_isatty(::_fileno(stdin)) ? 1 : 0;
+#else
     return ::isatty(STDIN_FILENO) ? 1 : 0;
+#endif
 }
 
 extern "C" std::int64_t cli_stdoutIsTty() {
+#if defined(_WIN32)
+    return ::_isatty(::_fileno(stdout)) ? 1 : 0;
+#else
     return ::isatty(STDOUT_FILENO) ? 1 : 0;
+#endif
 }
 
 extern "C" const char* cli_readStdin() {
+#if defined(_WIN32)
+    HANDLE input = ::GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode = 0;
+    if (input != nullptr && input != INVALID_HANDLE_VALUE && ::GetConsoleMode(input, &mode)) {
+        std::wstring content;
+        wchar_t buffer[512];
+        for (;;) {
+            DWORD read = 0;
+            if (!::ReadConsoleW(input, buffer, 512, &read, nullptr) || read == 0) break;
+            content.append(buffer, read);
+        }
+        return stable(cliWideToUtf8(content));
+    }
+#endif
     std::string content((std::istreambuf_iterator<char>(std::cin)),
                         std::istreambuf_iterator<char>());
     return stable(std::move(content));
 }
 
 extern "C" std::int64_t cli_writeStdout(const char* text) {
+#if defined(_WIN32)
+    return writeCliOutput(STD_OUTPUT_HANDLE, text);
+#else
     std::cout << textOrEmpty(text);
     std::cout.flush();
     return 0;
+#endif
 }
 
 extern "C" std::int64_t cli_writeStderr(const char* text) {
+#if defined(_WIN32)
+    return writeCliOutput(STD_ERROR_HANDLE, text);
+#else
     std::cerr << textOrEmpty(text);
     std::cerr.flush();
     return 0;
+#endif
 }
 
 extern "C" const char* cli_terminalSize() {
+#if defined(_WIN32)
+    int columns = 0, lines = 0;
+    HANDLE handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (handle != INVALID_HANDLE_VALUE && ::GetConsoleScreenBufferInfo(handle, &info)) {
+        columns = info.srWindow.Right - info.srWindow.Left + 1;
+        lines = info.srWindow.Bottom - info.srWindow.Top + 1;
+    }
+#else
     struct winsize size {};
     int columns = 0;
     int lines = 0;
@@ -167,6 +264,7 @@ extern "C" const char* cli_terminalSize() {
         columns = size.ws_col;
         lines = size.ws_row;
     }
+#endif
     native_json::Value object = native_json::makeObject();
     native_json::setField(object, "columns",
                           native_json::makeInteger(columns));
@@ -182,26 +280,46 @@ extern "C" std::int64_t cli_exit(std::int64_t code) {
 }
 
 extern "C" std::int64_t cli_pathExists(const char* path) {
+#if defined(_WIN32)
+    std::error_code error;
+    return std::filesystem::exists(std::filesystem::u8path(textOrEmpty(path)), error) ? 1 : 0;
+#else
     return ::access(textOrEmpty(path).c_str(), F_OK) == 0 ? 1 : 0;
+#endif
 }
 
 extern "C" std::int64_t cli_isFile(const char* path) {
+#if defined(_WIN32)
+    std::error_code error;
+    return std::filesystem::is_regular_file(std::filesystem::u8path(textOrEmpty(path)), error) ? 1 : 0;
+#else
     struct stat info {};
     return ::stat(textOrEmpty(path).c_str(), &info) == 0 &&
                    S_ISREG(info.st_mode)
                ? 1
                : 0;
+#endif
 }
 
 extern "C" std::int64_t cli_isDirectory(const char* path) {
+#if defined(_WIN32)
+    std::error_code error;
+    return std::filesystem::is_directory(std::filesystem::u8path(textOrEmpty(path)), error) ? 1 : 0;
+#else
     struct stat info {};
     return ::stat(textOrEmpty(path).c_str(), &info) == 0 &&
                    S_ISDIR(info.st_mode)
                ? 1
                : 0;
+#endif
 }
 
 extern "C" const char* cli_which(const char* executable) {
+#if defined(_WIN32)
+    char buffer[MAX_PATH + 1]{};
+    const DWORD length = ::SearchPathA(nullptr, textOrEmpty(executable).c_str(), nullptr, MAX_PATH, buffer, nullptr);
+    return length > 0 && length <= MAX_PATH ? stable(std::string(buffer, length)) : stable("");
+#else
     std::string output;
     std::array<char, 512> buffer {};
     const std::string query =
@@ -219,10 +337,42 @@ extern "C" const char* cli_which(const char* executable) {
         output.pop_back();
     }
     return stable(std::move(output));
+#endif
 }
 
 static std::string captureCommand(const std::string& command,
                                   std::int64_t& exitCode) {
+#if defined(_WIN32)
+    std::string output;
+    SECURITY_ATTRIBUTES security{sizeof(security), nullptr, TRUE};
+    HANDLE readPipe = nullptr, writePipe = nullptr;
+    if (!::CreatePipe(&readPipe, &writePipe, &security, 0)) { exitCode = -1; return output; }
+    ::SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
+    STARTUPINFOA startup{}; startup.cb = sizeof(startup);
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    HANDLE nullOutput = ::CreateFileA("NUL", GENERIC_WRITE, FILE_SHARE_WRITE,
+                                      &security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    startup.hStdOutput = writePipe;
+    startup.hStdError = nullOutput == INVALID_HANDLE_VALUE ? writePipe : nullOutput;
+    startup.hStdInput = ::GetStdHandle(STD_INPUT_HANDLE);
+    PROCESS_INFORMATION process{};
+    std::string line = "cmd.exe /D /S /C \"" + command + "\"";
+    const BOOL started = ::CreateProcessA(nullptr, line.data(), nullptr, nullptr, TRUE,
+        CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process);
+    ::CloseHandle(writePipe);
+    if (nullOutput != INVALID_HANDLE_VALUE) ::CloseHandle(nullOutput);
+    if (!started) { ::CloseHandle(readPipe); exitCode = -1; return output; }
+    char buffer[4096]; DWORD count = 0;
+    while (::ReadFile(readPipe, buffer, sizeof(buffer), &count, nullptr) && count > 0)
+        output.append(buffer, count);
+    ::CloseHandle(readPipe);
+    ::WaitForSingleObject(process.hProcess, INFINITE);
+    DWORD code = 1;
+    if (::GetExitCodeProcess(process.hProcess, &code)) exitCode = static_cast<std::int64_t>(code);
+    else exitCode = -1;
+    ::CloseHandle(process.hThread); ::CloseHandle(process.hProcess);
+    return output;
+#else
     std::string output;
     std::array<char, 512> buffer {};
     FILE* pipe = ::popen(command.c_str(), "r");
@@ -243,6 +393,7 @@ static std::string captureCommand(const std::string& command,
         exitCode = -1;
     }
     return output;
+#endif
 }
 
 // With capture=1 returns the command's stdout; otherwise runs it silently and
@@ -254,13 +405,21 @@ extern "C" const char* cli_run(const char* command, std::int64_t capture) {
         return stable(captureCommand(text, code));
     }
     std::int64_t code = 0;
+#if defined(_WIN32)
+    captureCommand(text + " >NUL 2>&1", code);
+#else
     captureCommand(text + " >/dev/null 2>&1", code);
+#endif
     return stable(std::to_string(code));
 }
 
 extern "C" std::int64_t cli_runCode(const char* command) {
     std::int64_t code = 0;
+#if defined(_WIN32)
+    captureCommand(textOrEmpty(command) + " >NUL 2>&1", code);
+#else
     captureCommand(textOrEmpty(command) + " >/dev/null 2>&1", code);
+#endif
     return code;
 }
 

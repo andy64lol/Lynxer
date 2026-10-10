@@ -4,16 +4,23 @@
 #include "native_json.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <system_error>
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <lmcons.h>
+#else
 #include <pwd.h>
 #include <sys/statvfs.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#endif
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
@@ -21,6 +28,21 @@ using RegisterType = int (*)(const char*, const char*);
 
 namespace fs = std::filesystem;
 using native_json::Value;
+
+static fs::path pathFromUtf8(const std::string& value) {
+#if defined(_WIN32)
+    return fs::u8path(value);
+#else
+    return fs::path(value);
+#endif
+}
+static std::string pathToUtf8(const fs::path& value) {
+#if defined(_WIN32)
+    return value.u8string();
+#else
+    return value.string();
+#endif
+}
 
 static const char* stable(std::string value) {
     thread_local std::string result;
@@ -43,18 +65,18 @@ static std::string environmentValue(const char* key,
 extern "C" const char* os_getcwd() {
     std::error_code error;
     const fs::path current = fs::current_path(error);
-    return stable(error ? std::string() : current.string());
+    return stable(error ? std::string() : pathToUtf8(current));
 }
 
 extern "C" std::int64_t os_chdir(const char* path) {
     std::error_code error;
-    fs::current_path(fs::path(textOrEmpty(path)), error);
+    fs::current_path(pathFromUtf8(textOrEmpty(path)), error);
     return error ? 0 : 1;
 }
 
 extern "C" const char* os_listdir(const char* path) {
     std::error_code error;
-    fs::directory_iterator iterator(fs::path(textOrEmpty(path)), error);
+    fs::directory_iterator iterator(pathFromUtf8(textOrEmpty(path)), error);
     if (error) {
         return stable("");
     }
@@ -63,19 +85,19 @@ extern "C" const char* os_listdir(const char* path) {
         if (!result.empty()) {
             result += "\n";
         }
-        result += entry.path().filename().string();
+        result += pathToUtf8(entry.path().filename());
     }
     return stable(std::move(result));
 }
 
 extern "C" std::int64_t os_mkdir(const char* path) {
     std::error_code error;
-    return fs::create_directory(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::create_directory(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_makedirs(const char* path) {
     std::error_code error;
-    fs::create_directories(fs::path(textOrEmpty(path)), error);
+    fs::create_directories(pathFromUtf8(textOrEmpty(path)), error);
     if (error) {
         return 0;
     }
@@ -84,65 +106,65 @@ extern "C" std::int64_t os_makedirs(const char* path) {
 
 extern "C" std::int64_t os_rmdir(const char* path) {
     std::error_code error;
-    return fs::remove(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::remove(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_remove(const char* path) {
     std::error_code error;
-    return fs::remove(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::remove(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_rename(const char* source, const char* destination) {
     std::error_code error;
-    fs::rename(fs::path(textOrEmpty(source)), fs::path(textOrEmpty(destination)),
+    fs::rename(pathFromUtf8(textOrEmpty(source)), pathFromUtf8(textOrEmpty(destination)),
                error);
     return error ? 0 : 1;
 }
 
 extern "C" std::int64_t os_exists(const char* path) {
     std::error_code error;
-    return fs::exists(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::exists(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_isFile(const char* path) {
     std::error_code error;
-    return fs::is_regular_file(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::is_regular_file(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_isDir(const char* path) {
     std::error_code error;
-    return fs::is_directory(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::is_directory(pathFromUtf8(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t os_rmTree(const char* path) {
     std::error_code error;
     const std::uintmax_t removed =
-        fs::remove_all(fs::path(textOrEmpty(path)), error);
+        fs::remove_all(pathFromUtf8(textOrEmpty(path)), error);
     return error ? 0 : (removed > 0 ? 1 : 0);
 }
 
 extern "C" std::int64_t os_copyTree(const char* source,
                                     const char* destination) {
     std::error_code error;
-    const fs::path target(textOrEmpty(destination));
+    const fs::path target = pathFromUtf8(textOrEmpty(destination));
     if (fs::exists(target, error)) {
         return 0;
     }
-    fs::copy(fs::path(textOrEmpty(source)), target,
+    fs::copy(pathFromUtf8(textOrEmpty(source)), target,
              fs::copy_options::recursive, error);
     return error ? 0 : 1;
 }
 
 extern "C" const char* os_listdirExt(const char* path, const char* extension) {
     std::error_code error;
-    fs::directory_iterator iterator(fs::path(textOrEmpty(path)), error);
+    fs::directory_iterator iterator(pathFromUtf8(textOrEmpty(path)), error);
     if (error) {
         return stable("");
     }
     const std::string suffix = textOrEmpty(extension);
     std::string result;
     for (const auto& entry : iterator) {
-        const std::string name = entry.path().filename().string();
+        const std::string name = pathToUtf8(entry.path().filename());
         if (name.size() >= suffix.size() &&
             name.compare(name.size() - suffix.size(), suffix.size(), suffix) ==
                 0) {
@@ -157,7 +179,7 @@ extern "C" const char* os_listdirExt(const char* path, const char* extension) {
 
 extern "C" const char* os_walkFiles(const char* path) {
     std::error_code error;
-    fs::recursive_directory_iterator iterator(fs::path(textOrEmpty(path)),
+    fs::recursive_directory_iterator iterator(pathFromUtf8(textOrEmpty(path)),
                                               error);
     if (error) {
         return stable("");
@@ -171,7 +193,7 @@ extern "C" const char* os_walkFiles(const char* path) {
         if (!result.empty()) {
             result += "\n";
         }
-        result += entry.path().string();
+        result += pathToUtf8(entry.path());
     }
     return stable(std::move(result));
 }
@@ -180,27 +202,26 @@ extern "C" const char* os_walkFiles(const char* path) {
 
 extern "C" const char* os_joinPath(const char* first, const char* second) {
     return stable(
-        (fs::path(textOrEmpty(first)) / fs::path(textOrEmpty(second)))
-            .string());
+        pathToUtf8(pathFromUtf8(textOrEmpty(first)) / pathFromUtf8(textOrEmpty(second))));
 }
 
 extern "C" const char* os_basename(const char* path) {
-    return stable(fs::path(textOrEmpty(path)).filename().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(path)).filename()));
 }
 
 extern "C" const char* os_dirname(const char* path) {
-    return stable(fs::path(textOrEmpty(path)).parent_path().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(path)).parent_path()));
 }
 
 extern "C" const char* os_absPath(const char* path) {
     std::error_code error;
     const fs::path absolute =
-        fs::absolute(fs::path(textOrEmpty(path)), error).lexically_normal();
-    return stable(error ? std::string() : absolute.string());
+        fs::absolute(pathFromUtf8(textOrEmpty(path)), error).lexically_normal();
+    return stable(error ? std::string() : pathToUtf8(absolute));
 }
 
 extern "C" const char* os_extname(const char* path) {
-    return stable(fs::path(textOrEmpty(path)).extension().string());
+    return stable(pathToUtf8(pathFromUtf8(textOrEmpty(path)).extension()));
 }
 
 extern "C" const char* os_normPath(const char* path) {
@@ -208,7 +229,7 @@ extern "C" const char* os_normPath(const char* path) {
     if (input.empty()) {
         return stable(".");
     }
-    return stable(fs::path(input).lexically_normal().string());
+    return stable(pathToUtf8(pathFromUtf8(input).lexically_normal()));
 }
 
 extern "C" const char* os_expandUser(const char* path) {
@@ -216,15 +237,23 @@ extern "C" const char* os_expandUser(const char* path) {
     if (input.empty() || input[0] != '~') {
         return stable(input);
     }
-    const std::size_t slash = input.find('/');
+    const std::size_t slash = input.find_first_of("/\\");
     const std::string user = input.substr(
         1, slash == std::string::npos ? std::string::npos : slash - 1);
     std::string home;
     if (user.empty()) {
+#if defined(_WIN32)
+        home = environmentValue("USERPROFILE", "");
+#else
         home = environmentValue("HOME", "");
-    } else if (passwd* entry = ::getpwnam(user.c_str()); entry != nullptr) {
+#endif
+    }
+#if !defined(_WIN32)
+    else if (passwd* entry = ::getpwnam(user.c_str()); entry != nullptr) {
         home = entry->pw_dir;
-    } else {
+    }
+#endif
+    else {
         return stable(input);
     }
     if (home.empty()) {
@@ -233,7 +262,13 @@ extern "C" const char* os_expandUser(const char* path) {
     return stable(home + (slash == std::string::npos ? "" : input.substr(slash)));
 }
 
-extern "C" const char* os_sep() { return "/"; }
+extern "C" const char* os_sep() {
+#if defined(_WIN32)
+    return "\\";
+#else
+    return "/";
+#endif
+}
 
 extern "C" const char* os_getenv(const char* key) {
     return stable(environmentValue(key, ""));
@@ -243,10 +278,19 @@ extern "C" std::int64_t os_setenv(const char* key, const char* value) {
     if (key == nullptr || value == nullptr) {
         return 0;
     }
+#if defined(_WIN32)
+    return ::_putenv_s(key, value) == 0 ? 1 : 0;
+#else
     return ::setenv(key, value, 1) == 0 ? 1 : 0;
+#endif
 }
 
 extern "C" const char* os_tempDir() {
+#if defined(_WIN32)
+    char buffer[MAX_PATH + 1]{};
+    const DWORD length = ::GetTempPathA(MAX_PATH, buffer);
+    return length > 0 && length <= MAX_PATH ? stable(std::string(buffer, length)) : stable("");
+#else
     for (const char* key : {"TMPDIR", "TEMP", "TMP"}) {
         const char* value = std::getenv(key);
         if (value != nullptr && *value != '\0') {
@@ -254,22 +298,38 @@ extern "C" const char* os_tempDir() {
         }
     }
     return stable("/tmp");
+#endif
 }
 
 extern "C" const char* os_homedir() {
+#if defined(_WIN32)
+    return stable(environmentValue("USERPROFILE", ""));
+#else
     return stable(environmentValue("HOME", ""));
+#endif
 }
 
 extern "C" const char* os_username() {
+#if defined(_WIN32)
+    char name[UNLEN + 1]{};
+    DWORD length = UNLEN + 1;
+    return ::GetUserNameA(name, &length) ? stable(name) : stable("");
+#else
     if (passwd* entry = ::getpwuid(::getuid()); entry != nullptr) {
         return stable(std::string(entry->pw_name));
     }
     return stable("");
+#endif
 }
 
 extern "C" const char* os_hostname() {
     char buffer[256];
+#if defined(_WIN32)
+    DWORD length = static_cast<DWORD>(sizeof(buffer));
+    if (::GetComputerNameA(buffer, &length)) {
+#else
     if (::gethostname(buffer, sizeof(buffer)) == 0) {
+#endif
         buffer[sizeof(buffer) - 1] = '\0';
         return stable(std::string(buffer));
     }
@@ -277,35 +337,84 @@ extern "C" const char* os_hostname() {
 }
 
 extern "C" std::int64_t os_getpid() {
+#if defined(_WIN32)
+    return static_cast<std::int64_t>(::GetCurrentProcessId());
+#else
     return static_cast<std::int64_t>(::getpid());
+#endif
 }
 
 extern "C" std::int64_t os_cpuCount() {
+#if defined(_WIN32)
+    SYSTEM_INFO info{};
+    ::GetSystemInfo(&info);
+    const long count = static_cast<long>(info.dwNumberOfProcessors);
+#else
     const long count = ::sysconf(_SC_NPROCESSORS_ONLN);
+#endif
     return count > 0 ? static_cast<std::int64_t>(count) : 1;
 }
 
 extern "C" std::int64_t os_diskTotal(const char* path) {
+#if defined(_WIN32)
+    ULARGE_INTEGER available{}, total{};
+    if (!::GetDiskFreeSpaceExA(textOrEmpty(path).c_str(), &available, &total, nullptr)) return -1;
+    return static_cast<std::int64_t>(total.QuadPart);
+#else
     struct statvfs info {};
     if (::statvfs(textOrEmpty(path).c_str(), &info) != 0) {
         return -1;
     }
     return static_cast<std::int64_t>(info.f_blocks) *
            static_cast<std::int64_t>(info.f_frsize);
+#endif
 }
 
 extern "C" std::int64_t os_diskFree(const char* path) {
+#if defined(_WIN32)
+    ULARGE_INTEGER available{};
+    if (!::GetDiskFreeSpaceExA(textOrEmpty(path).c_str(), &available, nullptr, nullptr)) return -1;
+    return static_cast<std::int64_t>(available.QuadPart);
+#else
     struct statvfs info {};
     if (::statvfs(textOrEmpty(path).c_str(), &info) != 0) {
         return -1;
     }
     return static_cast<std::int64_t>(info.f_bavail) *
            static_cast<std::int64_t>(info.f_frsize);
+#endif
 }
 
 /* ---------- Platform information ---------- */
 
+#if defined(_WIN32)
+struct utsname { char sysname[64], nodename[256], release[64], version[128], machine[64]; };
+static bool readUname(struct utsname& info) {
+    std::snprintf(info.sysname, sizeof(info.sysname), "Windows");
+    DWORD length = static_cast<DWORD>(sizeof(info.nodename));
+    if (!::GetComputerNameA(info.nodename, &length)) info.nodename[0] = '\0';
+    OSVERSIONINFOA version{}; version.dwOSVersionInfoSize = sizeof(version);
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
+    if (::GetVersionExA(&version)) {
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+        std::snprintf(info.release, sizeof(info.release), "%lu.%lu", version.dwMajorVersion, version.dwMinorVersion);
+        std::snprintf(info.version, sizeof(info.version), "Build %lu", version.dwBuildNumber);
+    } else { info.release[0] = '\0'; info.version[0] = '\0'; }
+    SYSTEM_INFO system{}; ::GetNativeSystemInfo(&system);
+    const char* machine = system.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 ? "x86_64" :
+        system.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM64 ? "aarch64" :
+        system.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? "i686" : "unknown";
+    std::snprintf(info.machine, sizeof(info.machine), "%s", machine);
+    return true;
+}
+#else
 static bool readUname(struct utsname& info) { return ::uname(&info) == 0; }
+#endif
 
 extern "C" const char* os_getSystemName() {
     struct utsname info {};
@@ -387,6 +496,12 @@ extern "C" const char* os_getSystemInfo() {
 }
 
 extern "C" const char* os_getSystemDistro() {
+#if defined(_WIN32)
+    Value object = native_json::makeObject();
+    native_json::setField(object, "NAME", native_json::makeString("Windows"));
+    native_json::setField(object, "ID", native_json::makeString("windows"));
+    return stable(native_json::dump(object, false));
+#else
     std::ifstream input("/etc/os-release");
     if (!input) {
         return stable("{}");
@@ -409,6 +524,7 @@ extern "C" const char* os_getSystemDistro() {
         native_json::setField(object, key, native_json::makeString(value));
     }
     return stable(native_json::dump(object, false));
+#endif
 }
 
 extern "C" int lynxer_module_init_v1(RegisterFunction function,

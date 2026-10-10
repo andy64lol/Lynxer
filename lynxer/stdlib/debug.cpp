@@ -12,13 +12,21 @@
 #include <map>
 #include <string>
 
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define PSAPI_VERSION 2
+#include <psapi.h>
+#include <cstdlib>
+extern char** _environ;
+#else
 #include <sys/resource.h>
+extern char** environ;
+#endif
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
-
-extern char** environ;
 
 static const char* stable(std::string value) {
     thread_local std::string result;
@@ -59,9 +67,15 @@ extern "C" const char* debug_timestamp() {
         }
     }
     std::tm local {};
+#if defined(_WIN32)
+    const std::tm* converted = (configured != nullptr && *configured != '\0')
+        ? (::gmtime_s(&local, &raw) == 0 ? &local : nullptr)
+        : (::localtime_s(&local, &raw) == 0 ? &local : nullptr);
+#else
     const std::tm* converted = configured != nullptr && *configured != '\0'
                                    ? ::gmtime_r(&raw, &local)
                                    : ::localtime_r(&raw, &local);
+#endif
     if (converted == nullptr) {
         return stable("");
     }
@@ -75,11 +89,18 @@ extern "C" const char* debug_timestamp() {
 extern "C" double debug_clock() { return nowMilliseconds(); }
 
 extern "C" double debug_getMemory() {
+#if defined(_WIN32)
+    PROCESS_MEMORY_COUNTERS counters{};
+    counters.cb = sizeof(counters);
+    if (!::GetProcessMemoryInfo(::GetCurrentProcess(), &counters, sizeof(counters))) return -1.0;
+    return static_cast<double>(counters.PeakWorkingSetSize) / (1024.0 * 1024.0);
+#else
     struct rusage usage {};
     if (::getrusage(RUSAGE_SELF, &usage) != 0) {
         return -1.0;
     }
     return static_cast<double>(usage.ru_maxrss) / 1024.0;
+#endif
 }
 
 extern "C" const char* debug_envGet(const char* key) {
@@ -89,8 +110,13 @@ extern "C" const char* debug_envGet(const char* key) {
 
 extern "C" const char* debug_envAll() {
     native_json::Value object = native_json::makeObject();
-    if (environ != nullptr) {
-        for (char** entry = environ; *entry != nullptr; ++entry) {
+#if defined(_WIN32)
+    char** environment = _environ;
+#else
+    char** environment = environ;
+#endif
+    if (environment != nullptr) {
+        for (char** entry = environment; *entry != nullptr; ++entry) {
             const std::string pair(*entry);
             const std::size_t equals = pair.find('=');
             if (equals == std::string::npos) {

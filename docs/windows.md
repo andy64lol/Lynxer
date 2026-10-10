@@ -78,23 +78,21 @@ Windows build yet:
   host; a Windows implementation comes later.
 - **Low-level fixtures.** `lowlevel_*` and `syscall*` fixtures are Linux-only
   and stay out of the Windows test run.
-- **POSIX-only stdlib modules.** `cli`, `debug`, `os` and `path` include POSIX
-  headers MinGW does not provide (`<pwd.h>`, `<sys/ioctl.h>`, `<sys/wait.h>`,
-  `<sys/resource.h>`, `<sys/statvfs.h>`, `<sys/utsname.h>`), so they need a
-  Windows backend before they can be built.
-- **`js` and `multiprocessing`.** Both run commands through
-  `lynxer/stdlib/subprocess.hpp`, which is `fork`/`poll`/`waitpid` based; they
-  need a `CreateProcess` + pipe backend before they can be built.
+- **Windows-specific stdlib fixture parity.** `cli`, `debug`, `os` and `path`
+  now build with Win32 equivalents for their OS calls. The current fixture
+  exclusions remain because they assert POSIX separators or invoke shell
+  commands such as `sh`/`printf`; they do not indicate missing module DLLs.
+- **Process modules.** `js` and `multiprocessing` now run commands through a
+  `CreateProcess`/pipe backend with timeout termination through Job Objects.
+  Their fixtures remain filtered because they use POSIX shell commands.
 - **The `watch` Rust backend.** Its only backends are Linux (inotify) and
   macOS/BSD (kqueue); Windows needs `ReadDirectoryChangesW`.
-- **Test groups.** `testLynxer` skips every check whose fixture imports — directly
-  or through a stdlib wrapper — a module Windows does not build, plus the
-  low-level/syscall surface: the `sys_exit`/`cli_exit` and `sys_exit_thread`/
-  `sys_exit_worker` loops, `native_stdlibs`, `program_args`, `stdlibTestAll`,
-  the low-level fixture group, and the fixtures listed in
-  `LYNXER_WINDOWS_SKIP_STEMS` (for example `stdlib_crypto` and `stdlib_fileIO`,
-  which import `os` through a wrapper). That list is the import closure over the
-  excluded modules. Fixtures that render through `graphics`/`game` are skipped
+- **Test groups.** `testLynxer` skips low-level/syscall fixtures and tests that
+  assume POSIX command names, paths or exit behavior: `native_stdlibs`,
+  `program_args`, `stdlibTestAll`, and the entries in
+  `LYNXER_WINDOWS_SKIP_STEMS`. The module DLLs for `cli`, `debug`, `os` and
+  `path` are built; their current fixtures still contain POSIX-specific
+  expectations. Fixtures that render through `graphics`/`game` are skipped
   too (`stdlib_game_api`, `stdlib_graphics_raster*`, `stdlib_turtle`): they need
   an OpenGL context, which the Windows runner does not have, whereas the Linux
   CI installs Mesa llvmpipe. Three more fixtures are skipped: `builtin_ffi` and
@@ -104,9 +102,9 @@ Windows build yet:
   a hard-coded `/tmp/...`. The `Makefile` variables default to the full lists
   off Windows, so POSIX coverage is unchanged.
 
-`LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ modules a Windows
-build skips (`sys cli debug os path js multiprocessing`), and `watch` is filtered
-out of `LYNXER_RUST_MODULE_NAMES`.
+`LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ module a Windows
+build skips (`sys`), and `watch` is filtered out of
+`LYNXER_RUST_MODULE_NAMES`.
 
 ## Still to do
 
@@ -124,9 +122,9 @@ out of `LYNXER_RUST_MODULE_NAMES`.
   carry its dependencies' link directives; POSIX keeps the proven driver
   defaults. Still to do: `lynxer.dll` and a native MSVC/clang-cl build (with the
   `.def`/`__declspec` exports and the 32-bit `__stdcall` convention).
-- **Stdlib backends.** `watch` needs `ReadDirectoryChangesW`; `cli`/`debug`/
-  `os`/`path` need Windows equivalents for their POSIX calls; `js`/
-  `multiprocessing` need a `CreateProcess` subprocess backend; `tui`/`graphics`/
+- **Stdlib backends.** `cli`/`debug`/`os`/`path` and `js`/`multiprocessing` now
+  have Win32 implementations; `watch` needs `ReadDirectoryChangesW`;
+  `tui`/`graphics`/
   `sound` need console and device handling. `fileIO`/`shell` and the data-format
   modules build as-is.
 - **Embedding and `--emit-library`.** The runtime is an ELF shared object today,

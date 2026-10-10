@@ -46,7 +46,7 @@ LYNXER_TARGET := $(LYNXER_DIR)/lynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
 # libSystem) or Windows, so it is added only off macOS.
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_PLATFORM_FLAGS :=
-LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
+LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi -lpsapi
 LYNXER_BUILD_SHARED := 0
 else
 LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
@@ -64,11 +64,10 @@ endif
 LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
 
 # Modules a Windows build must skip because they have no Windows backend yet.
-# `sys` is built on Linux system calls (and the syscall built-ins are Linux-only);
-# `cli`, `debug`, `os` and `path` use POSIX headers MinGW does not provide.
-# Porting each is tracked in docs/windows.md and todo.md.
+# `sys` is built on Linux system calls; `js` and `multiprocessing` still use
+# the POSIX fork/poll subprocess helper.
 ifeq ($(LYNXER_ON_WINDOWS),1)
-LYNXER_WINDOWS_SKIP_MODULES := sys cli debug os path js multiprocessing
+LYNXER_WINDOWS_SKIP_MODULES := sys
 else
 LYNXER_WINDOWS_SKIP_MODULES :=
 endif
@@ -283,13 +282,9 @@ endif
 LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARITY_FIXTURES))
 
 # --- Checks that cannot run on Windows -------------------------------------
-# `sys`, `cli`, `debug`, `os`, `path`, `js` and `multiprocessing` are not built
-# there (LYNXER_WINDOWS_SKIP_MODULES), and the named syscalls and the native
-# memory/sync surface have no Windows backend yet. A fixture that imports one of
-# those modules — directly, or through a stdlib wrapper such as `crypto`
-# importing `os` — can neither run nor `--compile`, so it is skipped. This list
-# is the examples' import closure over the excluded modules; keep it in step
-# when a fixture starts importing one. See docs/windows.md.
+# The named syscalls and native memory/sync surface are Linux-only. Some
+# module fixtures also assert POSIX paths or shell commands although their
+# portable modules now build on Windows. See docs/windows.md.
 # The last group renders through the `graphics`/`game` backend, which needs an
 # OpenGL context; the Windows runner has none (the Linux CI installs Mesa
 # llvmpipe, so those fixtures do run there).
@@ -472,7 +467,7 @@ $(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_
 
 # Remaining C++ stdlib modules, compiled to lynxer/stdlib/<name>.so.
 $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
-	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
+	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@ $(if $(LYNXER_ON_WINDOWS),-lpsapi,)
 
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.

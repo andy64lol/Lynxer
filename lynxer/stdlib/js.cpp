@@ -21,6 +21,15 @@ static std::string textOrEmpty(const char* text) {
 }
 
 static std::string shellQuote(const std::string& value) {
+#if defined(_WIN32)
+    std::string quoted = "\"";
+    for (char character : value) {
+        if (character == '"') quoted += "\\\"";
+        else quoted += character;
+    }
+    quoted += '"';
+    return quoted;
+#else
     std::string quoted = "'";
     for (const char character : value) {
         if (character == '\'') {
@@ -31,7 +40,24 @@ static std::string shellQuote(const std::string& value) {
     }
     quoted += "'";
     return quoted;
+#endif
 }
+
+#if defined(_WIN32)
+static std::string base64Source(const std::string& value) {
+    static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    for (std::size_t i = 0; i < value.size(); i += 3) {
+        const unsigned a = static_cast<unsigned char>(value[i]);
+        const unsigned b = i + 1 < value.size() ? static_cast<unsigned char>(value[i + 1]) : 0;
+        const unsigned c = i + 2 < value.size() ? static_cast<unsigned char>(value[i + 2]) : 0;
+        encoded += alphabet[a >> 2]; encoded += alphabet[((a & 3) << 4) | (b >> 4)];
+        encoded += i + 1 < value.size() ? alphabet[((b & 15) << 2) | (c >> 6)] : '=';
+        encoded += i + 2 < value.size() ? alphabet[c & 63] : '=';
+    }
+    return encoded;
+}
+#endif
 
 static std::string trimTrailingNewlines(std::string value) {
     while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
@@ -88,7 +114,11 @@ static std::string runNodeCommand(const std::string& nodeCommand) {
 
 static bool nodeAvailable() {
     int status = 0;
+#if defined(_WIN32)
+    captureCommand("node --version >NUL 2>&1", status);
+#else
     captureCommand("node --version >/dev/null 2>&1", status);
+#endif
     return status == 0;
 }
 
@@ -96,7 +126,11 @@ static std::string runNodeSource(const std::string& source) {
     if (!nodeAvailable()) {
         return "Error: node not found on PATH";
     }
+#if defined(_WIN32)
+    return runNodeCommand("node -e \"eval(Buffer.from('" + base64Source(source) + "','base64').toString())\"");
+#else
     return runNodeCommand("node -e " + shellQuote(source));
+#endif
 }
 
 static std::string runNodeFile(const std::string& path) {
@@ -127,9 +161,12 @@ extern "C" const char* js_nodeVersion() {
         return stable("");
     }
     int status = 0;
+#if defined(_WIN32)
+    const std::string output = trimTrailingNewlines(captureCommand("node --version 2>NUL", status));
+#else
     const std::string output =
-        trimTrailingNewlines(captureCommand("node --version 2>/dev/null",
-                                            status));
+        trimTrailingNewlines(captureCommand("node --version 2>/dev/null", status));
+#endif
     return stable(status == 0 ? output : std::string());
 }
 

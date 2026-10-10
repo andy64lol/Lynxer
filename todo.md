@@ -147,10 +147,11 @@ surface stays a documented boundary in
   compiled-executable parity loop passes on Windows.~~
 - [ ] **Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
   `ini`, `xml`, `regex`, `text`, `math`, `csv`, `random`, `time`, `fileIO`,
-  `shell`, …. Needs a Windows backend: `watch` (`ReadDirectoryChangesW`),
-  `tui`/`graphics`/`sound` console and device handling, `cli`/`debug`/`os`/`path`
-  (POSIX headers MinGW lacks) and `js`/`multiprocessing` (the `fork`-based
-  `subprocess.hpp`, needs `CreateProcess`). Excluded from the Windows build
+  `shell`, `cli`, `debug`, `os` and `path` (these now build with Windows APIs).
+  Still needs a Windows backend: `watch` (`ReadDirectoryChangesW`) and
+  `tui`/`graphics`/`sound` console and device handling. `js` and
+  `multiprocessing` now use `CreateProcess` with Job Object timeout cleanup.
+  Excluded from the Windows build
   (named by `LYNXER_WINDOWS_SKIP_MODULES` and the `watch` filter on
   `LYNXER_RUST_MODULE_NAMES`): `sys` and the syscall built-ins, the modules
   above, plus the `lowlevel_*` fixtures. Startup code lives on the host layer;
@@ -206,9 +207,10 @@ surface stays a documented boundary in
   documented as Linux-only and target-gated by operating system.~~
 
 - [ ] **Process control and groups.** Replace the remaining POSIX process-group
-  behavior with a Windows Job Object so a timed-out or killed child takes its
-  whole tree down, and land `js`/`multiprocessing` on `CreateProcess` (see the
-  stdlib platform matrix above).
+  behavior in `platform::spawnProcess` with a Windows Job Object so a timed-out
+  or killed core child takes its whole tree down. `js` and `multiprocessing`
+  now use `CreateProcess` with Job Object timeout cleanup (see the stdlib
+  platform matrix above).
 - [ ] **Path and long-path parity.** Normalize separators in `path`/`fileIO`,
   support long paths (the `\\?\` prefix, beyond `MAX_PATH`), and accept CRLF and
   lone-CR line endings on text reads, without changing the Linux behavior.
