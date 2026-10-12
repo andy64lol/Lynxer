@@ -2,8 +2,6 @@
 name: Build and Push to Andy-Repo
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -16,7 +14,12 @@ jobs:
       - name: Build Lynxer package
         run: |
           docker run --rm -v "$(pwd)":/src -w /src/packaging/aur/lynxer archlinux:latest \
-            bash -c "pacman -Syu --noconfirm --needed base-devel git rust pkgconf libffi alsa-lib bzip2 && useradd -m builder && chown -R builder:builder /src/packaging/aur/lynxer && su builder -c 'makepkg --noconfirm'"
+            bash -c "pacman -Syu --noconfirm --needed base-devel clang curl git rust pkgconf cmake libffi alsa-lib bzip2 libglvnd libx11 libxext libxrandr libxi libxinerama libxcursor libxxf86vm && useradd -m builder && chown -R builder:builder /src/packaging/aur/lynxer && su builder -c 'makepkg --noconfirm'"
+
+      - name: Locate the built package
+        run: |
+          PACKAGE_FILE=$(basename packaging/aur/lynxer/lynxer-*.pkg.tar.zst)
+          echo "PACKAGE_FILE=$PACKAGE_FILE" >> "$GITHUB_ENV"
 
       - name: Checkout andy-repo
         uses: actions/checkout@v4
@@ -27,13 +30,21 @@ jobs:
 
       - name: Copy package to andy-repo
         run: |
-          cp packaging/aur/lynxer/*.pkg.tar.zst andy-repo/
+          cp "packaging/aur/lynxer/${{ env.PACKAGE_FILE }}" andy-repo/
 
       - name: Commit and push package to andy-repo
         run: |
+          docker run --rm \
+            -e PACKAGE_FILE="${{ env.PACKAGE_FILE }}" \
+            -v "$(pwd)":/src -w /src/andy-repo archlinux:latest \
+            bash -ec 'repo-add lynxer.db.tar.gz "$PACKAGE_FILE"'
           cd andy-repo
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add lynxer-*.pkg.tar.zst
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add lynxer.db lynxer.db.tar.gz lynxer.files lynxer.files.tar.gz "${{ env.PACKAGE_FILE }}"
+          if git diff --cached --quiet; then
+            echo "Package repository is already up to date."
+            exit 0
+          fi
           git commit -m "Update Lynxer package to latest version"
           git push

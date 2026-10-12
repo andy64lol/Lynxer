@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake pkg-config libasound2-dev libffi-dev \
+            build-essential clang cmake libclang-dev pkg-config libasound2-dev libffi-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev \
             libxinerama-dev libxcursor-dev libxxf86vm-dev
 
@@ -66,14 +66,14 @@ jobs:
         run: |
           docker run --rm -v "$(pwd)":/src -w /src/packaging/aur/lynxer archlinux:latest \
             bash -c "
-              pacman -Syu --noconfirm --needed base-devel git rust pkgconf libffi alsa-lib bzip2 && \
+              pacman -Syu --noconfirm --needed base-devel clang curl git rust pkgconf cmake libffi alsa-lib bzip2 libglvnd libx11 libxext libxrandr libxi libxinerama libxcursor libxxf86vm && \
               useradd -m builder && \
               chown -R builder:builder /src/packaging/aur/lynxer && \
               su builder -c 'makepkg --noconfirm' && \
               ls -la *.pkg.tar.zst
             "
 
-      - name: Download the built package
+      - name: Locate the built package
         run: |
           PACKAGE_FILE=$(basename packaging/aur/lynxer/lynxer-*.pkg.tar.zst)
           echo "PACKAGE_FILE=$PACKAGE_FILE" >> $GITHUB_ENV
@@ -87,7 +87,7 @@ jobs:
           fi
           echo "Package file: $PACKAGE_PATH"
           # Verify package metadata (simplified check)
-          file "$PACKAGE_PATH" | grep -q "XZ compressed data" || {
+          file "$PACKAGE_PATH" | grep -qi "Zstandard compressed data" || {
             echo "Error: Invalid package format!"
             exit 1;
           }
@@ -101,11 +101,18 @@ jobs:
 
       - name: Update andy-repo with the new package
         run: |
+          cp "packaging/aur/lynxer/${{ env.PACKAGE_FILE }}" andy-repo/
+          docker run --rm \
+            -e PACKAGE_FILE="${{ env.PACKAGE_FILE }}" \
+            -v "$(pwd)":/src -w /src/andy-repo archlinux:latest \
+            bash -ec 'repo-add lynxer.db.tar.gz "$PACKAGE_FILE"'
           cd andy-repo
-          cp "../packaging/aur/lynxer/${{ env.PACKAGE_FILE }}" .
-          repo-add lynxer.db "${{ env.PACKAGE_FILE }}"
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add lynxer.db ${{ env.PACKAGE_FILE }}
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add lynxer.db lynxer.db.tar.gz lynxer.files lynxer.files.tar.gz "${{ env.PACKAGE_FILE }}"
+          if git diff --cached --quiet; then
+            echo "Package repository is already up to date."
+            exit 0
+          fi
           git commit -m "Update Lynxer package to ${{ env.PACKAGE_FILE }}"
           git push

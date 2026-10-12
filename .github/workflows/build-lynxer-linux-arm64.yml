@@ -32,12 +32,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libasound2-dev libffi-dev pkg-config \
+            build-essential clang cmake libclang-dev libasound2-dev libffi-dev libgl1-mesa-dev pkg-config \
             libx11-dev libxext-dev libxrandr-dev libxi-dev \
             libxinerama-dev libxcursor-dev libxxf86vm-dev
 
       - name: Build Lynxer for ARM64
-        run: make buildLynxerArm64
+        run: make buildLynxer
 
       - name: Test Lynxer ARM64 binary
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
