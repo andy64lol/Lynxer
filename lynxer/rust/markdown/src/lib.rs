@@ -12,6 +12,8 @@ fn render(text: &str, flags: i64) -> Option<String> {
     html::push_html(&mut output, parser);
     Some(output)
 }
-export_string!(markdown_render, args, { render(args.string(0), args.int(1)).unwrap_or_default() });
+// Packed arguments are indexed independently by type: the first integer is 0,
+// even though it follows a string argument in the Lynxer function signature.
+export_string!(markdown_render, args, { render(args.string(0), args.int(0)).unwrap_or_default() });
 const OPS: &[(&str, &str, &str)] = &[("markdownRender", "markdown_render", "cdecl:cstring(...)"), ("markdownParse", "markdown_render", "cdecl:cstring(...)")];
 lynxer_module!(OPS);

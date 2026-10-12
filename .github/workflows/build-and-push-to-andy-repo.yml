@@ -13,28 +13,10 @@ jobs:
       - name: Checkout Lynxer repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libx11-dev \
-            libxext-dev \
-            libxrandr-dev \
-            libxi-dev \
-            libgl1-mesa-dev \
-            libglu1-mesa-dev \
-            libwayland-dev \
-            wayland-protocols \
-            xorg-dev \
-            git
-
       - name: Build Lynxer package
         run: |
-          cd packaging/aur/lynxer
-          makepkg --noconfirm --nobuild
+          docker run --rm -v "$(pwd)":/src -w /src/packaging/aur/lynxer archlinux:latest \
+            bash -c "pacman -Syu --noconfirm --needed base-devel git rust pkgconf libffi alsa-lib bzip2 && makepkg --noconfirm"
 
       - name: Checkout andy-repo
         uses: actions/checkout@v4

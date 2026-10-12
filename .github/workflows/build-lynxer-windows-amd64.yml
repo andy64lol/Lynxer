@@ -55,6 +55,10 @@ jobs:
           cargo --version
           pkg-config --modversion libffi || true
 
+      - name: Configure bindgen C headers
+        shell: msys2 {0}
+        run: echo "BINDGEN_EXTRA_CLANG_ARGS=-I$(gcc -print-file-name=include)" >> "$GITHUB_ENV"
+
       - name: Build Lynxer
         shell: msys2 {0}
         run: make buildLynxer
