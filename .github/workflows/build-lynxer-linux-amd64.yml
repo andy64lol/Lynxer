@@ -92,14 +92,17 @@ jobs:
             exit 1;
           }
 
-      - name: Checkout andy-repo
-        uses: actions/checkout@v4
-        with:
-          repository: andy64lol/andy-repo
-          token: ${{ secrets.ANDY_REPO_TOKEN }}
-          path: andy-repo
+      - name: Authenticate and checkout andy-repo
+        env:
+          ANDY_REPO_TOKEN: ${{ secrets.ANDY_REPO_TOKEN }}
+        run: node .github/scripts/checkout-andy-repo.mjs
 
       - name: Update andy-repo with the new package
+        env:
+          ANDY_REPO_TOKEN: ${{ secrets.ANDY_REPO_TOKEN }}
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_ASKPASS: ${{ github.workspace }}/.github/scripts/git-askpass.sh
+          GIT_TERMINAL_PROMPT: '0'
         run: |
           cp "packaging/aur/lynxer/${{ env.PACKAGE_FILE }}" andy-repo/
           docker run --rm \
@@ -115,4 +118,4 @@ jobs:
             exit 0
           fi
           git commit -m "Update Lynxer package to ${{ env.PACKAGE_FILE }}"
-          git push
+          git -c credential.helper= push

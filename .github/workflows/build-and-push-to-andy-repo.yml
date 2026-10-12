@@ -21,18 +21,21 @@ jobs:
           PACKAGE_FILE=$(basename packaging/aur/lynxer/lynxer-*.pkg.tar.zst)
           echo "PACKAGE_FILE=$PACKAGE_FILE" >> "$GITHUB_ENV"
 
-      - name: Checkout andy-repo
-        uses: actions/checkout@v4
-        with:
-          repository: andy64lol/andy-repo
-          token: ${{ secrets.ANDY_REPO_TOKEN }}
-          path: andy-repo
+      - name: Authenticate and checkout andy-repo
+        env:
+          ANDY_REPO_TOKEN: ${{ secrets.ANDY_REPO_TOKEN }}
+        run: node .github/scripts/checkout-andy-repo.mjs
 
       - name: Copy package to andy-repo
         run: |
           cp "packaging/aur/lynxer/${{ env.PACKAGE_FILE }}" andy-repo/
 
       - name: Commit and push package to andy-repo
+        env:
+          ANDY_REPO_TOKEN: ${{ secrets.ANDY_REPO_TOKEN }}
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_ASKPASS: ${{ github.workspace }}/.github/scripts/git-askpass.sh
+          GIT_TERMINAL_PROMPT: '0'
         run: |
           docker run --rm \
             -e PACKAGE_FILE="${{ env.PACKAGE_FILE }}" \
@@ -47,4 +50,4 @@ jobs:
             exit 0
           fi
           git commit -m "Update Lynxer package to latest version"
-          git push
+          git -c credential.helper= push
