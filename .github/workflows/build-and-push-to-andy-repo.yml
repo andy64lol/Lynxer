@@ -16,7 +16,7 @@ jobs:
       - name: Build Lynxer package
         run: |
           docker run --rm -v "$(pwd)":/src -w /src/packaging/aur/lynxer archlinux:latest \
-            bash -c "pacman -Syu --noconfirm --needed base-devel git rust pkgconf libffi alsa-lib bzip2 && makepkg --noconfirm"
+            bash -c "pacman -Syu --noconfirm --needed base-devel git rust pkgconf libffi alsa-lib bzip2 && useradd -m builder && chown -R builder:builder /src/packaging/aur/lynxer && su builder -c 'makepkg --noconfirm'"
 
       - name: Checkout andy-repo
         uses: actions/checkout@v4
