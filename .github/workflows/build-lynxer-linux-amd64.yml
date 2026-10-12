@@ -65,13 +65,7 @@ jobs:
       - name: Build Arch package using Arch Linux container
         run: |
           docker run --rm -v "$(pwd)":/src -w /src/packaging/aur/lynxer archlinux:latest \
-            bash -c "
-              pacman -Syu --noconfirm --needed base-devel clang curl git rust pkgconf cmake libffi alsa-lib bzip2 libglvnd libx11 libxext libxrandr libxi libxinerama libxcursor libxxf86vm && \
-              useradd -m builder && \
-              chown -R builder:builder /src/packaging/aur/lynxer && \
-              su builder -c 'makepkg --noconfirm' && \
-              ls -la *.pkg.tar.zst
-            "
+            bash /src/.github/scripts/build-arch-package.sh
 
       - name: Locate the built package
         run: |
