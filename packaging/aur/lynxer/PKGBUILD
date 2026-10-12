@@ -7,7 +7,8 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/andy64lol/Lynxer"
 license=('MIT')
 depends=('libffi' 'alsa-lib' 'bzip2')
-makedepends=('rust' 'pkgconf')
+makedepends=('rust' 'pkgconf' 'libx11' 'libxext' 'libxrandr' 'libxi'
+             'libxinerama' 'libxcursor' 'libxxf86vm')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/andy64lol/Lynxer/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('4d0e2071f4fcc66443dd10f6f89344320b70769ffe36fccb35ddf12b955d1deb')
 

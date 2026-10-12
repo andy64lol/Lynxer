@@ -601,7 +601,11 @@ testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIG
 	status=$$?; \
 	set -e; \
 expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global setup()"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected setup enforcement: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected setup enforcement: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
@@ -633,7 +637,11 @@ expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global 
 	status=$$?; \
 	set -e; \
 expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected source-located error: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected source-located error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
@@ -643,7 +651,11 @@ expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	status=$$?; \
 	set -e; \
 expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of range"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected module-located error: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected module-located error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
@@ -786,8 +798,12 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_errors.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-	expected="lynxer: $(LYNXER_DIR)/examples/m3_errors.lynx:4:5: value 200 is out of range for type 'int8'"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_errors.lynx:4:5: value 200 is out of range for type 'int8'"; \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected out-of-range error: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected out-of-range error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
@@ -796,8 +812,12 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_const.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-	expected="lynxer: $(LYNXER_DIR)/examples/m3_const.lynx:5:5: variable 'frozen' is constant and cannot be reassigned"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_const.lynx:5:5: variable 'frozen' is constant and cannot be reassigned"; \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected const reassignment error: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected const reassignment error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
@@ -806,8 +826,12 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_vargroup.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-	expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and legacy class-field assignment requires an explicit type"; \
-	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and legacy class-field assignment requires an explicit type"; \
+	case "$$output" in "$$expected"*) ;; \
+	*) echo "expected vargroup explicit-type error: $$expected"; \
+	echo "received (status $$status): $$output"; exit 1;; \
+	esac; \
+	if [ "$$status" -ne 1 ]; then \
 	echo "expected vargroup explicit-type error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \

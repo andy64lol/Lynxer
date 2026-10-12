@@ -33,7 +33,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libasound2-dev libffi-dev pkg-config \
-            libx11-dev libxext-dev libxrandr-dev libxi-dev
+            libx11-dev libxext-dev libxrandr-dev libxi-dev \
+            libxinerama-dev libxcursor-dev libxxf86vm-dev
 
       - name: Build Lynxer for ARM64
         run: make buildLynxerArm64
