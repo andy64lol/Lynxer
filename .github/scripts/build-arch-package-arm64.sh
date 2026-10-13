@@ -6,12 +6,19 @@ rootfs_archive="${RUNNER_TEMP}/ArchLinuxARM-aarch64-latest.tar.gz"
 rootfs_url=https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 
 cleanup() {
+  sudo chroot "$rootfs" gpgconf --kill all >/dev/null 2>&1 || true
+
   for mount_path in run sys proc dev src; do
     target="$rootfs/$mount_path"
     if mountpoint -q "$target"; then
-      sudo umount -R "$target" || true
+      sudo umount "$target" || sudo umount -l "$target" || true
     fi
   done
+
+  if mountpoint -q "$rootfs"; then
+    sudo umount "$rootfs" || sudo umount -l "$rootfs" || true
+  fi
+
   sudo rm -rf "$rootfs" "$rootfs_archive"
 }
 trap cleanup EXIT
@@ -20,15 +27,18 @@ sudo mkdir -p "$rootfs"
 curl --fail --location --retry 3 --retry-delay 2 "$rootfs_url" --output "$rootfs_archive"
 sudo bsdtar -xpf "$rootfs_archive" -C "$rootfs"
 
+# Pacman needs the chroot root to appear as a mount point for its disk-space check.
+sudo mount --bind "$rootfs" "$rootfs"
+
 sudo rm -f "$rootfs/etc/resolv.conf"
 sudo cp --dereference /etc/resolv.conf "$rootfs/etc/resolv.conf"
 sudo mkdir -p "$rootfs/src" "$rootfs/dev" "$rootfs/proc" "$rootfs/sys" "$rootfs/run"
 
 sudo mount --bind "$GITHUB_WORKSPACE" "$rootfs/src"
-sudo mount --rbind /dev "$rootfs/dev"
+sudo mount --bind /dev "$rootfs/dev"
 sudo mount --make-rslave "$rootfs/dev"
 sudo mount -t proc proc "$rootfs/proc"
-sudo mount --rbind /sys "$rootfs/sys"
+sudo mount --bind /sys "$rootfs/sys"
 sudo mount --make-rslave "$rootfs/sys"
 sudo mount --bind /run "$rootfs/run"
 
