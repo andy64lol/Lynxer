@@ -1,0 +1,38 @@
+name: Build Arch package (ARM64)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build aarch64 Arch package
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install root filesystem tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends curl libarchive-tools
+
+      - name: Build package in native Arch Linux ARM
+        run: bash .github/scripts/build-arch-package-arm64.sh
+
+      - name: Zip the package
+        run: python3 .github/scripts/zip-arch-package.py aarch64
+
+      - name: Upload aarch64 Arch package ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: lynxer-arch-aarch64
+          path: dist/lynxer-*-aarch64.zip
+          if-no-files-found: error
