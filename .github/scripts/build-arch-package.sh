@@ -50,11 +50,16 @@ if ! id builder >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash builder
 fi
 
+# Reuse the Cargo registry cache mounted by CI and let the build user update it.
+cargo_home=/tmp/lynxer-cargo
+install -d -o builder -g builder "$cargo_home/registry"
+chown -R builder:builder "$cargo_home/registry"
+
 rm -rf "$build_dir"
 install -d -o builder -g builder "$build_dir"
 install -o builder -g builder "$source_dir/PKGBUILD" "$build_dir/PKGBUILD"
 
-su builder -s /bin/bash -c "cd '$build_dir' && makepkg --cleanbuild --noconfirm"
+su builder -s /bin/bash -c "cd '$build_dir' && CARGO_HOME='$cargo_home' CARGO_NET_RETRY=10 CARGO_HTTP_TIMEOUT=120 CARGO_HTTP_MULTIPLEXING=false makepkg --cleanbuild --noconfirm"
 
 shopt -s nullglob
 packages=(
