@@ -28,6 +28,9 @@ jobs:
             archlinux:latest \
             /bin/bash /src/.github/scripts/build-arch-package.sh
 
+      - name: Fix package output ownership
+        run: sudo chown -R "$(id -u):$(id -g)" dist
+
       - name: Zip the package
         run: python3 .github/scripts/zip-arch-package.py x86_64
 

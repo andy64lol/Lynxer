@@ -27,6 +27,9 @@ jobs:
       - name: Build package in native Arch Linux ARM
         run: bash .github/scripts/build-arch-package-arm64.sh
 
+      - name: Fix package output ownership
+        run: sudo chown -R "$(id -u):$(id -g)" dist
+
       - name: Zip the package
         run: python3 .github/scripts/zip-arch-package.py aarch64
 
