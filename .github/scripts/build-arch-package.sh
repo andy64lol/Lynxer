@@ -56,9 +56,11 @@ install -o builder -g builder "$source_dir/PKGBUILD" "$build_dir/PKGBUILD"
 
 su builder -s /bin/bash -c "cd '$build_dir' && makepkg --cleanbuild --noconfirm"
 
-package_pattern="lynxer-[0-9]*-[0-9]*-${arch}.pkg.tar.zst"
 shopt -s nullglob
-packages=("$build_dir"/$package_pattern)
+packages=(
+  "$build_dir"/lynxer-[0-9]*-[0-9]*-"${arch}".pkg.tar.zst
+  "$build_dir"/lynxer-[0-9]*-[0-9]*-"${arch}".pkg.tar.xz
+)
 shopt -u nullglob
 
 if (( ${#packages[@]} != 1 )); then

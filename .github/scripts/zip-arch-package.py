@@ -16,10 +16,10 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     package_dir = repo_root / "dist" / "packages" / arch
     package_pattern = re.compile(
-        rf"^lynxer-[0-9][^-]*-[0-9]+-{re.escape(arch)}\.pkg\.tar\.zst$"
+        rf"^lynxer-[0-9][^-]*-[0-9]+-{re.escape(arch)}\.pkg\.tar\.(?:zst|xz)$"
     )
     packages = sorted(
-        path for path in package_dir.glob("*.pkg.tar.zst") if package_pattern.fullmatch(path.name)
+        path for path in package_dir.glob("*.pkg.tar.*") if package_pattern.fullmatch(path.name)
     )
 
     if len(packages) != 1:
@@ -30,7 +30,8 @@ def main() -> int:
         return 1
 
     package = packages[0]
-    zip_path = repo_root / "dist" / f"{package.name.removesuffix('.pkg.tar.zst')}.zip"
+    package_basename = package.name.split(".pkg.tar.", maxsplit=1)[0]
+    zip_path = repo_root / "dist" / f"{package_basename}.zip"
     with ZipFile(zip_path, "w", compression=ZIP_STORED) as archive:
         archive.write(package, arcname=package.name)
 

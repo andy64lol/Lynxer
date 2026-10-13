@@ -1,19 +1,20 @@
 # Maintainer: Andy <andy64lolxd@gmail.com>
 pkgname=lynxer
-pkgver=0.1.8.2
+pkgver=0.1.8.3
 pkgrel=1
 pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime"
 arch=('x86_64' 'aarch64')
 url="https://github.com/andy64lol/Lynxer"
 license=('MIT')
 depends=('libffi' 'alsa-lib' 'bzip2')
-makedepends=('rust' 'pkgconf' 'cmake' 'clang' 'curl' 'libglvnd' 'libx11' 'libxext'
+makedepends=('rust' 'pkgconf' 'cmake' 'clang' 'curl' 'git' 'libglvnd' 'libx11' 'libxext'
              'libxrandr' 'libxi' 'libxinerama' 'libxcursor' 'libxxf86vm')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/andy64lol/Lynxer/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('4d0e2071f4fcc66443dd10f6f89344320b70769ffe36fccb35ddf12b955d1deb')
+_commit=ca885adbae1079992a2f174c5de52a4caf8434c3
+source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
+sha256sums=('SKIP')
 
-# The GitHub archive extracts to <Repo>-<version>, i.e. capitalised "Lynxer".
-_srcdir="Lynxer-$pkgver"
+# The pinned VCS source checks out to the repository name.
+_srcdir="Lynxer"
 
 build() {
   cd "$_srcdir"

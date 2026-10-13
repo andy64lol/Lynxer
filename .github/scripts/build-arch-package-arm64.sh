@@ -6,17 +6,17 @@ rootfs_archive="${RUNNER_TEMP}/ArchLinuxARM-aarch64-latest.tar.gz"
 rootfs_url=https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz
 
 cleanup() {
-  sudo chroot "$rootfs" gpgconf --kill all >/dev/null 2>&1 || true
+  sudo chroot "$rootfs" /usr/bin/env GNUPGHOME=/etc/pacman.d/gnupg gpgconf --kill all >/dev/null 2>&1 || true
 
   for mount_path in run sys proc dev src; do
     target="$rootfs/$mount_path"
     if mountpoint -q "$target"; then
-      sudo umount "$target" || sudo umount -l "$target" || true
+      sudo umount -l "$target" || true
     fi
   done
 
   if mountpoint -q "$rootfs"; then
-    sudo umount "$rootfs" || sudo umount -l "$rootfs" || true
+    sudo umount -l "$rootfs" || true
   fi
 
   sudo rm -rf "$rootfs" "$rootfs_archive"
