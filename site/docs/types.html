@@ -150,6 +150,7 @@
 <tr><td><code>struct</code> / <code>class</code> / <code>enum</code> name</td><td>a value of that named type</td><td>see the dedicated pages</td></tr>
 </table>
 <p><code>none</code> is a <strong>value</strong>, not a declarator type: write <code>any x = none;</code>. It may be used as a return annotation (<code>-&gt; none</code>), where it accepts only the no-value result. See <a href="#return-annotations">Return annotations</a>.</p>
+<p>An ordinary function can introduce an inferred type parameter with <code>type T of value</code> in its parameter list. Each call infers <code>T</code> from <code>value</code>; within a call, later parameters using <code>T</code>, local variables declared as <code>T</code>, and the return annotation can use that type. See <a href="functions.html#parameters-and-defaults">function parameters</a> for an example and restrictions.</p>
 <h2 id="fixed-width-numeric-types">Fixed-width numeric types</h2>
 <table>
 <tr><th>Type</th><th>Range</th></tr>

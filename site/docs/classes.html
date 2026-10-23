@@ -128,7 +128,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="classes">Classes</h1>
-<p>A <code>class</code> is a named type with typed fields and <code>local</code> methods, constructed with <code>new</code>. Declare it between <code>global setup()</code> and <code>global main()</code>.</p>
+<p>A <code>class</code> is a named type with typed fields and <code>local</code> methods, constructed with <code>new</code>. A class can extend one previously declared class. Declare classes between <code>global setup()</code> and <code>global main()</code>.</p>
 <h2 id="declaration">Declaration</h2>
 <pre><code>class Counter {
     int value = 0;
@@ -151,6 +151,30 @@
 <li><code>local init(...)</code> is the constructor. It runs on <code>new</code> and receives the constructor arguments through <code>this</code>.</li>
 <li>Methods use <code>this.field</code> to read and write fields.</li>
 </ul>
+<h2 id="inheritance">Inheritance</h2>
+<p>Use JavaScript-style <code>extends</code> to derive a class from one previously declared:</p>
+<pre><code>class Animal {
+    str name = &quot;&quot;;
+
+    local init(str name) {
+        this.name = name;
+    }
+
+    local speak() {
+        return &quot;...&quot;;
+    }
+}
+
+class Dog extends Animal {
+    local speak() {
+        return &quot;woof&quot;;
+    }
+}</code></pre>
+<p><code>Dog</code> inherits <code>Animal</code>'s fields, methods, and <code>init</code> constructor. A child method with the same name overrides the inherited method. Method lookup uses the instance's actual class, so an overridden method still runs when the instance is stored in a variable typed as its parent:</p>
+<pre><code>Animal pet = new Dog(&quot;Rex&quot;);
+println(pet.name);       // Rex
+println(pet.speak());    // woof</code></pre>
+<p>Inheritance is single-parent, and the parent class must be declared first. Inherited fields initialize from parent to child; a child field with the same name replaces the inherited field. If the child declares its own <code>init</code>, that constructor replaces the inherited <code>init</code>; Lynxer currently has no <code>super</code> call syntax to invoke the parent constructor explicitly.</p>
 <h2 id="construction">Construction</h2>
 <pre><code>Counter first = new Counter(1);</code></pre>
 <p><code>new</code> runs <code>init</code> with the given arguments. A typed variable (<code>Counter first</code>) enforces the class: assigning an unrelated value fails with <code>value cannot be assigned to type &#x27;Counter&#x27;</code>.</p>

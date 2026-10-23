@@ -143,7 +143,7 @@ global main() {
 <p>A file is a sequence of top-level declarations, in this order:</p>
 <ol>
 <li><strong><code>global setup()</code></strong> — must be the <strong>first</strong> declaration. The interpreter raises <code>global setup() must be the first declaration</code> otherwise.</li>
-<li><strong>Anything else</strong> — file-level <code>func</code>s, <code>global</code> functions, <code>struct</code>, <code>class</code> and <code>enum</code> definitions, in any order before <code>main</code>.</li>
+<li><strong>Anything else</strong> — file-level <code>func</code>s, <code>global</code> functions, <code>struct</code>, <code>class</code> and <code>enum</code> definitions before <code>main</code>. A class's parent must be declared before the child class.</li>
 <li><strong><code>global main()</code></strong> — the default entry point, and the last declaration. A declaration after <code>main</code> fails with <code>declarations may not follow global main()</code>.</li>
 </ol>
 <p>Executable code outside a function body is a syntax error (<code>expected top-level function declaration</code>).</p>
@@ -260,12 +260,13 @@ println(n bitand 3);   // 2</code></pre>
 <h3 id="return"><code>return</code></h3>
 <p><code>return expr;</code> returns a value; a bare <code>return;</code> returns nothing. The value is checked against the function's return annotation, if any.</p>
 <h2 id="functions">Functions</h2>
-<p>See <a href="functions.html">functions</a> for a full page on each form. There are three declaration forms:</p>
+<p>See <a href="functions.html">functions</a> for a full page on each form. There are three function declaration forms and a scoped named lambda form:</p>
 <table>
 <tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
 <tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code> or a bare name in the same file</td></tr>
 <tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
 <tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
+<tr><td>Named lambda</td><td><code>lambda name(...)</code></td><td>inside a function body</td><td>its name in the declaring scope</td></tr>
 </table>
 <p><code>global func name(...)</code> is <strong>not</strong> valid syntax; use <code>func name(...)</code> for a file-level function.</p>
 <pre><code>func double(int n) -&gt; int {
@@ -284,11 +285,13 @@ global main() {
     println(global.add(2));    // 3
     println(square(3));        // 9
 }</code></pre>
+<p>Named lambdas are local to their declaring function scope and are not exported; nested function scopes cannot see them. See <a href="functions.html#named-lambdas">functions</a> for an example.</p>
 <h3 id="parameters-and-defaults">Parameters and defaults</h3>
 <ul>
 <li>Parameters may be typed (<code>int n</code>) or untyped (treated as <code>any</code>).</li>
 <li>A parameter may have a default (<code>int b = 1</code>).</li>
 <li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
+<li><code>type T of value</code> declares an inferred type parameter for an ordinary function. Reuse <code>T</code> in later parameter types, local declarations, or the return annotation; each call infers <code>T</code> from <code>value</code>. See <a href="functions.html#parameters-and-defaults">functions</a> for an example and restrictions.</li>
 <li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
 </ul>
 <h3 id="return-annotations">Return annotations</h3>
@@ -328,9 +331,15 @@ global main() {
 <p><code>inter&quot;...&quot;</code> interpolates <code>{expr}</code> inside a string, with <code>\{</code>, <code>\}</code>, and <code>\\</code> as escapes:</p>
 <pre><code>global main() {
     int n = 3;
-    println(inter&quot;n is {n}&quot;);   // n is 3
+    str message = inter&quot;n is {n}&quot;;
+    println(message);          // n is 3
+    println(inter&quot;also {n}&quot;); // also 3
 }</code></pre>
-<p>Interpolation is available in the arguments of <code>print</code>, <code>println</code>, <code>input</code>, and <code>inputln</code>; elsewhere it is a syntax error.</p>
+<p><code>inter&quot;...&quot;</code> is a string expression, so it can be used wherever a string value is accepted, including output calls, assignments, and return values:</p>
+<pre><code>global describe(int n) -&gt; str {
+    return inter&quot;value: {n}\n&quot;;
+}</code></pre>
+<p>The embedded expressions run when the string is evaluated. Each result is converted to text and inserted between the literal parts.</p>
 <h2 id="modules">Modules</h2>
 <p><code>import(&quot;name&quot;)</code> and <code>importAs(&quot;name&quot;, &quot;alias&quot;)</code> load <code>.lynx</code> source modules or native <code>.so</code> libraries. They are <strong>statements</strong>, so they run from any function body — most often <code>setup()</code> — not at file scope. Both arguments must be string <strong>literals</strong>. See <a href="modules.html">modules</a>.</p>
 <h2 id="aggregate-types">Aggregate types</h2>

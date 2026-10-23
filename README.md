@@ -40,7 +40,7 @@ is excluded for now. See [docs/windows.md](docs/windows.md).
 
 ## Status
 
-**v0.1.8.3** — a standalone C++ implementation with:
+**v0.1.8.4** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
 - 40 standard-library modules, native (C++/Rust) backends included;

@@ -128,12 +128,13 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="functions">Functions</h1>
-<p>Lynxer has three function declaration forms. They differ in <strong>where</strong> they are written and <strong>how</strong> they are called. Parameters, return annotations and caller-supplied <a href="codeblocks.html">codeblocks</a> work the same for all three.</p>
+<p>Lynxer has three function declaration forms plus scoped named lambdas. They differ in <strong>where</strong> they are written and <strong>how</strong> they are called. Parameters, return annotations and caller-supplied <a href="codeblocks.html">codeblocks</a> work the same for all four.</p>
 <table>
 <tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
 <tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code>, or a bare name in the same file</td></tr>
 <tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
 <tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
+<tr><td>Named lambda</td><td><code>lambda name(...)</code></td><td>inside a function body</td><td>its name in the declaring scope</td></tr>
 </table>
 <p><code>global func name(...)</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27; &#x27;</code>); use <code>func name(...)</code> for a file-level function.</p>
 <h2 id="global-functions">Global functions</h2>
@@ -184,11 +185,36 @@ global main(){
 <li>A local function is not exported and cannot be called from another function.</li>
 <li>It may close over the top-level variables that are in scope where it runs.</li>
 </ul>
+<h2 id="named-lambdas">Named lambdas</h2>
+<p>A named <code>lambda</code> is declared inside a function and called by its name in that scope. It accepts typed parameters and an optional <code>-&gt; type</code> return annotation:</p>
+<pre><code>global setup(){}
+
+global main() {
+    str greeting = &quot;Hello&quot;;
+
+    lambda greet(str name) -&gt; str {
+        return inter&quot;{greeting}, {name}!\n&quot;;
+    }
+
+    println(greet(&quot;Andy&quot;)); // Hello, Andy!
+
+    global nested() {
+        println(greet(&quot;Andy&quot;)); // out-of-scope error if nested() is called
+    }
+}</code></pre>
+<p>Lambdas are scoped declarations, not global or exported functions. A lambda is available in the function scope where it is declared; nested function scopes cannot see its name. It can read variables from its enclosing function while that scope is active. Control-flow blocks do not create nested scopes in Lynxer; see <a href="language.html#scoping">language</a>. Lambdas support the same typed and inferred generic parameters as other ordinary functions.</p>
 <h2 id="parameters-and-defaults">Parameters and defaults</h2>
 <ul>
 <li>Parameters may be typed (<code>int n</code>) or untyped (treated as <code>any</code>).</li>
 <li>A parameter may have a default (<code>int b = 1</code>).</li>
 <li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
+<li><code>type T of value</code> introduces a type parameter named <code>T</code>, inferred from the argument <code>value</code>. Use <code>T</code> to require matching argument types and to type the return value:</li>
+</ul>
+<p>```lynx global setup(){}</p>
+<p>global keep(type T of first, T second) -&gt; T { return second; }</p>
+<p>global main() { int number = keep(1, 2); str word = keep("one", "two"); println(number); // 2 println(word);   // two } ```</p>
+<p><code>T</code> can also be used for local declarations. Each call infers its own type; within one call, arguments using the same <code>T</code> must have the same Lynxer type. The generic parameter itself cannot have a default value; exported C functions and class methods do not support inferred generic parameters.</p>
+<ul>
 <li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
 </ul>
 <h2 id="return-annotations">Return annotations</h2>
