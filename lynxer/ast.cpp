@@ -30,6 +30,11 @@
 
 namespace lynxer {
 
+Value invokeFunction(
+    const Function& function, const std::vector<Value>& args,
+    const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+    Environment& environment, int line, int column);
+
 
 // --- ownership built-in arguments ---------------------------------------------
 //
@@ -825,6 +830,39 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
     return Value{};
 }
 
+void runSuperConstructor(const std::string& parentClass,
+                         const std::vector<ExpressionPtr>& expressions,
+                         Environment& environment, int line, int column) {
+    const Value& thisValue = environment.get("this", line, column);
+    const auto* receiver =
+        std::get_if<std::shared_ptr<RecordValue>>(&thisValue);
+    if (receiver == nullptr || *receiver == nullptr ||
+        (*receiver)->kind != RecordKind::Class ||
+        !classIsA((*receiver)->typeName, parentClass)) {
+        throw SourceError("super(...) requires a class instance in 'this'",
+                          line, column);
+    }
+
+    std::vector<Value> arguments;
+    arguments.reserve(expressions.size());
+    for (const auto& expression : expressions) {
+        arguments.push_back(expression->evaluate(environment));
+    }
+
+    const ClassDef* parent = TypeRegistry::instance().findClass(parentClass);
+    const ClassMethod* constructor = findClassMethod(parent, "init");
+    if (constructor == nullptr) {
+        if (!arguments.empty()) {
+            throw SourceError("parent class '" + parentClass +
+                                  "' has no init() constructor but arguments were given",
+                              line, column);
+        }
+        return;
+    }
+    runClassMethod(*receiver, *constructor, std::move(arguments), environment,
+                   line, column);
+}
+
 // Collects the user-variable names a codeblock body references, in source
 // order (used by exec's inferred bindings).
 template <typename StatementContainer>
@@ -1004,10 +1042,14 @@ Value DotAccessExpression::evaluate(Environment& environment) const {
         // `global.name` is a variable when one exists, and otherwise names a
         // global function used as a value — which is how a callback is passed
         // to a built-in such as `nativeThreadStart`.
-        if (!environment.hasVariable(field_) &&
-            environment.findFunction(field_) != nullptr) {
+        if (!environment.hasVariable(field_)) {
+            const auto registered = environment.findFunction(field_);
+            if (registered == nullptr) {
+                return environment.get(field_, line_, column_);
+            }
             auto function = std::make_shared<CodeblockValue>();
             function->name = field_;
+            function->function = std::static_pointer_cast<Function>(registered);
             return function;
         }
         return environment.get(field_, line_, column_);
@@ -1319,7 +1361,23 @@ Value VariableExpression::evaluate(Environment& environment) const {
         if (!error.empty()) {
             throw SourceError(error, line_, column_);
         }
-    } else if (name_.find('.') == std::string::npos &&
+        return environment.get(name_, line_, column_);
+    }
+    if (name_.find('.') == std::string::npos) {
+        const auto registered = environment.findFunction(name_);
+        if (registered != nullptr) {
+            auto callable = std::make_shared<CodeblockValue>();
+            callable->name = name_;
+            callable->function = std::static_pointer_cast<Function>(registered);
+            if (callable->function->isLambda ||
+                (!callable->function->isGlobal &&
+                 !callable->function->isFileFunction)) {
+                callable->closure = std::make_shared<Environment>(environment);
+            }
+            return callable;
+        }
+    }
+    if (name_.find('.') == std::string::npos &&
                isBuiltinName(name_)) {
         // A builtin is a call target, not a value: name it precisely instead of
         // reporting the name as an unknown variable.
@@ -1463,6 +1521,14 @@ Value CallExpression::evaluate(Environment& environment) const {
             const Value stored = environment.get(name_, line_, column_);
             const auto* function =
                 std::get_if<std::shared_ptr<CodeblockValue>>(&stored);
+            if (function != nullptr && *function != nullptr &&
+                (*function)->function != nullptr) {
+                Environment& callEnvironment = (*function)->closure != nullptr
+                                                   ? *(*function)->closure
+                                                   : environment;
+                return invokeFunction(*(*function)->function, arguments,
+                                      blocks, callEnvironment, line_, column_);
+            }
             if (function != nullptr && *function != nullptr &&
                 !(*function)->name.empty()) {
                 return environment.callUserFunction((*function)->name, arguments,
@@ -2085,6 +2151,28 @@ Value invokeFunction(
     }
 }
 
+Value callFunctionValue(
+    const std::shared_ptr<CodeblockValue>& callable,
+    const std::vector<Value>& arguments,
+    const std::vector<std::shared_ptr<CodeblockValue>>& codeblocks,
+    Environment& environment, int line, int column) {
+    if (callable == nullptr) {
+        throw SourceError("value is not a function", line, column);
+    }
+    if (callable->function != nullptr) {
+        Environment& callEnvironment = callable->closure != nullptr
+                                           ? *callable->closure
+                                           : environment;
+        return invokeFunction(*callable->function, arguments, codeblocks,
+                              callEnvironment, line, column);
+    }
+    if (!callable->name.empty()) {
+        return environment.callUserFunction(callable->name, arguments,
+                                            codeblocks, line, column);
+    }
+    throw SourceError("value is not a function", line, column);
+}
+
 // One lock guards every evaluation of Lynxer code. It is recursive because a
 // nested evaluation (a callback into Lynxer from a native module, say) happens
 // on the thread that already holds it.
@@ -2615,6 +2703,22 @@ IterateStatement::IterateStatement(ExpressionPtr count, StatementList statements
                                    int line, int column)
     : count_(std::move(count)), statements_(std::move(statements)),
       line_(line), column_(column) {}
+
+SuperConstructorStatement::SuperConstructorStatement(
+    std::string parentClass, std::vector<ExpressionPtr> arguments, int line,
+    int column)
+    : parentClass_(std::move(parentClass)),
+      arguments_(std::move(arguments)), line_(line), column_(column) {}
+
+void SuperConstructorStatement::execute(Environment& environment) const {
+    runSuperConstructor(parentClass_, arguments_, environment, line_, column_);
+}
+
+void SuperConstructorStatement::optimizeChildren(OptimizationStats& stats) {
+    for (auto& argument : arguments_) {
+        argument = optimizeExpression(std::move(argument), stats);
+    }
+}
 
 void IterateStatement::execute(Environment& environment) const {
     const Value countValue = count_->evaluate(environment);
@@ -3449,6 +3553,12 @@ void TryCatchStatement::dump(std::ostream& out, int indent) const {
 void ReturnStatement::dump(std::ostream& out, int indent) const {
     dumpScalarLine(out, indent, "ReturnStatement");
     dumpExprField(out, indent, "value", value_.get());
+}
+
+void SuperConstructorStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "SuperConstructorStatement");
+    dumpStringField(out, indent, "parentClass", parentClass_);
+    dumpExprListField(out, indent, "arguments", arguments_);
 }
 
 void CodeblockDeclarationStatement::dump(std::ostream& out, int indent) const {

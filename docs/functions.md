@@ -116,6 +116,47 @@ that scope is active. Control-flow blocks do not create nested scopes in
 Lynxer; see [language.md](language.md#scoping). Lambdas support the same typed
 and inferred generic parameters as other ordinary functions.
 
+## Function values
+
+Named functions, local functions, and lambdas can be used as values. Use the
+`function` type for a checked declaration, or `any` when the value may also be
+something else:
+
+```lynx
+global setup(){}
+
+global addOne(int value) -> int {
+    return value + 1;
+}
+
+global apply(function operation, int value) -> int {
+    return operation(value);
+}
+
+global makeAdder(int base) -> function {
+    local add(int value) -> int {
+        return base + value;
+    }
+    return add;
+}
+
+global main() {
+    function increment = global.addOne;
+    println(apply(increment, 4)); // 5
+
+    function addTen = makeAdder(10);
+    println(addTen(3)); // 13
+}
+```
+
+`function` values can be passed as arguments, returned, assigned, and called
+through variables with the same argument and return checks as a direct call.
+Local functions and lambdas retain their enclosing variable scopes, so a
+returned function can still read and update captured variables. Their names
+remain subject to the normal scope rules; in particular, a nested function
+cannot look up a named lambda declared by its caller. A function value passed
+explicitly as an argument remains available to the receiving function.
+
 ## Parameters and defaults
 
 - Parameters may be typed (`int n`) or untyped (treated as `any`).

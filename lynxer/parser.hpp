@@ -158,6 +158,7 @@ private:
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
     std::unordered_set<std::string> genericTypeNames_;
+    std::string currentConstructorParent_;
     std::vector<ImportRecord> imports_;
     std::vector<std::string> programOrder_;
     std::vector<ExportRecord> exports_;

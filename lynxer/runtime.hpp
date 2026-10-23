@@ -22,6 +22,7 @@ struct RecordValue;
 struct EnumValue;
 struct CodeblockValue;
 class Statement;
+class Environment;
 struct Function;
 
 struct CharValue {
@@ -87,6 +88,10 @@ struct CodeblockValue {
     // The declaration AST owns these statements for the lifetime of the
     // parsed program; codeblocks retain non-owning pointers into that AST.
     std::vector<const Statement*> body;
+    // Function values retain their callable and lexical variables after the
+    // declaring scope returns.
+    std::shared_ptr<Function> function;
+    std::shared_ptr<Environment> closure;
 };
 
 struct List {
@@ -278,7 +283,8 @@ private:
     // Returns "" when the name (or its source) is not defined.
     std::string canonicalName(const std::string& name) const;
 
-    std::vector<std::unordered_map<std::string, Variable>> scopes_;
+    std::vector<std::shared_ptr<std::unordered_map<std::string, Variable>>>
+        scopes_;
     std::vector<std::unordered_map<std::string, std::string>> typeScopes_;
     std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
         functionScopes_;

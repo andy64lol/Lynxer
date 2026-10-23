@@ -427,7 +427,8 @@ bool Parser::isTypeName(const Token& token) const {
         "any", "int", "float", "num", "char", "str", "bool", "numBool",
         "bit", "byte", "int8", "int16", "int32", "int64", "uint8",
         "uint16", "uint32", "uint64", "float32", "float64", "list",
-        "tuple", "sentinel", "object", "codeblock", "functionAddress",
+        "tuple", "sentinel", "object", "codeblock", "function",
+        "functionAddress",
         "bytes"};
     return scalarTypes.count(token.text) != 0 ||
            TypeRegistry::instance().hasNamedType(token.text);
@@ -597,7 +598,10 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
         !function.codeblockParameters.empty()) {
         fail("entry-point functions cannot declare codeblock parameters", name);
     }
+    const std::string savedConstructorParent = currentConstructorParent_;
+    currentConstructorParent_.clear();
     function.statements = parseBlock("function body");
+    currentConstructorParent_ = savedConstructorParent;
     genericTypeNames_ = outerGenericTypes;
     (void)keyword;
     (void)topLevel;
@@ -696,7 +700,10 @@ StatementPtr Parser::parseScopedFunction(const std::string& kind) {
             function->codeblockParameters.push_back(blockName);
         }
     }
+    const std::string savedConstructorParent = currentConstructorParent_;
+    currentConstructorParent_.clear();
     function->statements = parseBlock(kind + " function body");
+    currentConstructorParent_ = savedConstructorParent;
     genericTypeNames_ = outerGenericTypes;
     (void)keyword;
     return std::make_unique<FunctionDeclarationStatement>(std::move(function));
@@ -754,7 +761,13 @@ void Parser::parseClassDefinition() {
             ClassMethod classMethod;
             classMethod.name = method.text;
             classMethod.params = parseParameters();
+            const std::string savedConstructorParent =
+                currentConstructorParent_;
+            currentConstructorParent_ = method.text == "init"
+                                            ? definition.parent
+                                            : std::string{};
             classMethod.body = parseBlock("method body");
+            currentConstructorParent_ = savedConstructorParent;
             definition.methods.push_back(std::move(classMethod));
             continue;
         }
@@ -931,6 +944,19 @@ std::unordered_map<std::string, Function> Parser::parseProgram(
 }
 
 StatementPtr Parser::parseStatement() {
+    if (checkText("super") && peekAt(1).text == "(") {
+        const Token keyword = advance();
+        if (currentConstructorParent_.empty()) {
+            fail("super(...) is only valid inside an init() constructor of a class that extends another class",
+                 keyword);
+        }
+        expectText("(", "expected '(' after 'super'");
+        std::vector<ExpressionPtr> arguments = parseArguments();
+        expectText(";", "expected ';' after super constructor call");
+        return std::make_unique<SuperConstructorStatement>(
+            currentConstructorParent_, std::move(arguments), keyword.line,
+            keyword.column);
+    }
     if (checkText("import")) {
         return parseImport();
     }

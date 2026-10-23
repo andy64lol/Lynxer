@@ -203,6 +203,33 @@ global main() {
     }
 }</code></pre>
 <p>Lambdas are scoped declarations, not global or exported functions. A lambda is available in the function scope where it is declared; nested function scopes cannot see its name. It can read variables from its enclosing function while that scope is active. Control-flow blocks do not create nested scopes in Lynxer; see <a href="language.html#scoping">language</a>. Lambdas support the same typed and inferred generic parameters as other ordinary functions.</p>
+<h2 id="function-values">Function values</h2>
+<p>Named functions, local functions, and lambdas can be used as values. Use the <code>function</code> type for a checked declaration, or <code>any</code> when the value may also be something else:</p>
+<pre><code>global setup(){}
+
+global addOne(int value) -&gt; int {
+    return value + 1;
+}
+
+global apply(function operation, int value) -&gt; int {
+    return operation(value);
+}
+
+global makeAdder(int base) -&gt; function {
+    local add(int value) -&gt; int {
+        return base + value;
+    }
+    return add;
+}
+
+global main() {
+    function increment = global.addOne;
+    println(apply(increment, 4)); // 5
+
+    function addTen = makeAdder(10);
+    println(addTen(3)); // 13
+}</code></pre>
+<p><code>function</code> values can be passed as arguments, returned, assigned, and called through variables with the same argument and return checks as a direct call. Local functions and lambdas retain their enclosing variable scopes, so a returned function can still read and update captured variables. Their names remain subject to the normal scope rules; in particular, a nested function cannot look up a named lambda declared by its caller. A function value passed explicitly as an argument remains available to the receiving function.</p>
 <h2 id="parameters-and-defaults">Parameters and defaults</h2>
 <ul>
 <li>Parameters may be typed (<code>int n</code>) or untyped (treated as <code>any</code>).</li>

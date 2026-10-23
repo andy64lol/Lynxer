@@ -285,6 +285,8 @@ global main() {
 Named lambdas are local to their declaring function scope and are not exported;
 nested function scopes cannot see them. See
 [functions.md](functions.md#named-lambdas) for an example.
+Functions and lambdas can also be stored as `function` values, returned, and
+passed as arguments; see [function values](functions.md#function-values).
 
 ### Parameters and defaults
 

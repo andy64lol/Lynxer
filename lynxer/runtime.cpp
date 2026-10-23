@@ -12,11 +12,14 @@
 namespace lynxer {
 
 Environment::Environment()
-    : scopes_(1), typeScopes_(1), functionScopes_(1),
-      lambdaScopeOnlyFunctions_(1) {}
+    : typeScopes_(1), functionScopes_(1), lambdaScopeOnlyFunctions_(1) {
+    scopes_.push_back(
+        std::make_shared<std::unordered_map<std::string, Variable>>());
+}
 
 void Environment::pushScope() {
-    scopes_.emplace_back();
+    scopes_.push_back(
+        std::make_shared<std::unordered_map<std::string, Variable>>());
     typeScopes_.emplace_back();
     functionScopes_.emplace_back();
     lambdaScopeOnlyFunctions_.emplace_back();
@@ -73,21 +76,21 @@ void Environment::declare(const std::string& name, const std::string& type,
     (void)line;
     (void)column;
     // Re-declaration replaces both the value and the recorded type.
-    scopes_.back()[name] = Variable{type, std::move(value), false};
+    (*scopes_.back())[name] = Variable{type, std::move(value), false};
 }
 
 void Environment::declareConstant(const std::string& name,
                                   const std::string& type, Value value,
                                   int line, int column) {
-    scopes_.back()[name] =
+    (*scopes_.back())[name] =
         Variable{type, convertForType(std::move(value), type, line, column),
                  true};
 }
 
 Variable* Environment::findVariable(const std::string& name) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto found = scope->find(name);
-        if (found != scope->end()) {
+        auto found = (*scope)->find(name);
+        if (found != (*scope)->end()) {
             return &found->second;
         }
     }
@@ -96,8 +99,8 @@ Variable* Environment::findVariable(const std::string& name) {
 
 const Variable* Environment::findVariable(const std::string& name) const {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto found = scope->find(name);
-        if (found != scope->end()) {
+        auto found = (*scope)->find(name);
+        if (found != (*scope)->end()) {
             return &found->second;
         }
     }
@@ -174,7 +177,7 @@ const Value& Environment::get(const std::string& name, int line,
 
 bool Environment::hasVariable(const std::string& name) const {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        if (scope->find(name) != scope->end()) {
+        if ((*scope)->find(name) != (*scope)->end()) {
             return true;
         }
     }
@@ -183,8 +186,8 @@ bool Environment::hasVariable(const std::string& name) const {
 
 Variable Environment::variableSnapshot(const std::string& name) const {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto found = scope->find(name);
-        if (found != scope->end()) {
+        auto found = (*scope)->find(name);
+        if (found != (*scope)->end()) {
             return found->second;
         }
     }
@@ -192,29 +195,29 @@ Variable Environment::variableSnapshot(const std::string& name) const {
 }
 
 std::unordered_map<std::string, Variable> Environment::currentVariables() const {
-    return scopes_.back();
+    return *scopes_.back();
 }
 
 void Environment::setVariableRaw(const std::string& name,
                                  const Variable& variable) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto found = scope->find(name);
-        if (found != scope->end()) {
+        auto found = (*scope)->find(name);
+        if (found != (*scope)->end()) {
             found->second = variable;
             return;
         }
     }
-    scopes_.back()[name] = variable;
+    (*scopes_.back())[name] = variable;
 }
 
 void Environment::setVariableRawCurrent(const std::string& name,
                                         const Variable& variable) {
-    scopes_.back()[name] = variable;
+    (*scopes_.back())[name] = variable;
 }
 
 void Environment::removeVariable(const std::string& name) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        if (scope->erase(name) != 0) {
+        if ((*scope)->erase(name) != 0) {
             return;
         }
     }
@@ -914,6 +917,13 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (type == "codeblock" &&
                std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
         return value;
+    } else if (type == "function") {
+        const auto* callable =
+            std::get_if<std::shared_ptr<CodeblockValue>>(&value);
+        if (callable != nullptr && *callable != nullptr &&
+            (*callable)->function != nullptr) {
+            return value;
+        }
     } else if (TypeRegistry::instance().hasNamedType(type)) {
         if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value);
             record != nullptr && *record != nullptr &&
@@ -1124,7 +1134,11 @@ std::string typeNameOf(const Value& value) {
     if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value)) {
         return (*enumValue)->enumName;
     }
-    if (std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
+    if (const auto* callable =
+            std::get_if<std::shared_ptr<CodeblockValue>>(&value)) {
+        if (*callable != nullptr && (*callable)->function != nullptr) {
+            return "function";
+        }
         return "codeblock";
     }
     return "object";

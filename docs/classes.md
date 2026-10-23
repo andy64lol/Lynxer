@@ -70,8 +70,31 @@ println(pet.speak());    // woof
 Inheritance is single-parent, and the parent class must be declared first.
 Inherited fields initialize from parent to child; a child field with the same
 name replaces the inherited field. If the child declares its own `init`, that
-constructor replaces the inherited `init`; Lynxer currently has no `super`
-call syntax to invoke the parent constructor explicitly.
+constructor replaces the inherited `init`. The child can explicitly invoke its
+parent constructor with `super(arguments);`:
+
+```lynx
+class Animal {
+    str name;
+    local init(str name) {
+        this.name = name;
+    }
+}
+
+class Dog extends Animal {
+    str breed;
+    local init(str name, str breed) {
+        super(name);
+        this.breed = breed;
+    }
+}
+```
+
+`super(...)` is only valid inside an `init` method of a class that extends
+another class. It invokes the nearest inherited `init`; that method may itself
+call `super(...)` to continue up the chain. If the parent chain has no
+constructor, `super();` is a no-op and passing arguments is an error. Calling
+`super` is optional, so existing constructors keep their current behavior.
 
 ## Construction
 

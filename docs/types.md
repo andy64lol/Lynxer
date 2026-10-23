@@ -23,6 +23,7 @@ how values are converted. For a runnable overview see
 | `sentinel` | a sentinel value | built with `sentinel()` / `sentinel("NAME")` |
 | `object` | an object value | built with `object()` |
 | `codeblock` | a stored block | see [language.md](language.md#codeblocks) |
+| `function` | a Lynxer function value | can be stored, returned, passed, and called; see [functions.md](functions.md#function-values) |
 | `functionAddress` | a native function address | integer handle |
 | `struct` / `class` / `enum` name | a value of that named type | see the dedicated pages |
 

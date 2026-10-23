@@ -536,6 +536,24 @@ private:
     int column_;
 };
 
+// Calls the direct parent class's init method on the current `this` instance.
+class SuperConstructorStatement final : public Statement {
+public:
+    void dump(std::ostream& out, int indent) const override;
+    SuperConstructorStatement(std::string parentClass,
+                              std::vector<ExpressionPtr> arguments,
+                              int line, int column);
+
+    void execute(Environment& environment) const override;
+    void optimizeChildren(OptimizationStats& stats) override;
+
+private:
+    std::string parentClass_;
+    std::vector<ExpressionPtr> arguments_;
+    int line_;
+    int column_;
+};
+
 class CodeblockDeclarationStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;
@@ -598,6 +616,14 @@ struct Function {
     bool isLambda = false;
     StatementList statements;
 };
+
+// Invokes a function value while respecting the lexical environment retained
+// by local functions and lambdas. Kept public for callback-taking built-ins.
+Value callFunctionValue(
+    const std::shared_ptr<CodeblockValue>& function,
+    const std::vector<Value>& arguments,
+    const std::vector<std::shared_ptr<CodeblockValue>>& codeblocks,
+    Environment& environment, int line, int column);
 
 class FunctionDeclarationStatement final : public Statement {
 public:

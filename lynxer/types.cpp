@@ -174,6 +174,12 @@ bool typeMatches(const std::string& type, const Value& value) {
     if (type == "codeblock") {
         return std::holds_alternative<std::shared_ptr<CodeblockValue>>(value);
     }
+    if (type == "function") {
+        const auto* callable =
+            std::get_if<std::shared_ptr<CodeblockValue>>(&value);
+        return callable != nullptr && *callable != nullptr &&
+               (*callable)->function != nullptr;
+    }
     if (type == "str") {
         return std::holds_alternative<std::string>(value);
     }

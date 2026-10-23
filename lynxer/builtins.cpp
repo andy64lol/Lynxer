@@ -5306,18 +5306,18 @@ Value builtinNativeThreadStart(const std::vector<Value>& args, Environment& envi
     }
     std::vector<Value> arguments = (*std::get_if<std::shared_ptr<List>>(&args[1]))
                                        ->elements;
-    const std::string name = (*function)->name;
+    const auto callable = *function;
 
     auto entry = std::make_shared<NativeThreadEntry>();
     entry->alive = true;
     std::weak_ptr<NativeThreadEntry> weak = entry;
-    entry->worker = std::thread([weak, &environment, name,
+    entry->worker = std::thread([weak, &environment, callable,
                                  arguments = std::move(arguments)]() {
         enterNativeThreadCallback();
         lockInterpreter();
         std::string status;
         try {
-            environment.callUserFunction(name, arguments, {}, 0, 0);
+            callFunctionValue(callable, arguments, {}, environment, 0, 0);
             status = "completed";
         } catch (const std::exception& error) {
             status = error.what();
@@ -5864,7 +5864,7 @@ Value builtinNativeSemaphoreClose(const std::vector<Value>& args, Environment&,
 
 struct FfiCallbackRecord {
     std::string signature;
-    std::string function;
+    std::shared_ptr<CodeblockValue> function;
 };
 
 std::unordered_map<void*, void*>& ffiLibraries() {
@@ -5969,8 +5969,8 @@ Value builtinFfiCall(const std::vector<Value>& args, Environment& environment,
         if (values.size() != 2) {
             fail("ffiCall() callback expects two arguments", line, column);
         }
-        return environment.callUserFunction(callback->second.function, values,
-                                            {}, line, column);
+        return callFunctionValue(callback->second.function, values, {},
+                                 environment, line, column);
     }
     const void* nativeAddress =
         reinterpret_cast<void*>(static_cast<std::intptr_t>(*address));
@@ -5997,7 +5997,7 @@ Value builtinFfiCallback(const std::vector<Value>& args, Environment&, int line,
     }
     const std::int64_t handle = nextFfiCallbackHandle();
     ffiCallbacks()[handle] =
-        FfiCallbackRecord{std::get<std::string>(args[0]), (*function)->name};
+        FfiCallbackRecord{std::get<std::string>(args[0]), *function};
     return handle;
 }
 
@@ -6752,8 +6752,7 @@ Value builtinAsyncPollDispatch(const std::vector<Value>& args,
         asyncPollWaitValues(*pollHandle, timeout, maximum, line, column);
     const auto* list = asList(values);
     for (const Value& event : (*list)->elements) {
-        environment.callUserFunction((*callback)->name, {event}, {}, line,
-                                     column);
+        callFunctionValue(*callback, {event}, {}, environment, line, column);
     }
     return static_cast<std::int64_t>((*list)->elements.size());
 }
@@ -7043,15 +7042,15 @@ Value builtinAsyncRun(const std::vector<Value>& args, Environment& environment,
         std::lock_guard<std::mutex> guard(asyncTasksMutex());
         asyncTasks()[entry->handle] = entry;
     }
-    const std::string name = (*function)->name;
+    const auto callable = *function;
     entry->worker = std::thread(
-        [entry, &environment, name, arguments = std::move(arguments), line,
+        [entry, &environment, callable, arguments = std::move(arguments), line,
          column]() {
             currentTaskHandle = entry->handle;
             lockInterpreter();
             try {
-                const Value result = environment.callUserFunction(
-                    name, arguments, {}, line, column);
+                const Value result = callFunctionValue(
+                    callable, arguments, {}, environment, line, column);
                 std::lock_guard<std::mutex> guard(entry->mutex);
                 entry->result = result;
             } catch (...) {
