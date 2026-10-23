@@ -95,19 +95,26 @@ scope. It accepts typed parameters and an optional `-> type` return annotation:
 global setup(){}
 
 global main() {
+    str greeting = "Hello";
+
     lambda greet(str name) -> str {
-        return inter"Hello, {name}!\n";
+        return inter"{greeting}, {name}!\n";
     }
 
-    println(greet("Ada")); // Hello, Ada!
+    println(greet("Andy")); // Hello, Andy!
+
+    global nested() {
+        println(greet("Andy")); // out-of-scope error if nested() is called
+    }
 }
 ```
 
 Lambdas are scoped declarations, not global or exported functions. A lambda is
 available in the function scope where it is declared; nested function scopes
-cannot see it. Control-flow blocks do not create nested scopes in Lynxer; see
-[language.md](language.md#scoping). Lambdas support the same typed and inferred
-generic parameters as other ordinary functions.
+cannot see its name. It can read variables from its enclosing function while
+that scope is active. Control-flow blocks do not create nested scopes in
+Lynxer; see [language.md](language.md#scoping). Lambdas support the same typed
+and inferred generic parameters as other ordinary functions.
 
 ## Parameters and defaults
 
