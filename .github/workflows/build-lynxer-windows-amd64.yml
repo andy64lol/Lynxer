@@ -1,8 +1,8 @@
 name: Build Lynxer on Windows AMD64
 
 # Builds and tests Lynxer on windows-latest (see docs/windows.md). This is a
-# required job: the port's excluded surface (named syscalls, `sys`, the POSIX
-# stdlib modules, the embedding runtime) is skipped explicitly rather than
+# required job: the port's excluded surface (named syscalls, `sys`, and
+# POSIX-only managed APIs) is skipped explicitly rather than
 # allowed to fail.
 #
 # It builds inside MSYS2 MINGW64 so the C++ compiler, `make` and the Rust
@@ -67,6 +67,21 @@ jobs:
         shell: msys2 {0}
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
 
+      - name: Test shared-library embedding
+        shell: msys2 {0}
+        run: |
+          set -e
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          cxx="$(command -v g++ || command -v clang++)"
+          cp lynxer/examples/export_basic.lynx "$work/"
+          ./lynxer/lynxer.exe --emit-library "$work/export_basic.lynx" \
+            --cc "$cxx" -o "$work/libexport_basic.dll"
+          cp lynxer/lynxer.dll lynxer/lynxer.h lynxer/ffi_abi.h "$work/"
+          "$cxx" -std=c++17 -I"$work" lynxer/examples/export_test.cpp \
+            "$work/libexport_basic.dll.a" -o "$work/export_test.exe"
+          (cd "$work" && ./export_test.exe)
+
       - name: Upload the Windows AMD64 binary
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +89,10 @@ jobs:
           name: lynxer-windows-amd64
           path: |
             lynxer/lynxer.exe
+            lynxer/lynxer.dll
+            lynxer/lynxer.dll.a
+            lynxer/lynxer.h
+            lynxer/ffi_abi.h
             lynxer/lynxer
             lynxer/stdlib
             lynxer/lynxer.config

@@ -1,7 +1,7 @@
 # Native module ABI
 
 Lynxer's standard libraries are shared libraries (`.so` on Linux, `.dylib` on
-macOS) loaded at runtime with `dlopen`. This document is the contract a native
+macOS, and PE DLLs on Windows) loaded at runtime through the host loader. This document is the contract a native
 module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
 
@@ -447,14 +447,17 @@ An additive change must not alter how existing shapes or signatures behave.
 
 ## Platform support
 
-Native modules require a POSIX host. On other platforms every `.so` import
-fails with `native modules are only supported on POSIX hosts`.
+Native modules are supported on Linux, macOS, and the MinGW-w64 Windows
+builds. The bundled Lynxer wrappers keep their `.so` import names on Windows
+for source compatibility; those files contain PE DLLs and load through
+`LoadLibrary`. Third-party modules must be built for the host OS and toolchain.
 
 ## The reverse direction: exporting Lynxer functions
 
 The mirror of this ABI lets a Lynxer program expose functions to C instead of
 calling C. A program declares `export "cdecl:<ret>(<args>)" name(...) { ... }`
-and `lynxer --emit-library` builds a `.so` whose typed `extern "C"` wrappers
+and `lynxer --emit-library` builds a host shared library (`.so` on Linux,
+`.dll` on MinGW Windows) whose typed `extern "C"` wrappers
 marshall through the embedding C API in `lynxer/lynxer.h`
 (`lynxer_embed_init` / `lynxer_embed_call` / `lynxer_embed_last_error`). It
 reuses the same `LynxerFfiArg`/`LynxerFfiResult` wire types and the same

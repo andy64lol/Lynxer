@@ -27,6 +27,8 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -35,6 +37,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
@@ -67,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html" class="active">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -76,21 +81,26 @@
 <li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -122,7 +132,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="embedding-and-exporting-to-a-c-abi">Embedding and exporting to a C ABI</h1>
-<p>Lynxer can build a shared library that exposes a program's functions as <strong>real C symbols</strong>, so any language that can link or <code>dlopen</code> a <code>.so</code> — C, C++, Python <code>ctypes</code>, … — can call Lynxer code. This is the reverse of the <a href="native-module-abi.html">native-module ABI</a>: there, Lynxer calls C; here C calls Lynxer.</p>
+<p>Lynxer can build a shared library that exposes a program's functions as <strong>real C symbols</strong>, so C, C++, Python <code>ctypes</code>, and other native consumers can call Lynxer code. This is the reverse of the <a href="native-module-abi.html">native-module ABI</a>: there, Lynxer calls C; here C calls Lynxer.</p>
 <h2 id="declaring-exports">Declaring exports</h2>
 <p>An exported function is declared at the top level with a quoted C signature:</p>
 <pre><code>global setup(){ /* optional; runs at library init */ }
@@ -151,33 +161,40 @@ export &quot;cdecl:void(int64)&quot;        sink(int n)      -&gt; none  { print
 <p><code>cstring</code> and <code>bytes</code> results are valid only until the next exported call on the same thread; copy them if you need to keep them. On failure the wrapper returns <code>0</code> / <code>0.0</code> / <code>&quot;&quot;</code> / <code>nullptr</code>; the reason is available from <code>lynxer_embed_last_error()</code>.</p>
 <p>The Lynxer parameter and return types must be compatible with the signature: <code>int64</code>↔<code>int</code>-family, <code>float64</code>↔<code>float</code>/<code>num</code>, <code>cstring</code>↔<code>str</code>, <code>bytes</code>↔<code>bytes</code>, <code>void</code>↔omitted/<code>none</code>. Rejected at build time: defaults, codeblock parameters, <code>value</code>, packed (<code>...</code>) signatures, <code>v2:</code> prefixes, and arity or type mismatches.</p>
 <h2 id="building-the-library">Building the library</h2>
-<pre><code>lynxer --emit-library app.lynx -o libapp.so
-lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so</code></pre>
+<p>On Linux, the output is an ELF <code>.so</code>. On Windows, use the MSYS2 MinGW-w64 toolchain used by Lynxer's Windows builds; the output is a <code>.dll</code> plus a MinGW <code>.dll.a</code> import library. macOS shared-runtime builds are not available yet.</p>
+<pre><code># Linux
+lynxer --emit-library app.lynx -o libapp.so
+
+# Windows (MSYS2 MinGW)
+lynxer --emit-library app.lynx -o app.dll</code></pre>
 <table>
 <tr><th>Flag</th><th>Effect</th></tr>
-<tr><td><code>--emit-library &lt;a.lynx&gt;</code></td><td>build a <code>.so</code> exporting the program's <code>export</code>s</td></tr>
+<tr><td><code>--emit-library &lt;a.lynx&gt;</code></td><td>build a platform shared library exporting the program's <code>export</code>s</td></tr>
 <tr><td><code>--include &lt;file&gt;</code></td><td>embed an extra module, native library or data file</td></tr>
-<tr><td><code>-o &lt;path&gt;</code></td><td>name the output library (default: the input stem + <code>.so</code>)</td></tr>
-<tr><td><code>--runtime &lt;liblynxer.so&gt;</code></td><td>use an explicit embedding runtime</td></tr>
+<tr><td><code>-o &lt;path&gt;</code></td><td>name the output library (default: the input stem + <code>.so</code> or <code>.dll</code>)</td></tr>
+<tr><td><code>--runtime &lt;path&gt;</code></td><td>use an explicit embedding runtime (<code>liblynxer.so</code> or <code>lynxer.dll</code>)</td></tr>
 <tr><td><code>--cc &lt;compiler&gt;</code></td><td>C++ compiler used to build the library</td></tr>
 </table>
-<p><code>--emit-library</code> needs a C++ compiler and the embedding runtime <code>liblynxer.so</code> (installed next to the interpreter, or passed with <code>--runtime</code>). The generated library links <code>liblynxer.so</code> and records an <code>rpath</code> to it plus <code>$ORIGIN</code>; set <code>LD_LIBRARY_PATH</code> only if you move the runtime.</p>
+<p><code>--emit-library</code> needs a C++ compiler and the matching embedding runtime. On Linux it links <code>liblynxer.so</code> and records an <code>rpath</code> to the runtime and <code>$ORIGIN</code>. On Windows it links the MinGW import library <code>lynxer.dll.a</code>; the Windows DLL loader must be able to find <code>lynxer.dll</code> when the emitted library is loaded, so put the runtime beside the host executable or add its directory to <code>PATH</code>.</p>
 <p>Alongside the library it writes a header with the exported prototypes: <code>libapp.so</code> produces <code>libapp.h</code>, a self-contained header declaring each exported function in <code>extern &quot;C&quot;</code> (it includes only <code>&lt;stdint.h&gt;</code>; include <code>lynxer.h</code> too if you need the embedding wire types). Consumers include that one header instead of declaring the prototypes by hand:</p>
 <pre><code>lynxer --emit-library app.lynx -o libapp.so
 # libapp.so and libapp.h
 c++ -I. -I&lt;dir-with-lynxer.h&gt; client.cpp libapp.so -o client</code></pre>
+<p>On Windows, <code>app.dll</code>, <code>app.dll.a</code> and <code>app.h</code> are emitted. Link the import library with MinGW (<code>g++ -I. client.cpp app.dll.a -o client.exe</code>) and make <code>lynxer.dll</code> available through the Windows DLL search path.</p>
 <p>The library initializes the embedded program lazily, on the first exported call. A program can be embedded once per process; a second initialization is refused because the interpreter keeps process-global state.</p>
 <h2 id="staging-the-sdk">Staging the SDK</h2>
 <p><code>make sdk</code> (also run by <code>make buildLynxer</code>) stages the pieces a consumer needs under <code>lynxer/build/sdk/</code>:</p>
 <pre><code>lynxer/build/sdk/include/lynxer.h     the public C ABI
 lynxer/build/sdk/include/ffi_abi.h    the wire types
-lynxer/build/sdk/lib/liblynxer.so     the embedding runtime</code></pre>
+lynxer/build/sdk/lib/liblynxer.so     Linux runtime
+lynxer/build/sdk/lib/lynxer.dll.a     Windows MinGW import library
+lynxer/build/sdk/bin/lynxer.dll       Windows runtime</code></pre>
 <h2 id="lynxer-must-be-built">Lynxer must be built</h2>
 <p><code>export</code> is a build feature: it only takes effect through a library produced by <code>--emit-library</code>, not when the file is run directly. Running <code>lynxer app.lynx</code> executes <code>main()</code> and never exposes the exports.</p>
 <p>Building the library requires the <strong>compiled</strong> interpreter and its runtime:</p>
-<pre><code>make buildLynxer      # builds lynxer/lynxer and lynxer/liblynxer.so</code></pre>
-<p>If <code>liblynxer.so</code> is missing (an unbuilt tree, or a binary installed without it), <code>--emit-library</code> fails with <code>build Lynxer first with make buildLynxer</code>, rather than a confusing compiler error. <code>make buildLynxer</code> is therefore a prerequisite for this feature; the interpreter alone is not enough.</p>
-<p>The emitted library is <strong>self-contained</strong>: it embeds the program archive (the source and every module it imports), so at run time it needs neither the original <code>.lynx</code> file nor the <code>lynxer</code> executable — only <code>liblynxer.so</code>, which carries the compiled interpreter. The test fixture builds from a temporary copy of the source, deletes it, and then runs the C++ and Python consumers from <code>/tmp</code> to prove this.</p>
+<pre><code>make buildLynxer      # builds the interpreter and this host&#x27;s embedding runtime</code></pre>
+<p>If the embedding runtime or its Windows import library is missing, <code>--emit-library</code> reports that <code>make buildLynxer</code> is required rather than passing a missing library to the compiler.</p>
+<p>The emitted library is <strong>self-contained</strong>: it embeds the program archive (the source and every module it imports), so at run time it needs neither the original <code>.lynx</code> file nor the <code>lynxer</code> executable — only the host's Lynxer runtime, which carries the compiled interpreter. The fixture builds from a temporary copy of the source, deletes it, and then runs the C++ and Python consumers from <code>/tmp</code> to prove this.</p>
 <h2 id="calling-from-c">Calling from C</h2>
 <pre><code>#include &quot;libapp.h&quot;   /* generated next to libapp.so */
 /* bytes return: read the 8-byte little-endian length prefix first */</code></pre>
@@ -190,8 +207,8 @@ print(lib.add(2, 3))  # 5</code></pre>
 <p>See <code>lynxer/examples/export_basic.lynx</code>, <code>export_test.cpp</code> and <code>export_test.py</code> for a complete, tested example.</p>
 <h2 id="notes-and-limits">Notes and limits</h2>
 <ul>
-<li>POSIX only, matching the native-module policy.</li>
-<li>One embedded program per process (<code>liblynxer.so</code> is the interpreter core).</li>
+<li>Linux and Windows MinGW builds are supported; macOS runtime builds remain unavailable.</li>
+<li>One embedded program per process (the shared runtime is the interpreter core).</li>
 <li>A library does not run <code>main()</code>; put initialization in <code>setup()</code>.</li>
 <li><code>value</code>/v2 aggregate exports, packed exports, <code>as &lt;cname&gt;</code> renaming, and self-contained (statically linked) libraries are not supported yet.</li>
 </ul>

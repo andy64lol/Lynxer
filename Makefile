@@ -37,23 +37,22 @@ LYNXER_TARGET := $(LYNXER_DIR)/lynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
 # Platform compile flags and link libraries.
 #
 # -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
-# into the shared embedding runtime `liblynxer.so`. `-ftls-model=global-dynamic`
+# into the shared embedding runtime. `-ftls-model=global-dynamic`
 # keeps the thread_local state (error buffers, native callbacks) valid in a
 # shared object, where the default local-exec model is rejected by the linker.
-# Neither flag applies on Windows, where the ELF shared runtime is not built yet.
+# Neither flag applies on Windows, where MinGW builds a PE DLL.
 #
 # `-ldl` exists on Linux and the BSDs but not on macOS (`dlopen` lives in
 # libSystem) or Windows, so it is added only off macOS.
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_PLATFORM_FLAGS :=
 LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi -lpsapi
-LYNXER_BUILD_SHARED := 0
+LYNXER_BUILD_SHARED := 1
 else
 LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
 ifeq ($(LYNXER_ON_MACOS),1)
 LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
-# `liblynxer.so` links with an ELF version script and `-soname`, so the embedding
-# runtime is built on Linux only for now.
+# macOS needs a separate install-name/export-list implementation.
 LYNXER_BUILD_SHARED := 0
 else
 LYNXER_PLATFORM_LIBS := -lpthread -ldl -lm -lffi
@@ -130,20 +129,30 @@ else
 LYNXER_FFI_LINK_LIBS =
 endif
 
-# The embedding runtime and its public C header. `liblynxer.so` is the core
-# interpreter (minus `main.cpp`) as a shared library; libraries emitted by
-# `lynxer --emit-library` link against it. Only the `lynxer_embed_*` entry
-# points are exported (see the version script).
+# The embedding runtime and its public C header. On Windows MinGW's import
+# library is linked by emitted DLLs; POSIX uses the shared object directly.
+ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_SHARED := $(LYNXER_DIR)/lynxer.dll
+LYNXER_SHARED_IMPORT := $(LYNXER_DIR)/lynxer.dll.a
+LYNXER_SHARED_EXPORTS := $(LYNXER_DIR)/liblynxer.def
+else
 LYNXER_SHARED := $(LYNXER_DIR)/liblynxer.so
+LYNXER_SHARED_IMPORT := $(LYNXER_SHARED)
+LYNXER_SHARED_EXPORTS := $(LYNXER_DIR)/liblynxer.map
+endif
 ifeq ($(LYNXER_BUILD_SHARED),1)
 LYNXER_SHARED_BUILT := $(LYNXER_SHARED)
+ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_SHARED_BUILT += $(LYNXER_SHARED_IMPORT)
+LYNXER_EMIT_TEST :=
+else
 LYNXER_EMIT_TEST := testLynxerEmit
+endif
 else
 LYNXER_SHARED_BUILT :=
 LYNXER_EMIT_TEST :=
 endif
 LYNXER_SHARED_OBJECTS := $(filter-out $(LYNXER_DIR)/main.o,$(LYNXER_OBJECTS))
-LYNXER_SHARED_VERSION_SCRIPT := $(LYNXER_DIR)/liblynxer.map
 LYNXER_PUBLIC_HEADERS := $(LYNXER_DIR)/lynxer.h $(LYNXER_FFI_ABI_HEADER)
 
 # The Rust toolchain is required, not optional: every Rust backend is built by
@@ -171,6 +180,12 @@ LYNXER_MILESTONE4_FIXTURE := $(LYNXER_DIR)/examples/milestone4.lynx
 LYNXER_MILESTONE4_PATTERN_FIXTURE := $(LYNXER_DIR)/examples/milestone4_patterns.lynx
 LYNXER_MILESTONE5_FIXTURE := $(LYNXER_DIR)/examples/milestone5.lynx
 LYNXER_MILESTONE5_CODEBLOCK_FIXTURE := $(LYNXER_DIR)/examples/milestone5_codeblocks.lynx
+LYNXER_SUPER_FIXTURE := $(LYNXER_DIR)/examples/super_constructors.lynx
+LYNXER_FUNCTION_VALUE_FIXTURE := $(LYNXER_DIR)/examples/function_values.lynx
+LYNXER_LINT_FIXTURE := $(LYNXER_DIR)/examples/lint_static.lynx
+LYNXER_DEBUGGER_FIXTURE := $(LYNXER_DIR)/examples/debugger.lynx
+LYNXER_DEBUGGER_TEST := $(LYNXER_DIR)/scripts/test_debugger.py
+LYNXER_LSP_TEST := $(LYNXER_DIR)/scripts/test_lsp.py
 LYNXER_MILESTONE6_FIXTURE := $(LYNXER_DIR)/examples/milestone6_module.lynx
 LYNXER_MILESTONE6_MATH_FIXTURE := $(LYNXER_DIR)/examples/milestone6_math_native.lynx
 # A module imported by a path with a directory component, resolved relative to
@@ -398,6 +413,7 @@ dist: buildLynxer
 	@cp -r $(LYNXER_DIR)/stdlib $(DIST_DIR)/$(LYNXER_DIST_NAME)/stdlib
 	@if [ -f $(LYNXER_DIR)/lynxer.config ]; then cp $(LYNXER_DIR)/lynxer.config $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi
 	@if [ -f $(LYNXER_SHARED) ]; then cp $(LYNXER_SHARED) $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi
+	@if [ -f $(LYNXER_SHARED_IMPORT) ] && [ "$(LYNXER_SHARED_IMPORT)" != "$(LYNXER_SHARED)" ]; then cp $(LYNXER_SHARED_IMPORT) $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi
 	@for header in $(LYNXER_PUBLIC_HEADERS); do if [ -f $$header ]; then cp $$header $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi; done
 	@tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz $(LYNXER_DIST_NAME)
 	@echo "OK: bundle at $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz"
@@ -406,19 +422,29 @@ dist: buildLynxer
 buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED_BUILT) sdk
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
 
-# The embedding SDK staged for consumers: the shared runtime plus the public
-# headers, under lynxer/build/sdk/{include,lib}. Libraries built by
-# `--emit-library` compile against this. Also installed by `--install`.
+# Process-level performance report. The runner compiles two temporary samples
+# and compares optimized/unoptimized interpreter runs with standalone startup.
+BENCH_RUNS ?= 9
+BENCH_WARMUPS ?= 2
+BENCH_LOOP_COUNT ?= 100000
+BENCH_JSON ?=
+benchLynxer: $(LYNXER_TARGET)
+	$(PYTHON) benchmarks/bench.py --lynxer "$(CLYX)" --runs $(BENCH_RUNS) --warmups $(BENCH_WARMUPS) --loop-count $(BENCH_LOOP_COUNT) $(if $(BENCH_JSON),--json "$(BENCH_JSON)",)
+
+# The embedding SDK staged for consumers: runtime, import library and public
+# headers under lynxer/build/sdk. Libraries built by `--emit-library` compile
+# against these artifacts. Also installed by `--install`.
 LYNXER_SDK_DIR := $(LYNXER_DIR)/build/sdk
 ifeq ($(LYNXER_BUILD_SHARED),1)
-sdk: lynxerToolchain $(LYNXER_SHARED)
-	@mkdir -p $(LYNXER_SDK_DIR)/include $(LYNXER_SDK_DIR)/lib
+sdk: lynxerToolchain $(LYNXER_SHARED_BUILT)
+	@mkdir -p $(LYNXER_SDK_DIR)/include $(LYNXER_SDK_DIR)/lib $(LYNXER_SDK_DIR)/bin
 	@cp $(LYNXER_PUBLIC_HEADERS) $(LYNXER_SDK_DIR)/include/
-	@cp $(LYNXER_SHARED) $(LYNXER_SDK_DIR)/lib/
+	@cp $(LYNXER_SHARED) $(LYNXER_SDK_DIR)/$(if $(LYNXER_ON_WINDOWS),bin,lib)/
+	@if [ -f $(LYNXER_SHARED_IMPORT) ] && [ "$(LYNXER_SHARED_IMPORT)" != "$(LYNXER_SHARED)" ]; then cp $(LYNXER_SHARED_IMPORT) $(LYNXER_SDK_DIR)/lib/; fi
 	@echo "✓ Lynxer embedding SDK staged in $(LYNXER_SDK_DIR)"
 else
 sdk:
-	@echo "lynxer: the embedding SDK is not built on Windows yet (see docs/windows.md)"
+	@echo "lynxer: embedding SDK is unavailable on this host"
 endif
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
@@ -437,13 +463,21 @@ $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
 
-# The embedding runtime: the same objects without `main.o`, linked as a shared
-# library so `--emit-library` shims can `-llynxer`. The version script hides
-# every symbol except the `lynxer_embed_*` entry points.
-$(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_VERSION_SCRIPT)
+# The embedding runtime: the same objects without `main.o`. Windows uses a
+# DEF file and produces a MinGW import library; ELF uses a version script.
+ifeq ($(LYNXER_ON_WINDOWS),1)
+$(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_EXPORTS)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
-	    -Wl,--version-script=$(LYNXER_SHARED_VERSION_SCRIPT) -Wl,-soname,liblynxer.so \
+	    $(LYNXER_SHARED_EXPORTS) -Wl,--exclude-all-symbols -Wl,--out-implib=$(LYNXER_SHARED_IMPORT) \
 	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
+$(LYNXER_SHARED_IMPORT): $(LYNXER_SHARED)
+	@test -f $@ || { rm -f $(LYNXER_SHARED); $(MAKE) --no-print-directory $(LYNXER_SHARED); }
+else
+$(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_EXPORTS)
+	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
+	    -Wl,--version-script=$(LYNXER_SHARED_EXPORTS) -Wl,-soname,liblynxer.so \
+	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
+endif
 
 # The ARM64 interpreter links the same Rust native-call engine, so the host must
 # be able to produce an aarch64 staticlib. Native aarch64 (the ARM CI runner) is
@@ -846,6 +880,31 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and lega
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@for fixture in $(LYNXER_SUPER_FIXTURE) $(LYNXER_FUNCTION_VALUE_FIXTURE); do \
+	$(CLYX) "$$fixture" > $(CLYX_TMP)_feature.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
+	echo "feature fixture failed: $$fixture"; cat $(CLYX_TMP)_feature.out; \
+	rm -f $(CLYX_TMP)_feature.out; exit 1; fi; \
+	if ! diff -u "$${fixture%.lynx}.expected" $(CLYX_TMP)_feature.out; then \
+	echo "feature fixture output mismatch: $$fixture"; \
+	rm -f $(CLYX_TMP)_feature.out; exit 1; fi; \
+	done; rm -f $(CLYX_TMP)_feature.out
+	@set +e; \
+	output="$$($(CLYX) --lint $(LYNXER_LINT_FIXTURE) 2>&1)"; \
+	status=$$?; \
+	set -e; \
+	if [ "$$status" -ne 1 ]; then \
+	echo "expected --lint to fail the static-analysis fixture (status $$status)"; \
+	printf '%s\n' "$$output"; exit 1; fi; \
+	for expected in "unused variable 'unused'" \
+	"initializer for 'count' has type 'str'" \
+	"converts 'float' to 'int'" \
+	"unreachable statement"; do \
+	if ! printf '%s\n' "$$output" | grep -Fq "$$expected"; then \
+	echo "missing lint diagnostic: $$expected"; printf '%s\n' "$$output"; exit 1; fi; \
+	done
+	@$(PYTHON) $(LYNXER_DEBUGGER_TEST) --lynxer $(LYNXER_TARGET) --fixture $(LYNXER_DEBUGGER_FIXTURE)
+	@$(PYTHON) $(LYNXER_LSP_TEST) --lynxer $(LYNXER_TARGET)
 	@output="$$($(CLYX) $(LYNXER_PATH_IMPORT_FIXTURE))"; \
 	expected="$$(cat $(LYNXER_PATH_IMPORT_FIXTURE:.lynx=.expected))"; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -1108,7 +1167,7 @@ clean:
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
 	@rm -f $(LYNXER_FFI_BUILD_LOG) $(LYNXER_FFI_NATIVE_LIBS)
-	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(LYNXER_SHARED) $(CLYX_TMP)_*
+	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(LYNXER_SHARED) $(LYNXER_SHARED_IMPORT) $(CLYX_TMP)_*
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target

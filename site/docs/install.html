@@ -28,6 +28,7 @@
 <li><a href="install.html" class="active">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
 <li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -69,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -129,11 +132,11 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="build-and-install">Build and install</h1>
-<p>Lynxer is a C++17 Linux executable. Building and running it does <strong>not</strong> need Python; only the two check scripts in the test suite do.</p>
+<p>Lynxer is a C++17 executable with a cross-platform Windows host build. Building and running it does <strong>not</strong> need Python; Python is used by the LSP and tooling.</p>
 <h2 id="requirements">Requirements</h2>
 <ul>
 <li>A C++17 compiler (<code>g++</code> or <code>clang++</code>) and <code>make</code>.</li>
-<li><code>python3</code> to run <code>make testLynxer</code> (the module contract check).</li>
+<li><code>python3</code> for the LSP and development tooling.</li>
 <li>A Rust toolchain (<code>cargo</code>): it is <strong>required</strong>, not optional. Every Rust-backed stdlib module is built by <code>cargo</code>, and the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>). A missing toolchain or a compile error fails the build; there is no reduced build that drops a backend.</li>
 <li><code>libffi</code> headers and <code>pkg-config</code> (e.g. <code>libffi-dev</code> on Debian/Ubuntu) for the native-call engine.</li>
 <li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Most crates are pure Rust, but a few compile vendored C with the system C compiler — <code>zstd</code> (via <code>zstd-sys</code>), vendored Lua (via <code>mlua</code>), bundled SQLite (via <code>rusqlite</code>) and the <code>ring</code> crypto provider — so a C compiler is required alongside the Rust toolchain.</li>
@@ -148,15 +151,16 @@ make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></p
 <p>The Makefile lives at the repository root; there is no separate <code>lynxer/Makefile</code>.</p>
 <h2 id="artifacts">Artifacts</h2>
 <ul>
-<li><code>lynxer/lynxer</code> — the interpreter.</li>
+<li><code>lynxer/lynxer</code> or <code>lynxer/lynxer.exe</code> — the interpreter for the build host.</li>
 <li><code>lynxer/lynxer-arm64</code> — the ARM64 interpreter, from <code>buildLynxerArm64</code>.</li>
-<li><code>lynxer/stdlib/*.so</code> — the stdlib backends. The Rust-backed modules are produced by <code>cargo</code> under <code>lynxer/build/rust</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
+<li><code>lynxer/stdlib/*.so</code> — the Linux stdlib backends. The Rust-backed modules are produced by <code>cargo</code> under <code>lynxer/build/rust</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
+<li>On Windows, <code>lynxer/stdlib/*.so</code> files contain MinGW PE DLLs while retaining the language-level module names used by the bundled wrappers.</li>
 </ul>
 <ul>
 <li><code>lynxer/build/rust/release/liblynxer_ffi.a</code> — the native-call engine, a Rust <code>staticlib</code> built by <code>cargo</code> and linked into <code>lynxer/lynxer</code>. It is not a stdlib module and is not copied into <code>stdlib/</code>.</li>
 </ul>
 <ul>
-<li><code>lynxer/liblynxer.so</code> — the embedding runtime: the interpreter core (minus <code>main.cpp</code>) linked as a shared library, exporting only the <code>lynxer_embed_*</code> entry points. Libraries built by <code>lynxer --emit-library</code> link against it. <code>lynxer/lynxer.h</code> and <code>lynxer/ffi_abi.h</code> are its public headers.</li>
+<li><code>lynxer/liblynxer.so</code> on Linux, or <code>lynxer/lynxer.dll</code> plus <code>lynxer/lynxer.dll.a</code> on Windows — the embedding runtime: the interpreter core (minus <code>main.cpp</code>) linked as a shared library, exporting only the <code>lynxer_embed_*</code> entry points. Libraries built by <code>lynxer --emit-library</code> link against it. <code>lynxer/lynxer.h</code> and <code>lynxer/ffi_abi.h</code> are its public headers.</li>
 </ul>
 <p>The Rust workspace has twenty-six member crates: the twenty-three stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>raylib</code>, <code>re</code>, <code>regex</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>text</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code>), the two crates they share (<code>rust/abi</code>, and <code>rust/regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
 <h2 id="install">Install</h2>
@@ -166,12 +170,12 @@ sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></p
 <pre><code>/usr/lib/lynxer/lynxer          the real binary
 /usr/lib/lynxer/stdlib/*        every stdlib module
 /usr/lib/lynxer/lynxer.config   the configuration file
-/usr/lib/lynxer/liblynxer.so    the embedding runtime (for --emit-library)
+/usr/lib/lynxer/liblynxer.so    the Linux embedding runtime (for --emit-library)
 /usr/lib/lynxer/lynxer.h        the embedding public header
 /usr/lib/lynxer/ffi_abi.h       the wire-type header
 /usr/bin/lynxer                 a symlink to the real binary</code></pre>
-<p>Because the symlink resolves to the real binary (<code>/proc/self/exe</code>), an installed <code>lynxer</code> finds its stdlib — and <code>liblynxer.so</code> plus its headers for <code>--emit-library</code> — from any working directory, so <code>lynxer app.lynx</code> works without keeping the build tree around. See <a href="embedding.html">embedding</a>. Set <code>LYNXER_PREFIX</code> to install somewhere other than <code>/usr</code> — for example <code>LYNXER_PREFIX=$HOME/.local lynxer --install</code> needs no root — and pass the same value to <code>--uninstall</code>.</p>
-<p>On Windows, <code>--install</code> defaults to <code>%LOCALAPPDATA%\Programs\Lynxer</code> (a per-user install needs no elevation; override it with <code>LYNXER_PREFIX</code>) and lays out the same tree — <code>bin\lynxer.exe</code> plus <code>lib\lynxer\{lynxer.exe, stdlib, lynxer.config}</code> — except that the launcher is a copy rather than a symlink, so the stdlib is resolved from <code>lib\lynxer</code>. There is no <code>liblynxer.so</code> yet, so <code>--emit-library</code> is Linux-only. Add <code>&lt;prefix&gt;\bin</code> to <code>PATH</code> to run <code>lynxer</code> by name; the installer says so when it is missing. See <a href="windows.html">windows</a>.</p>
+<p>Because the symlink resolves to the real binary (<code>/proc/self/exe</code>), an installed <code>lynxer</code> finds its stdlib — and the embedding runtime plus its headers for <code>--emit-library</code> — from any working directory, so <code>lynxer app.lynx</code> works without keeping the build tree around. See <a href="embedding.html">embedding</a>. Set <code>LYNXER_PREFIX</code> to install somewhere other than <code>/usr</code> — for example <code>LYNXER_PREFIX=$HOME/.local lynxer --install</code> needs no root — and pass the same value to <code>--uninstall</code>.</p>
+<p>On Windows, <code>--install</code> defaults to <code>%LOCALAPPDATA%\Programs\Lynxer</code> (a per-user install needs no elevation; override it with <code>LYNXER_PREFIX</code>) and lays out the same tree — <code>bin\lynxer.exe</code> plus <code>lib\lynxer\{lynxer.exe, lynxer.dll, lynxer.dll.a, stdlib, lynxer.config}</code> — except that the launcher is a copy rather than a symlink, so the stdlib is resolved from <code>lib\lynxer</code>. <code>--emit-library</code> is available with the MinGW toolchain; consumers need <code>lynxer.dll</code> on the Windows DLL search path. Add <code>&lt;prefix&gt;\bin</code> to <code>PATH</code> to run <code>lynxer</code> by name; the installer says so when it is missing. See <a href="windows.html">windows</a>.</p>
 <p>See <a href="CLI.html#installing">CLI</a>.</p>
 <h2 id="quick-run">Quick run</h2>
 <pre><code>./lynxer/lynxer lynxer/examples/milestone5.lynx

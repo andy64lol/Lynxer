@@ -1,8 +1,8 @@
 # Windows support
 
-Lynxer targets Linux today. The Windows port is in progress and is being done
-in stages; this page records the state and, in particular, what is deliberately
-**excluded** from the Windows build while the Linux-only features wait.
+Lynxer runs on Windows through the MSYS2 MinGW-w64 and CLANGARM64 builds. This
+page records the port's state, the supported surface, and what is deliberately
+**excluded** because it depends on Linux-only syscalls or platform APIs.
 
 ## Status
 
@@ -106,6 +106,21 @@ Windows build yet:
 build skips (`sys`), and `watch` is filtered out of
 `LYNXER_RUST_MODULE_NAMES`.
 
+## Shared-library embedding
+
+The MinGW-w64 Windows builds now produce `lynxer.dll` and
+`lynxer.dll.a`. The DLL exports only the `lynxer_embed_*` C ABI. `make sdk`
+stages the public headers under `build/sdk/include`, the import library under
+`build/sdk/lib`, and the runtime under `build/sdk/bin`. Windows
+`lynxer --emit-library app.lynx -o app.dll` emits `app.dll`, `app.dll.a`, and
+`app.h`; the generated DLL links to `lynxer.dll`.
+
+At run time, place `lynxer.dll` next to the host executable or add the runtime
+directory to `PATH`. The installed SDK runtime lives under
+`<prefix>/lib/lynxer`; `--emit-library` locates it from an installed Lynxer
+launcher. Emitted libraries are currently supported by the MSYS2 MinGW-w64
+GNU ABI used in CI; an MSVC/clang-cl runtime is still unavailable.
+
 ## Still to do
 
 - **Toolchain and build target.** The `Makefile` detects the host once
@@ -120,17 +135,16 @@ build skips (`sys`), and `watch` is filtered out of
   `rustc --print native-static-libs` (`LYNXER_FFI_NATIVE_LIBS`) and are added on
   Windows only, where nothing else supplies them — a Rust `staticlib` does not
   carry its dependencies' link directives; POSIX keeps the proven driver
-  defaults. Still to do: `lynxer.dll` and a native MSVC/clang-cl build (with the
-  `.def`/`__declspec` exports and the 32-bit `__stdcall` convention).
+  defaults. Still to do: a native MSVC/clang-cl build and the 32-bit
+  `__stdcall` convention.
 - **Stdlib backends.** `cli`/`debug`/`os`/`path` and `js`/`multiprocessing` now
   have Win32 implementations; `watch` needs `ReadDirectoryChangesW`;
   `tui`/`graphics`/
   `sound` need console and device handling. `fileIO`/`shell` and the data-format
   modules build as-is.
-- **Embedding and `--emit-library`.** The runtime is an ELF shared object today,
-  so `--emit-library` fails cleanly on Windows with a "not supported yet" message
-  rather than emitting ELF-only link flags. A `lynxer.dll` runtime, its export
-  definition and the DLL-search-path lookup are still to do.
+- **Embedding and `--emit-library`.** Supported on the MinGW-w64 builds. A
+  Windows emitted DLL depends on `lynxer.dll`, which must be available through
+  the Windows DLL search path. MSVC/clang-cl is not supported yet.
 
 ## The Windows ecosystem
 

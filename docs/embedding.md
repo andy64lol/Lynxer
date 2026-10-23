@@ -1,8 +1,8 @@
 # Embedding and exporting to a C ABI
 
 Lynxer can build a shared library that exposes a program's functions as **real
-C symbols**, so any language that can link or `dlopen` a `.so` — C, C++, Python
-`ctypes`, … — can call Lynxer code. This is the reverse of the
+C symbols**, so C, C++, Python `ctypes`, and other native consumers can call
+Lynxer code. This is the reverse of the
 [native-module ABI](native-module-abi.md): there, Lynxer calls C; here C calls
 Lynxer.
 
@@ -54,23 +54,32 @@ arity or type mismatches.
 
 ## Building the library
 
+On Linux, the output is an ELF `.so`. On Windows, use the MSYS2 MinGW-w64
+toolchain used by Lynxer's Windows builds; the output is a `.dll` plus a MinGW
+`.dll.a` import library. macOS shared-runtime builds are not available yet.
+
 ```bash
+# Linux
 lynxer --emit-library app.lynx -o libapp.so
-lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
+
+# Windows (MSYS2 MinGW)
+lynxer --emit-library app.lynx -o app.dll
 ```
 
 | Flag | Effect |
 | --- | --- |
-| `--emit-library <a.lynx>` | build a `.so` exporting the program's `export`s |
+| `--emit-library <a.lynx>` | build a platform shared library exporting the program's `export`s |
 | `--include <file>` | embed an extra module, native library or data file |
-| `-o <path>` | name the output library (default: the input stem + `.so`) |
-| `--runtime <liblynxer.so>` | use an explicit embedding runtime |
+| `-o <path>` | name the output library (default: the input stem + `.so` or `.dll`) |
+| `--runtime <path>` | use an explicit embedding runtime (`liblynxer.so` or `lynxer.dll`) |
 | `--cc <compiler>` | C++ compiler used to build the library |
 
-`--emit-library` needs a C++ compiler and the embedding runtime `liblynxer.so`
-(installed next to the interpreter, or passed with `--runtime`). The generated
-library links `liblynxer.so` and records an `rpath` to it plus `$ORIGIN`; set
-`LD_LIBRARY_PATH` only if you move the runtime.
+`--emit-library` needs a C++ compiler and the matching embedding runtime. On
+Linux it links `liblynxer.so` and records an `rpath` to the runtime and
+`$ORIGIN`. On Windows it links the MinGW import library `lynxer.dll.a`; the
+Windows DLL loader must be able to find `lynxer.dll` when the emitted library
+is loaded, so put the runtime beside the host executable or add its directory
+to `PATH`.
 
 Alongside the library it writes a header with the exported prototypes:
 `libapp.so` produces `libapp.h`, a self-contained header declaring each
@@ -84,6 +93,10 @@ lynxer --emit-library app.lynx -o libapp.so
 c++ -I. -I<dir-with-lynxer.h> client.cpp libapp.so -o client
 ```
 
+On Windows, `app.dll`, `app.dll.a` and `app.h` are emitted. Link the import
+library with MinGW (`g++ -I. client.cpp app.dll.a -o client.exe`) and make
+`lynxer.dll` available through the Windows DLL search path.
+
 The library initializes the embedded program lazily, on the first exported
 call. A program can be embedded once per process; a second initialization is
 refused because the interpreter keeps process-global state.
@@ -96,7 +109,9 @@ under `lynxer/build/sdk/`:
 ```
 lynxer/build/sdk/include/lynxer.h     the public C ABI
 lynxer/build/sdk/include/ffi_abi.h    the wire types
-lynxer/build/sdk/lib/liblynxer.so     the embedding runtime
+lynxer/build/sdk/lib/liblynxer.so     Linux runtime
+lynxer/build/sdk/lib/lynxer.dll.a     Windows MinGW import library
+lynxer/build/sdk/bin/lynxer.dll       Windows runtime
 ```
 
 ## Lynxer must be built
@@ -108,18 +123,17 @@ executes `main()` and never exposes the exports.
 Building the library requires the **compiled** interpreter and its runtime:
 
 ```bash
-make buildLynxer      # builds lynxer/lynxer and lynxer/liblynxer.so
+make buildLynxer      # builds the interpreter and this host's embedding runtime
 ```
 
-If `liblynxer.so` is missing (an unbuilt tree, or a binary installed without
-it), `--emit-library` fails with `build Lynxer first with make buildLynxer`,
-rather than a confusing compiler error. `make buildLynxer` is therefore a
-prerequisite for this feature; the interpreter alone is not enough.
+If the embedding runtime or its Windows import library is missing,
+`--emit-library` reports that `make buildLynxer` is required rather than
+passing a missing library to the compiler.
 
 The emitted library is **self-contained**: it embeds the program archive (the
 source and every module it imports), so at run time it needs neither the
-original `.lynx` file nor the `lynxer` executable — only `liblynxer.so`, which
-carries the compiled interpreter. The test fixture builds from a temporary copy
+original `.lynx` file nor the `lynxer` executable — only the host's Lynxer
+runtime, which carries the compiled interpreter. The fixture builds from a temporary copy
 of the source, deletes it, and then runs the C++ and Python consumers from
 `/tmp` to prove this.
 
@@ -145,8 +159,9 @@ See `lynxer/examples/export_basic.lynx`, `export_test.cpp` and
 
 ## Notes and limits
 
-- POSIX only, matching the native-module policy.
-- One embedded program per process (`liblynxer.so` is the interpreter core).
+- Linux and Windows MinGW builds are supported; macOS runtime builds remain
+  unavailable.
+- One embedded program per process (the shared runtime is the interpreter core).
 - A library does not run `main()`; put initialization in `setup()`.
 - `value`/v2 aggregate exports, packed exports, `as <cname>` renaming, and
   self-contained (statically linked) libraries are not supported yet.

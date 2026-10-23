@@ -28,6 +28,7 @@
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
 <li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -69,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -129,7 +132,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="native-modules">Native modules</h1>
-<p>A native module is a shared library that exports one stable registration entry point. On Linux the extension is <code>.so</code>; the loader is C++ (<code>dlopen</code>/<code>dlsym</code>) — there is no Python and <strong>no <code>libffi</code></strong>: calls dispatch through a hand-written fixed-shape table (see <a href="native-module-abi.html">native-module-abi</a>).</p>
+<p>A native module is a shared library that exports one stable registration entry point. On Linux the extension is <code>.so</code>; Windows uses MinGW PE DLLs and <code>LoadLibrary</code> (the bundled wrappers retain <code>.so</code> import names). The loader is C++ — there is no Python and <strong>no <code>libffi</code></strong>: calls dispatch through a hand-written fixed-shape table (see <a href="native-module-abi.html">native-module-abi</a>).</p>
 <h2 id="registration-abi">Registration ABI</h2>
 <pre><code>int lynxer_module_init_v1(
     int (*register_function)(const char *name, const char *symbol,

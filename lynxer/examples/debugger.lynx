@@ -1,0 +1,16 @@
+////
+Interactive debugger fixture. Break on the `return` inside `add`, inspect the
+locals and backtrace, then continue to the program's output.
+////
+global setup(){}
+
+global add(int a, int b) {
+    int total = a + b;
+    return total;
+}
+
+global main(){
+    int value = 2;
+    int result = add(value, 3);
+    println(result);
+}

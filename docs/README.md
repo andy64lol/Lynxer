@@ -2,9 +2,10 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It provides standalone ELF executables, 40 natively
-backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
-and arm64. See [limitations.md](limitations.md) for planned runtime and
+native shared libraries. It provides standalone Linux and Windows executables,
+40 natively backed modules, an AST optimizer, a frozen native-module ABI, a
+source debugger, a language server and performance benchmarks. See
+[limitations.md](limitations.md) for planned runtime and
 standard-library improvements.
 
 ## Contents
@@ -16,6 +17,7 @@ standard-library improvements.
 | [install.md](install.md) | Requirements, build commands, artifacts, environment variables |
 | [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `lynxer` executable |
 | [language-server.md](language-server.md) | stdio LSP setup, diagnostics, completion, hover and navigation |
+| [benchmarks.md](benchmarks.md) | Interpreter, optimizer and compiled startup measurements |
 
 **The language**
 
@@ -59,7 +61,7 @@ standard-library improvements.
 | [legacy-surface.md](legacy-surface.md) | The original feature surface and its replacements |
 | [removed-features.md](removed-features.md) | Bytecode, Python bridging and other removed features |
 | [limitations.md](limitations.md) | Deliberate constraints and what is not implemented |
-| [windows.md](windows.md) | Windows port status and the features excluded from it |
+| [windows.md](windows.md) | Windows build status, embedding, and the features excluded from it |
 
 ## Build and run
 

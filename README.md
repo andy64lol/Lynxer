@@ -28,13 +28,12 @@ global main(){
 
 ## Platforms
 
-Lynxer currently supports **64-bit Linux** on `amd64` and `arm64`. The
-Linux-specific system calls in `os` (and the `sys` module) are excluded on other
-platforms; builds **fail early** rather than mix syscall tables.
-
-**Windows** is a work in progress: the host layer exists and `--compile` already
-works there, but the Linux-only surface (the named syscalls and the `sys` module)
-is excluded for now. See [docs/windows.md](docs/windows.md).
+Lynxer supports **64-bit Linux** and **64-bit Windows** on `amd64` and `arm64`.
+The Linux-specific system calls in `os` (and the `sys` module) are excluded on
+Windows; builds **fail early** rather than mix syscall tables. Windows builds
+provide the interpreter, `--compile`, the embedding runtime, and
+`--emit-library` through MSYS2 MinGW-w64/CLANGARM64. See
+[docs/windows.md](docs/windows.md).
 
 ---
 
@@ -45,8 +44,10 @@ is excluded for now. See [docs/windows.md](docs/windows.md).
 - a native interpreter and an AST optimizer;
 - 40 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
-- class inheritance with `extends`, inferred generic parameters, and scoped named lambdas;
-- single-file executables via `--compile`;
+- class inheritance with `extends` and `super(...)`, first-class functions and closures, inferred generic parameters, and scoped named lambdas;
+- static analysis via `--lint`, a source debugger via `--debug`, and a language server in `lynxer/lsp.py`;
+- single-file executables via `--compile` and C ABI shared libraries via `--emit-library`;
+- performance benchmarks via `make benchLynxer`;
 - a full test suite on `amd64` and `arm64`.
 
 Planned gaps are tracked in [docs/limitations.md](docs/limitations.md).

@@ -153,20 +153,21 @@ ELF. Inside it, `--no-opt` has no effect: the payload is always optimized.
 
 ## Emitting a C ABI library
 
-`--emit-library` builds a shared library (`.so`) that exposes a program's
-top-level `export`s as C symbols other languages can call. It needs a C++
-compiler and the embedding runtime `liblynxer.so`, so **Lynxer must be built
-first** (`make buildLynxer`); the feature is unavailable from an unbuilt tree
-and fails with `build Lynxer first` when the runtime is missing. The emitted
-library embeds the program and needs only `liblynxer.so` at run time.
-
-On Windows the embedding runtime is not built yet, so `--emit-library` fails
-with `exporting to a shared library is not supported on Windows yet` instead of
-a linker error. See [windows.md](windows.md).
+`--emit-library` builds a shared library (`.so` on Linux, `.dll` on Windows)
+that exposes a program's top-level `export`s as C symbols other languages can
+call. It needs a C++ compiler and the matching embedding runtime
+(`liblynxer.so`, or `lynxer.dll` plus its `.dll.a` import library on Windows),
+so **Lynxer must be built first** (`make buildLynxer`); the feature is
+unavailable from an unbuilt tree and fails with `build Lynxer first` when the
+runtime is missing. The emitted library embeds the program and needs only that
+runtime at run time. On Windows, put `lynxer.dll` beside the host executable or
+on the DLL search path. See [embedding.md](embedding.md) and
+[windows.md](windows.md).
 
 ```bash
 lynxer --emit-library app.lynx -o libapp.so
 lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
+lynxer --emit-library app.lynx -o app.dll        # Windows
 ```
 
 | Flag | Aliases | Effect |
@@ -174,13 +175,14 @@ lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
 | `--emit-library` | `--shared-library`, `-emit-library` | build an exporting shared library |
 | `--include <file>` | `-i` | embed an extra module, native library, or data file |
 | `-o <path>` | `--output` | name the output library |
-| `--runtime <path>` | — | use an explicit `liblynxer.so` |
+| `--runtime <path>` | — | use an explicit embedding runtime (`liblynxer.so` or `lynxer.dll`) |
 | `--cc <compiler>` | — | C++ compiler used to build the library |
 
 See [embedding.md](embedding.md) for the `export` syntax and the C ABI mapping.
 Alongside the library, `--emit-library` writes a header with the exported
-prototypes (`libapp.so` → `libapp.h`); `make sdk` stages `lynxer.h`,
-`ffi_abi.h` and `liblynxer.so` under `lynxer/build/sdk/`.
+prototypes (`libapp.so` → `libapp.h`); on Windows it also writes a `.dll.a`
+import library. `make sdk` stages `lynxer.h`, `ffi_abi.h` and the runtime under
+`lynxer/build/sdk/{include,lib,bin}`.
 
 ## Listing the standard library
 

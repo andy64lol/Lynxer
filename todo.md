@@ -112,18 +112,18 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 
 ## Windows support
 
-Lynxer currently targets Linux only: the interpreter, the native-module ABI
-(`dlopen`/`.so`) and the syscall-facing modules all assume a POSIX/Linux host.
-This plan stages a port; the Linux-only syscall
+Lynxer runs on Linux and on Windows through the MSYS2 MinGW-w64 and CLANGARM64
+builds; the native-module ABI, `--compile` bundling, embedding runtime and
+`--emit-library` all have Windows implementations. The Linux-only named-syscall
 surface stays a documented boundary in
 [removed-features.md](docs/removed-features.md), not a Windows gap.
 
-- [ ] **Build system and toolchain.** The `Makefile` detects the host
+- [x] ~~**Build system and toolchain.** The `Makefile` detects the host
   (`LYNXER_HOST_OS`/`LYNXER_ON_WINDOWS`), builds `lynxer.exe`, drops the
   POSIX-only flags and supplies the Rust staticlib's native imports; the MSYS2
-  MinGW-w64 and CLANGARM64 paths build and test green. Still to do: a
-  `lynxer.dll` embedding runtime, a native MSVC/clang-cl path, and the
-  `.def`/`__declspec` export definitions.
+  MinGW-w64 and CLANGARM64 paths build and test green. It also builds
+  `lynxer.dll` with a `liblynxer.def` export list and the `lynxer.dll.a` import
+  library. Still to do: a native MSVC/clang-cl path.~~
 - [x] ~~**Portable host layer.** Added `lynxer/platform.hpp`/`platform.cpp`,
   which centralizes the running-executable path, dynamic loading, subprocess
   spawn, temporary directories, the executable bit and the install link, with
@@ -136,11 +136,13 @@ surface stays a documented boundary in
   symbols by default: `examples/native_signatures.cpp` builds and its fixture
   passes on Windows. The `.def`/`__declspec` exports and the 32-bit `__stdcall`
   convention ride with the MSVC path in the toolchain item.~~
-- [ ] **Embedding and `--emit-library`.** Build the runtime as `lynxer.dll`,
-  emit `.dll` plus the generated header, and use a Windows export definition
-  instead of the ELF version script; resolve the runtime through the DLL search
-  path rather than an `rpath`. Until then `--emit-library` fails cleanly on
-  Windows instead of emitting ELF-only link flags.
+- [x] ~~**Embedding and `--emit-library`.** The runtime builds as `lynxer.dll`
+  (using `liblynxer.def` instead of the ELF version script), and
+  `--emit-library` emits a `.dll` plus its `.dll.a` import library and generated
+  header. `make sdk` and `--install` stage the DLL, import library and public
+  headers. Windows resolves the runtime through the DLL search path rather than
+  an `rpath`; the workflows compile and run a C++ consumer against an emitted
+  DLL.~~
 - [x] ~~**`--compile` bundling.** The payload is appended to the running image and
   read back through `platform::executablePath()` (`GetModuleFileNameW`), keeping
   the materialize-to-temp-dir behavior for embedded modules and assets; the
@@ -199,8 +201,9 @@ surface stays a documented boundary in
   [.github/workflows/build-lynxer-windows-amd64.yml](.github/workflows/build-lynxer-windows-amd64.yml)
   (MSYS2 MINGW64) and
   [.github/workflows/build-lynxer-windows-arm64.yml](.github/workflows/build-lynxer-windows-arm64.yml)
-  (MSYS2 CLANGARM64). Every skipped module and fixture is listed in
-  [docs/windows.md](docs/windows.md).~~
+  (MSYS2 CLANGARM64). Both jobs also build `lynxer --emit-library` and run the
+  C++ consumer against the emitted DLL. Every skipped module and fixture is
+  listed in [docs/windows.md](docs/windows.md).~~
 - [x] ~~**Documentation.** `docs/windows.md` records the port, its exclusions and
   the skipped test groups; `install.md` and `CLI.md` carry the Windows install
   notes; `README.md` links the Windows workflows; and the syscall surface is

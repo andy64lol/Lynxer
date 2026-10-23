@@ -28,6 +28,7 @@
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
 <li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -69,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -129,7 +132,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="native-module-abi">Native module ABI</h1>
-<p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
+<p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS, and PE DLLs on Windows) loaded at runtime through the host loader. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
 <p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>raylib</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code> and <code>yaml</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper). The generated <code>raylib</code> backend registers its ops by hand instead of through <code>lynxer_abi</code>.</p>
 <p>The workspace has one more member, <code>rust/ffi</code>, which is different in kind: a <code>staticlib</code> that is <strong>linked into the interpreter</strong>, not a <code>cdylib</code> module. It implements the shared native-call engine (see <a href="#the-native-call-engine">The native call engine</a>) and is never installed into <code>stdlib/</code>; because the interpreter links it, <code>cargo</code> is a required build tool.</p>
 <h2 id="entry-point">Entry point</h2>
@@ -315,9 +318,9 @@ global main(){
 </ol>
 <p>An additive change must not alter how existing shapes or signatures behave.</p>
 <h2 id="platform-support">Platform support</h2>
-<p>Native modules require a POSIX host. On other platforms every <code>.so</code> import fails with <code>native modules are only supported on POSIX hosts</code>.</p>
+<p>Native modules are supported on Linux, macOS, and the MinGW-w64 Windows builds. The bundled Lynxer wrappers keep their <code>.so</code> import names on Windows for source compatibility; those files contain PE DLLs and load through <code>LoadLibrary</code>. Third-party modules must be built for the host OS and toolchain.</p>
 <h2 id="the-reverse-direction-exporting-lynxer-functions">The reverse direction: exporting Lynxer functions</h2>
-<p>The mirror of this ABI lets a Lynxer program expose functions to C instead of calling C. A program declares <code>export &quot;cdecl:&lt;ret&gt;(&lt;args&gt;)&quot; name(...) { ... }</code> and <code>lynxer --emit-library</code> builds a <code>.so</code> whose typed <code>extern &quot;C&quot;</code> wrappers marshall through the embedding C API in <code>lynxer/lynxer.h</code> (<code>lynxer_embed_init</code> / <code>lynxer_embed_call</code> / <code>lynxer_embed_last_error</code>). It reuses the same <code>LynxerFfiArg</code>/<code>LynxerFfiResult</code> wire types and the same <code>cdecl:</code> signature grammar and aliases described above. See <a href="embedding.html">embedding</a> for the syntax, the C type mapping and the build flags.</p>
+<p>The mirror of this ABI lets a Lynxer program expose functions to C instead of calling C. A program declares <code>export &quot;cdecl:&lt;ret&gt;(&lt;args&gt;)&quot; name(...) { ... }</code> and <code>lynxer --emit-library</code> builds a host shared library (<code>.so</code> on Linux, <code>.dll</code> on MinGW Windows) whose typed <code>extern &quot;C&quot;</code> wrappers marshall through the embedding C API in <code>lynxer/lynxer.h</code> (<code>lynxer_embed_init</code> / <code>lynxer_embed_call</code> / <code>lynxer_embed_last_error</code>). It reuses the same <code>LynxerFfiArg</code>/<code>LynxerFfiResult</code> wire types and the same <code>cdecl:</code> signature grammar and aliases described above. See <a href="embedding.html">embedding</a> for the syntax, the C type mapping and the build flags.</p>
     </main>
 </div>
 

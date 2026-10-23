@@ -52,11 +52,10 @@ def executable() -> str | None:
     configured = os.environ.get("LYNXER_EXECUTABLE")
     if configured:
         return configured
-    found = shutil.which("lynxer")
-    if found:
-        return found
     candidate = ROOT / "lynxer" / ("lynxer.exe" if os.name == "nt" else "lynxer")
-    return str(candidate) if candidate.is_file() else None
+    if candidate.is_file():
+        return str(candidate)
+    return shutil.which("lynxer")
 
 
 def uri_path(uri: str) -> str:

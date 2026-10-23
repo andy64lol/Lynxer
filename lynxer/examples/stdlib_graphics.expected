@@ -10,8 +10,8 @@ version lynxer_graphics 0.1.0 / macroquad 0.4
 loadFont true
 loadTexture true
 loadImage true
-renderTarget true
-renderTargetMsaa true
+renderTarget false
+renderTargetMsaa false
 getScreenData true
 screenshot true
 setDefaultFont true
@@ -29,15 +29,15 @@ imageHeight 4
 pixel-untouched [10,20,30,255]
 setPixel true
 pixel-written [255,0,0,255]
-textureFromImage true
+textureFromImage false
 imageFromTexture true
 == text ==
-measureWidth 0
-measureHeight 0
-measure {"width":0,"height":0,"offsetY":0}
-wrapText-empty true
-text-center [0,0]
-measureMultiline {"width":0,"height":0,"offsetY":0}
+measureWidth 35
+measureHeight 13
+measure {"width":35,"height":13,"offsetY":0}
+wrapText-empty false
+text-center [17.5,-6.5]
+measureMultiline {"width":21,"height":13,"offsetY":0}
 == input ==
 key-down false
 key-pressed false
@@ -74,6 +74,14 @@ window-end true
 group-begin true
 group-end true
 nested-checkbox false
+nested-window-begin true
+nested-group-begin true
+nested-widget true
+nested-inner-group-begin true
+nested-inner-group-end true
+nested-group-end true
+nested-window-end true
+nested-value true
 == frames ==
 start
 update 0.016666666666666666

@@ -1,12 +1,12 @@
 # Build and install
 
-Lynxer is a C++17 Linux executable. Building and running it does **not** need
-Python; only the two check scripts in the test suite do.
+Lynxer is a C++17 executable with a cross-platform Windows host build. Building
+and running it does **not** need Python; Python is used by the LSP and tooling.
 
 ## Requirements
 
 - A C++17 compiler (`g++` or `clang++`) and `make`.
-- `python3` to run `make testLynxer` (the module contract check).
+- `python3` for the LSP and development tooling.
 - A Rust toolchain (`cargo`): it is **required**, not optional. Every
   Rust-backed stdlib module is built by `cargo`, and the interpreter links the
   Rust native-call engine (`lynxer/rust/ffi`). A missing toolchain or a compile
@@ -44,17 +44,20 @@ The Makefile lives at the repository root; there is no separate
 
 ## Artifacts
 
-- `lynxer/lynxer` — the interpreter.
+- `lynxer/lynxer` or `lynxer/lynxer.exe` — the interpreter for the build host.
 - `lynxer/lynxer-arm64` — the ARM64 interpreter, from `buildLynxerArm64`.
-- `lynxer/stdlib/*.so` — the stdlib backends. The Rust-backed modules are
+- `lynxer/stdlib/*.so` — the Linux stdlib backends. The Rust-backed modules are
   produced by `cargo` under `lynxer/build/rust`; the C++ ones are compiled
   from `stdlib/*.cpp`.
+- On Windows, `lynxer/stdlib/*.so` files contain MinGW PE DLLs while retaining
+  the language-level module names used by the bundled wrappers.
 
 - `lynxer/build/rust/release/liblynxer_ffi.a` — the native-call engine, a Rust
   `staticlib` built by `cargo` and linked into `lynxer/lynxer`. It is not a
   stdlib module and is not copied into `stdlib/`.
 
-- `lynxer/liblynxer.so` — the embedding runtime: the interpreter core (minus
+- `lynxer/liblynxer.so` on Linux, or `lynxer/lynxer.dll` plus
+  `lynxer/lynxer.dll.a` on Windows — the embedding runtime: the interpreter core (minus
   `main.cpp`) linked as a shared library, exporting only the `lynxer_embed_*`
   entry points. Libraries built by `lynxer --emit-library` link against it.
   `lynxer/lynxer.h` and `lynxer/ffi_abi.h` are its public headers.
@@ -81,14 +84,14 @@ sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter
 /usr/lib/lynxer/lynxer          the real binary
 /usr/lib/lynxer/stdlib/*        every stdlib module
 /usr/lib/lynxer/lynxer.config   the configuration file
-/usr/lib/lynxer/liblynxer.so    the embedding runtime (for --emit-library)
+/usr/lib/lynxer/liblynxer.so    the Linux embedding runtime (for --emit-library)
 /usr/lib/lynxer/lynxer.h        the embedding public header
 /usr/lib/lynxer/ffi_abi.h       the wire-type header
 /usr/bin/lynxer                 a symlink to the real binary
 ```
 
 Because the symlink resolves to the real binary (`/proc/self/exe`), an installed
-`lynxer` finds its stdlib — and `liblynxer.so` plus its headers for
+`lynxer` finds its stdlib — and the embedding runtime plus its headers for
 `--emit-library` — from any working directory, so `lynxer app.lynx` works
 without keeping the build tree around. See [embedding.md](embedding.md). Set
 `LYNXER_PREFIX` to install somewhere other than `/usr` — for example
@@ -98,10 +101,11 @@ value to `--uninstall`.
 On Windows, `--install` defaults to `%LOCALAPPDATA%\Programs\Lynxer` (a
 per-user install needs no elevation; override it with `LYNXER_PREFIX`) and lays
 out the same tree — `bin\lynxer.exe` plus
-`lib\lynxer\{lynxer.exe, stdlib, lynxer.config}` — except that the launcher is a
-copy rather than a symlink, so the stdlib is resolved from `lib\lynxer`. There
-is no `liblynxer.so` yet, so `--emit-library` is Linux-only. Add `<prefix>\bin`
-to `PATH` to run `lynxer` by name; the installer says so when it is missing. See
+`lib\lynxer\{lynxer.exe, lynxer.dll, lynxer.dll.a, stdlib, lynxer.config}` —
+except that the launcher is a copy rather than a symlink, so the stdlib is
+resolved from `lib\lynxer`. `--emit-library` is available with the MinGW
+toolchain; consumers need `lynxer.dll` on the Windows DLL search path. Add
+`<prefix>\bin` to `PATH` to run `lynxer` by name; the installer says so when it is missing. See
 [windows.md](windows.md).
 
 See [CLI.md](CLI.md#installing).

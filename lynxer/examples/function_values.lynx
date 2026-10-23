@@ -1,0 +1,57 @@
+////
+First-class function values: globals, local functions, named lambdas, higher
+order parameters and return values. Closures keep their captured variables and
+each returned closure owns an independent copy of them.
+////
+global setup(){}
+
+global addOne(int value) -> int {
+    return value + 1;
+}
+
+global apply(function operation, int value) -> int {
+    return operation(value);
+}
+
+global applyTwice(function operation, int value) -> int {
+    return operation(operation(value));
+}
+
+global makeAdder(int base) -> function {
+    local add(int value) -> int {
+        return base + value;
+    }
+    return add;
+}
+
+global makeCounter() -> function {
+    int count = 0;
+    local next() -> int {
+        count = count + 1;
+        return count;
+    }
+    return next;
+}
+
+global main(){
+    function increment = global.addOne;
+    println(increment(4));
+    println(apply(increment, 4));
+
+    function addTen = makeAdder(10);
+    println(addTen(3));
+    println(applyTwice(addTen, 3));
+
+    function counter = makeCounter();
+    println(counter());
+    println(counter());
+    function otherCounter = makeCounter();
+    println(otherCounter());
+
+    lambda doubleIt(int value) -> int {
+        return value * 2;
+    }
+    function doubler = doubleIt;
+    println(doubler(6));
+    println(apply(doubleIt, 5));
+}

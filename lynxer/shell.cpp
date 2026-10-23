@@ -162,10 +162,19 @@ void printUsage() {
     std::cout << "  lynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
+#if defined(_WIN32)
+    std::cout << "  lynxer --emit-library <a.lynx> [options] [out.dll]\n";
+    std::cout << "                                              Build a .dll exporting the program's `export`s, plus a matching .h\n";
+#else
     std::cout << "  lynxer --emit-library <a.lynx> [options] [out.so]\n";
     std::cout << "                                              Build a .so exporting the program's `export`s, plus a matching .h\n";
+#endif
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
+#if defined(_WIN32)
+    std::cout << "      --runtime <lynxer.dll>                   Use an explicit embedding runtime\n";
+#else
     std::cout << "      --runtime <liblynxer.so>                 Use an explicit embedding runtime\n";
+#endif
     std::cout << "      --cc <compiler>                          C++ compiler used to build the library\n";
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  lynxer --version                            Print version\n";
@@ -455,6 +464,20 @@ static std::string executableFileName() {
     return extension.empty() ? std::string("lynxer") : "lynxer." + extension;
 }
 
+static std::string embeddingRuntimeFileName() {
+#if defined(_WIN32)
+    return "lynxer.dll";
+#else
+    return "liblynxer.so";
+#endif
+}
+
+#if defined(_WIN32)
+static std::string embeddingImportFileName() {
+    return "lynxer.dll.a";
+}
+#endif
+
 int installBinary(const char* argv0) {
     const std::string self = runningExecutable(argv0);
     if (self.empty()) {
@@ -516,16 +539,30 @@ int installBinary(const char* argv0) {
         // installed `lynxer --emit-library` can find both. Without them the
         // interpreter still runs; only library emission is unavailable.
         const std::filesystem::path sharedLibrary =
-            sourceDirectory / "liblynxer.so";
+            sourceDirectory / embeddingRuntimeFileName();
         std::error_code sharedError;
         if (std::filesystem::is_regular_file(sharedLibrary, sharedError)) {
-            if (!sameFile(sharedLibrary, libDir / "liblynxer.so")) {
+            const auto installedRuntime =
+                libDir / embeddingRuntimeFileName();
+            if (!sameFile(sharedLibrary, installedRuntime)) {
                 std::filesystem::copy_file(
-                    sharedLibrary, libDir / "liblynxer.so",
+                    sharedLibrary, installedRuntime,
                     std::filesystem::copy_options::overwrite_existing);
             }
+#if defined(_WIN32)
+            const auto sourceImport = sourceDirectory / embeddingImportFileName();
+            const auto installedImport = libDir / embeddingImportFileName();
+            std::error_code importError;
+            if (std::filesystem::is_regular_file(sourceImport, importError) &&
+                !sameFile(sourceImport, installedImport)) {
+                std::filesystem::copy_file(
+                    sourceImport, installedImport,
+                    std::filesystem::copy_options::overwrite_existing);
+            }
+#endif
         } else {
-            std::cerr << "lynxer: note: liblynxer.so not found; install it to "
+            std::cerr << "lynxer: note: " << embeddingRuntimeFileName()
+                      << " not found; install it to "
                          "use --emit-library\n";
         }
         for (const char* header : {"lynxer.h", "ffi_abi.h"}) {
@@ -1201,6 +1238,7 @@ std::string generateExportShim(const std::vector<ExportPlan>& exports,
     return out.str();
 }
 
+#if !defined(_WIN32)
 std::string generateExportMap(const std::vector<ExportPlan>& exports) {
     std::ostringstream out;
     out << "{\n  global:\n";
@@ -1210,6 +1248,18 @@ std::string generateExportMap(const std::vector<ExportPlan>& exports) {
     out << "  local:\n    *;\n};\n";
     return out.str();
 }
+#endif
+
+#if defined(_WIN32)
+std::string generateExportDefinition(const std::vector<ExportPlan>& exports) {
+    std::ostringstream out;
+    out << "EXPORTS\n";
+    for (const ExportPlan& plan : exports) {
+        out << "    " << plan.name << "\n";
+    }
+    return out.str();
+}
+#endif
 
 // A C/C++ header for the emitted library: the exported prototypes, so a
 // consumer includes one file instead of declaring them by hand. It is
@@ -1261,16 +1311,6 @@ int runProcess(const std::vector<std::string>& command) {
 
 // Builds a shared library that exposes a program's `export`s over a C ABI.
 int emitLibrary(const std::vector<std::string>& arguments) {
-#if defined(_WIN32)
-    // The embedding runtime is an ELF shared object, and `--emit-library` links
-    // against it with `-Wl,--version-script`/`-soname`. A Windows `lynxer.dll`
-    // and its export definition are not built yet (see docs/windows.md), so fail
-    // with that instead of a linker error.
-    return failWith("error.emit_library_failed",
-                    "lynxer: emit-library failed: {0}",
-                    "exporting to a shared library is not supported on Windows "
-                    "yet; the embedding runtime is built on Linux only");
-#endif
     std::vector<std::string> inputs;
     std::string outputName;
     std::string runtimeOption;
@@ -1384,8 +1424,8 @@ int emitLibrary(const std::vector<std::string>& arguments) {
                         "the program declares no exported functions");
     }
 
-    // Locate `liblynxer.so`: an explicit path, the environment, then the
-    // interpreter's own directory (dev tree and installed layouts).
+    // Locate the embedding runtime: an explicit path, the environment, then
+    // the interpreter's own directory (development and installed layouts).
     std::string runtimePath = runtimeOption;
     if (runtimePath.empty()) {
         const char* fromEnvironment = std::getenv("LYNXER_RUNTIME");
@@ -1394,9 +1434,11 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         }
     }
     const std::string executableDir = executableDirectory();
+    const std::string runtimeName = embeddingRuntimeFileName();
     const std::vector<std::string> candidates = {
-        executableDir + "/liblynxer.so",
-        executableDir + "/lib/lynxer/liblynxer.so",
+        executableDir + "/" + runtimeName,
+        executableDir + "/lib/lynxer/" + runtimeName,
+        executableDir + "/../lib/lynxer/" + runtimeName,
     };
     if (runtimePath.empty()) {
         for (const std::string& candidate : candidates) {
@@ -1409,7 +1451,7 @@ int emitLibrary(const std::vector<std::string>& arguments) {
     if (runtimePath.empty()) {
         return failWith("error.emit_library_failed",
                         "lynxer: emit-library failed: {0}",
-                        "cannot find liblynxer.so; build Lynxer first with "
+                        "cannot find " + runtimeName + "; build Lynxer first with "
                         "`make buildLynxer` (it needs the compiled interpreter "
                         "and runtime), or pass --runtime <path>");
     }
@@ -1417,7 +1459,7 @@ int emitLibrary(const std::vector<std::string>& arguments) {
     if (!std::filesystem::is_regular_file(runtimePath, runtimeError)) {
         return failWith("error.emit_library_failed",
                         "lynxer: emit-library failed: {0}",
-                        "liblynxer.so was not found at '" + runtimePath +
+                        runtimeName + " was not found at '" + runtimePath +
                             "'; build Lynxer first with `make buildLynxer` "
                             "(the compiled interpreter and runtime are "
                             "required)");
@@ -1443,7 +1485,7 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         outputPath += platform::libraryExtension();
     }
 
-    // Generate the wrapper source and version script in a private directory.
+    // Generate the wrapper source and platform export list in a private directory.
     std::string directory;
     std::string temporaryError;
     if (!platform::makeTemporaryDirectory(directory, temporaryError)) {
@@ -1451,12 +1493,22 @@ int emitLibrary(const std::vector<std::string>& arguments) {
                         "lynxer: emit-library failed: {0}", temporaryError);
     }
     const std::string shimPath = directory + "/shim.cpp";
-    const std::string mapPath = directory + "/export.map";
+    const std::string mapPath = directory +
+#if defined(_WIN32)
+                                "/exports.def";
+#else
+                                "/export.map";
+#endif
     {
         std::ofstream shim(shimPath, std::ios::binary | std::ios::trunc);
         shim << generateExportShim(exports, makeBundleBody(archive));
         std::ofstream map(mapPath, std::ios::binary | std::ios::trunc);
-        map << generateExportMap(exports);
+        map <<
+#if defined(_WIN32)
+            generateExportDefinition(exports);
+#else
+            generateExportMap(exports);
+#endif
         if (!shim || !map) {
             std::filesystem::remove_all(directory);
             return failWith("error.emit_library_failed",
@@ -1465,17 +1517,37 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         }
     }
 
-    std::vector<std::string> command = {
-        compiler, "-std=c++17", "-O2", "-fPIC", "-shared", shimPath, "-o",
-        outputPath, runtimePath};
+    std::vector<std::string> command = {compiler, "-std=c++17", "-O2"};
+#if defined(_WIN32)
+    const std::string importLibraryPath = runtimePath + ".a";
+    std::error_code importLibraryError;
+    if (!std::filesystem::is_regular_file(importLibraryPath,
+                                          importLibraryError)) {
+        std::filesystem::remove_all(directory);
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "cannot find MinGW import library '" +
+                            importLibraryPath + "' beside the runtime DLL");
+    }
+    const std::string outputImportLibrary = outputPath + ".a";
+    command.insert(command.end(), {"-shared", shimPath, "-o", outputPath,
+                                   importLibraryPath, mapPath,
+                                   "-Wl,--exclude-all-symbols",
+                                   "-Wl,--out-implib=" + outputImportLibrary});
+#else
+    command.insert(command.end(), {"-fPIC", "-shared", shimPath, "-o",
+                                   outputPath, runtimePath});
+#endif
     for (const std::string& includeDir : includeDirs) {
         command.push_back("-I" + includeDir);
     }
+#if !defined(_WIN32)
     command.push_back("-Wl,-z,origin");
     command.push_back("-Wl,-rpath," + runtimeDir);
     command.push_back("-Wl,-rpath,$ORIGIN");
     command.push_back("-Wl,--version-script=" + mapPath);
     command.push_back("-Wl,-soname," + baseName(outputPath));
+#endif
 
     const int status = runProcess(command);
     std::filesystem::remove_all(directory);

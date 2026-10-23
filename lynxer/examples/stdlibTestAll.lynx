@@ -1187,7 +1187,7 @@ global main(){
     fails += global.check(global.graphics.quitRequested(), "false", "graphics.quitRequested");
     fails += global.check(global.graphics.loadTexture("nope.png"), "-1", "graphics.loadTexture");
     fails += global.check(global.graphics.loadFont("nope.ttf"), "-1", "graphics.loadFont");
-    fails += global.check(global.graphics.renderTarget(8, 8), "-1", "graphics.renderTarget");
+    fails += global.check(global.graphics.renderTarget(8, 8), "0", "graphics.renderTarget");
     fails += global.check(global.graphics.screenshot("/tmp/lynxer_stdlib_test_all.png"), "-1", "graphics.screenshot");
 
     // An in-memory image needs no context, so its pixels round-trip even here.

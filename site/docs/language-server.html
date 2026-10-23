@@ -28,6 +28,7 @@
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
 <li><a href="language-server.html" class="active">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -69,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -131,7 +134,7 @@
 <h1 id="language-server">Language server</h1>
 <p>Lynxer includes a small Language Server Protocol process for editor support. It uses Python's standard library and communicates over stdio:</p>
 <pre><code>LYNXER_EXECUTABLE=&quot;/path/to/lynxer&quot; python3 lynxer/lsp.py</code></pre>
-<p>Set <code>LYNXER_EXECUTABLE</code> to the built Lynxer executable. If it is on <code>PATH</code>, the server can find it automatically. Configure your editor to launch <code>python3 /path/to/Lynxer/lynxer/lsp.py</code> for <code>.lynx</code> files and use the project directory as the workspace root.</p>
+<p>Set <code>LYNXER_EXECUTABLE</code> to the built Lynxer executable. Without it, the server prefers <code>lynxer/lynxer</code> next to the script and then falls back to <code>PATH</code>. Configure your editor to launch <code>python3 /path/to/Lynxer/lynxer/lsp.py</code> for <code>.lynx</code> files and use the project directory as the workspace root.</p>
 <p>The server provides:</p>
 <ul>
 <li>live diagnostics from <code>lynxer --lint</code>, including static warnings and errors;</li>

@@ -7,8 +7,9 @@ uses Python's standard library and communicates over stdio:
 LYNXER_EXECUTABLE="/path/to/lynxer" python3 lynxer/lsp.py
 ```
 
-Set `LYNXER_EXECUTABLE` to the built Lynxer executable. If it is on `PATH`, the
-server can find it automatically. Configure your editor to launch
+Set `LYNXER_EXECUTABLE` to the built Lynxer executable. Without it, the server
+prefers `lynxer/lynxer` next to the script and then falls back to `PATH`.
+Configure your editor to launch
 `python3 /path/to/Lynxer/lynxer/lsp.py` for `.lynx` files and use the project
 directory as the workspace root.
 

@@ -27,6 +27,8 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -35,6 +37,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
@@ -67,6 +70,8 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html" class="active">windows</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -76,21 +81,26 @@
 <li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -122,7 +132,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="windows-support">Windows support</h1>
-<p>Lynxer targets Linux today. The Windows port is in progress and is being done in stages; this page records the state and, in particular, what is deliberately <strong>excluded</strong> from the Windows build while the Linux-only features wait.</p>
+<p>Lynxer runs on Windows through the MSYS2 MinGW-w64 and CLANGARM64 builds. This page records the port's state, the supported surface, and what is deliberately <strong>excluded</strong> because it depends on Linux-only syscalls or platform APIs.</p>
 <h2 id="status">Status</h2>
 <p><strong>Done (host abstraction).</strong> Every POSIX/Win32 primitive the interpreter needs now lives in one place, <code>lynxer/platform.hpp</code> / <code>lynxer/platform.cpp</code>:</p>
 <table>
@@ -146,17 +156,20 @@
 <li><strong>The <code>sys</code> stdlib module.</strong> It is built on Linux system calls and is not compiled for Windows.</li>
 <li><strong>The managed POSIX built-ins.</strong> The <code>filesystem*</code>, <code>networking*</code> and <code>process*</code> families are already routed to <code>unsupportedTable()</code> on a non-POSIX host; a Windows implementation comes later.</li>
 <li><strong>Low-level fixtures.</strong> <code>lowlevel_*</code> and <code>syscall*</code> fixtures are Linux-only and stay out of the Windows test run.</li>
-<li><strong>POSIX-only stdlib modules.</strong> <code>cli</code>, <code>debug</code>, <code>os</code> and <code>path</code> include POSIX headers MinGW does not provide (<code>&lt;pwd.h&gt;</code>, <code>&lt;sys/ioctl.h&gt;</code>, <code>&lt;sys/wait.h&gt;</code>, <code>&lt;sys/resource.h&gt;</code>, <code>&lt;sys/statvfs.h&gt;</code>, <code>&lt;sys/utsname.h&gt;</code>), so they need a Windows backend before they can be built.</li>
-<li><strong><code>js</code> and <code>multiprocessing</code>.</strong> Both run commands through <code>lynxer/stdlib/subprocess.hpp</code>, which is <code>fork</code>/<code>poll</code>/<code>waitpid</code> based; they need a <code>CreateProcess</code> + pipe backend before they can be built.</li>
+<li><strong>Windows-specific stdlib fixture parity.</strong> <code>cli</code>, <code>debug</code>, <code>os</code> and <code>path</code> now build with Win32 equivalents for their OS calls. The current fixture exclusions remain because they assert POSIX separators or invoke shell commands such as <code>sh</code>/<code>printf</code>; they do not indicate missing module DLLs.</li>
+<li><strong>Process modules.</strong> <code>js</code> and <code>multiprocessing</code> now run commands through a <code>CreateProcess</code>/pipe backend with timeout termination through Job Objects. Their fixtures remain filtered because they use POSIX shell commands.</li>
 <li><strong>The <code>watch</code> Rust backend.</strong> Its only backends are Linux (inotify) and macOS/BSD (kqueue); Windows needs <code>ReadDirectoryChangesW</code>.</li>
-<li><strong>Test groups.</strong> <code>testLynxer</code> skips every check whose fixture imports — directly or through a stdlib wrapper — a module Windows does not build, plus the low-level/syscall surface: the <code>sys_exit</code>/<code>cli_exit</code> and <code>sys_exit_thread</code>/ <code>sys_exit_worker</code> loops, <code>native_stdlibs</code>, <code>program_args</code>, <code>stdlibTestAll</code>, the low-level fixture group, and the fixtures listed in <code>LYNXER_WINDOWS_SKIP_STEMS</code> (for example <code>stdlib_crypto</code> and <code>stdlib_fileIO</code>, which import <code>os</code> through a wrapper). That list is the import closure over the excluded modules. Fixtures that render through <code>graphics</code>/<code>game</code> are skipped too (<code>stdlib_game_api</code>, <code>stdlib_graphics_raster*</code>, <code>stdlib_turtle</code>): they need an OpenGL context, which the Windows runner does not have, whereas the Linux CI installs Mesa llvmpipe. Three more fixtures are skipped: <code>builtin_ffi</code> and <code>builtin_ffi_errors</code> load <code>libc.so.6</code> by name (and <code>ffiLoadLibrary</code> fails hard when a library is missing), <code>builtin_async</code> drives the POSIX-only <code>filesystem*</code> built-ins, and <code>stdlib_server_tls</code> mints its certificates under a hard-coded <code>/tmp/...</code>. The <code>Makefile</code> variables default to the full lists off Windows, so POSIX coverage is unchanged.</li>
+<li><strong>Test groups.</strong> <code>testLynxer</code> skips low-level/syscall fixtures and tests that assume POSIX command names, paths or exit behavior: <code>native_stdlibs</code>, <code>program_args</code>, <code>stdlibTestAll</code>, and the entries in <code>LYNXER_WINDOWS_SKIP_STEMS</code>. The module DLLs for <code>cli</code>, <code>debug</code>, <code>os</code> and <code>path</code> are built; their current fixtures still contain POSIX-specific expectations. Fixtures that render through <code>graphics</code>/<code>game</code> are skipped too (<code>stdlib_game_api</code>, <code>stdlib_graphics_raster*</code>, <code>stdlib_turtle</code>): they need an OpenGL context, which the Windows runner does not have, whereas the Linux CI installs Mesa llvmpipe. Three more fixtures are skipped: <code>builtin_ffi</code> and <code>builtin_ffi_errors</code> load <code>libc.so.6</code> by name (and <code>ffiLoadLibrary</code> fails hard when a library is missing), <code>builtin_async</code> drives the POSIX-only <code>filesystem*</code> built-ins, and <code>stdlib_server_tls</code> mints its certificates under a hard-coded <code>/tmp/...</code>. The <code>Makefile</code> variables default to the full lists off Windows, so POSIX coverage is unchanged.</li>
 </ul>
-<p><code>LYNXER_WINDOWS_SKIP_MODULES</code> in the <code>Makefile</code> names the C++ modules a Windows build skips (<code>sys cli debug os path js multiprocessing</code>), and <code>watch</code> is filtered out of <code>LYNXER_RUST_MODULE_NAMES</code>.</p>
+<p><code>LYNXER_WINDOWS_SKIP_MODULES</code> in the <code>Makefile</code> names the C++ module a Windows build skips (<code>sys</code>), and <code>watch</code> is filtered out of <code>LYNXER_RUST_MODULE_NAMES</code>.</p>
+<h2 id="shared-library-embedding">Shared-library embedding</h2>
+<p>The MinGW-w64 Windows builds now produce <code>lynxer.dll</code> and <code>lynxer.dll.a</code>. The DLL exports only the <code>lynxer_embed_*</code> C ABI. <code>make sdk</code> stages the public headers under <code>build/sdk/include</code>, the import library under <code>build/sdk/lib</code>, and the runtime under <code>build/sdk/bin</code>. Windows <code>lynxer --emit-library app.lynx -o app.dll</code> emits <code>app.dll</code>, <code>app.dll.a</code>, and <code>app.h</code>; the generated DLL links to <code>lynxer.dll</code>.</p>
+<p>At run time, place <code>lynxer.dll</code> next to the host executable or add the runtime directory to <code>PATH</code>. The installed SDK runtime lives under <code>&lt;prefix&gt;/lib/lynxer</code>; <code>--emit-library</code> locates it from an installed Lynxer launcher. Emitted libraries are currently supported by the MSYS2 MinGW-w64 GNU ABI used in CI; an MSVC/clang-cl runtime is still unavailable.</p>
 <h2 id="still-to-do">Still to do</h2>
 <ul>
-<li><strong>Toolchain and build target.</strong> The <code>Makefile</code> detects the host once (<code>LYNXER_HOST_OS</code> / <code>LYNXER_ON_WINDOWS</code>, from <code>OS</code> and <code>uname</code>, mapping MINGW/MSYS/CYGWIN) and keys the compile flags, link libraries and artifact names off it: a Windows build gets no <code>-fPIC</code>/<code>-ftls-model=global-dynamic</code> and no <code>-ldl</code> (macOS no longer gets <code>-ldl</code> either), builds <code>lynxer.exe</code>, and finds the Rust backends at cargo's <code>&lt;name&gt;.dll</code> rather than <code>lib&lt;name&gt;.so</code>/<code>.dylib</code>. The MSYS2 MinGW-w64 path compiles the whole C++ core and every portable Rust backend. The staticlib's native imports (the Windows system DLLs: <code>ntdll</code>, <code>ws2_32</code>, <code>userenv</code>, …) come from <code>rustc --print native-static-libs</code> (<code>LYNXER_FFI_NATIVE_LIBS</code>) and are added on Windows only, where nothing else supplies them — a Rust <code>staticlib</code> does not carry its dependencies' link directives; POSIX keeps the proven driver defaults. Still to do: <code>lynxer.dll</code> and a native MSVC/clang-cl build (with the <code>.def</code>/<code>__declspec</code> exports and the 32-bit <code>__stdcall</code> convention).</li>
-<li><strong>Stdlib backends.</strong> <code>watch</code> needs <code>ReadDirectoryChangesW</code>; <code>cli</code>/<code>debug</code>/ <code>os</code>/<code>path</code> need Windows equivalents for their POSIX calls; <code>js</code>/ <code>multiprocessing</code> need a <code>CreateProcess</code> subprocess backend; <code>tui</code>/<code>graphics</code>/ <code>sound</code> need console and device handling. <code>fileIO</code>/<code>shell</code> and the data-format modules build as-is.</li>
-<li><strong>Embedding and <code>--emit-library</code>.</strong> The runtime is an ELF shared object today, so <code>--emit-library</code> fails cleanly on Windows with a "not supported yet" message rather than emitting ELF-only link flags. A <code>lynxer.dll</code> runtime, its export definition and the DLL-search-path lookup are still to do.</li>
+<li><strong>Toolchain and build target.</strong> The <code>Makefile</code> detects the host once (<code>LYNXER_HOST_OS</code> / <code>LYNXER_ON_WINDOWS</code>, from <code>OS</code> and <code>uname</code>, mapping MINGW/MSYS/CYGWIN) and keys the compile flags, link libraries and artifact names off it: a Windows build gets no <code>-fPIC</code>/<code>-ftls-model=global-dynamic</code> and no <code>-ldl</code> (macOS no longer gets <code>-ldl</code> either), builds <code>lynxer.exe</code>, and finds the Rust backends at cargo's <code>&lt;name&gt;.dll</code> rather than <code>lib&lt;name&gt;.so</code>/<code>.dylib</code>. The MSYS2 MinGW-w64 path compiles the whole C++ core and every portable Rust backend. The staticlib's native imports (the Windows system DLLs: <code>ntdll</code>, <code>ws2_32</code>, <code>userenv</code>, …) come from <code>rustc --print native-static-libs</code> (<code>LYNXER_FFI_NATIVE_LIBS</code>) and are added on Windows only, where nothing else supplies them — a Rust <code>staticlib</code> does not carry its dependencies' link directives; POSIX keeps the proven driver defaults. Still to do: a native MSVC/clang-cl build and the 32-bit <code>__stdcall</code> convention.</li>
+<li><strong>Stdlib backends.</strong> <code>cli</code>/<code>debug</code>/<code>os</code>/<code>path</code> and <code>js</code>/<code>multiprocessing</code> now have Win32 implementations; <code>watch</code> needs <code>ReadDirectoryChangesW</code>; <code>tui</code>/<code>graphics</code>/ <code>sound</code> need console and device handling. <code>fileIO</code>/<code>shell</code> and the data-format modules build as-is.</li>
+<li><strong>Embedding and <code>--emit-library</code>.</strong> Supported on the MinGW-w64 builds. A Windows emitted DLL depends on <code>lynxer.dll</code>, which must be available through the Windows DLL search path. MSVC/clang-cl is not supported yet.</li>
 </ul>
 <h2 id="the-windows-ecosystem">The Windows ecosystem</h2>
 <p>Making the interpreter run is only half of "Lynxer on Windows": it also has to install, update and tool the way Windows users expect.</p>
@@ -181,7 +194,7 @@
 <li><strong>User data and configuration.</strong> <code>%APPDATA%</code>/<code>%LOCALAPPDATA%</code> and the Known Folders in place of <code>$HOME</code>, and the registry in place of <code>/etc</code>.</li>
 <li><strong>Diagnostics.</strong> A crash handler that can print a readable trace (the <code>debug</code>/<code>--debug</code> path is POSIX-only today) and <code>OutputDebugString</code> wiring.</li>
 </ul>
-<p>Both Windows jobs are <strong>required</strong> (no <code>continue-on-error</code>): <code>.github/workflows/build-lynxer-windows-amd64.yml</code> (MSYS2 MINGW64) and <code>.github/workflows/build-lynxer-windows-arm64.yml</code> (MSYS2 CLANGARM64). Bob, the package manager, is separate and has its own four workflows.</p>
+<p>Both Windows jobs are <strong>required</strong> (no <code>continue-on-error</code>): <code>.github/workflows/build-lynxer-windows-amd64.yml</code> (MSYS2 MINGW64) and <code>.github/workflows/build-lynxer-windows-arm64.yml</code> (MSYS2 CLANGARM64).</p>
 <p>See the <strong>Windows support</strong> section of <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a> for the tracked items.</p>
     </main>
 </div>

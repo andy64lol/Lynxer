@@ -1,7 +1,8 @@
 # Native modules
 
 A native module is a shared library that exports one stable registration entry
-point. On Linux the extension is `.so`; the loader is C++ (`dlopen`/`dlsym`) —
+point. On Linux the extension is `.so`; Windows uses MinGW PE DLLs and
+`LoadLibrary` (the bundled wrappers retain `.so` import names). The loader is C++ —
 there is no Python and **no `libffi`**: calls dispatch through a hand-written
 fixed-shape table (see [native-module-abi.md](native-module-abi.md)).
 

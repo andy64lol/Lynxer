@@ -950,9 +950,16 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (TypeRegistry::instance().hasNamedType(type)) {
         if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value);
             record != nullptr && *record != nullptr &&
-            (*record)->typeName == type &&
-            ((*record)->kind == RecordKind::Struct) ==
-                (TypeRegistry::instance().findStruct(type) != nullptr)) {
+            ((*record)->typeName == type &&
+             ((*record)->kind == RecordKind::Struct) ==
+                 (TypeRegistry::instance().findStruct(type) != nullptr))) {
+            return value;
+        }
+        if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value);
+            record != nullptr && *record != nullptr &&
+            (*record)->kind == RecordKind::Class &&
+            TypeRegistry::instance().findClass(type) != nullptr &&
+            classIsA((*record)->typeName, type)) {
             return value;
         }
         if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value);

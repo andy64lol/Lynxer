@@ -1,0 +1,15 @@
+////
+Static-analysis fixture. `--lint` must report the unused variable, the
+incompatible initializer, the lossy float-to-int conversion and the statement
+after `return` without executing the program.
+////
+global setup(){}
+
+global main(){
+    int unused = 4;
+    int count = "many";
+    int rounded = 3.5;
+    println(count, rounded);
+    return;
+    println("unreachable");
+}

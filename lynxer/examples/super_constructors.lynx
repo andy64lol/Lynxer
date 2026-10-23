@@ -1,0 +1,59 @@
+////
+Constructors across a class inheritance chain. Each `super(...)` call runs the
+nearest inherited `init`; the child constructor then initializes its own fields.
+A parent without an `init` accepts a bare `super();`.
+////
+global setup(){}
+
+class Animal {
+    str name;
+    int legs;
+
+    local init(str name, int legs) {
+        this.name = name;
+        this.legs = legs;
+    }
+}
+
+class Pet extends Animal {
+    str owner;
+
+    local init(str name, int legs, str owner) {
+        super(name, legs);
+        this.owner = owner;
+    }
+}
+
+class Dog extends Pet {
+    local init(str name, str owner) {
+        super(name, 4, owner);
+    }
+
+    local describe() {
+        return this.name + " (" + this.owner + ")";
+    }
+}
+
+class Marker {
+}
+
+class Tagged extends Marker {
+    str tag;
+
+    local init(str tag) {
+        super();
+        this.tag = tag;
+    }
+}
+
+global main(){
+    Dog dog = new Dog("Rex", "Ada");
+    println(dog.name, " ", dog.legs, " ", dog.owner);
+    println(dog.describe());
+
+    Animal animal = dog;
+    println(animal.name, " ", animal.legs);
+
+    Tagged tagged = new Tagged("ok");
+    println(tagged.tag);
+}

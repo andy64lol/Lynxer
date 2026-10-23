@@ -1,0 +1,6 @@
+LIBRARY lynxer
+EXPORTS
+    lynxer_embed_init
+    lynxer_embed_call
+    lynxer_embed_last_error
+    lynxer_embed_reset_error
