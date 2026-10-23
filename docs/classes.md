@@ -31,6 +31,47 @@ class Counter {
   constructor arguments through `this`.
 - Methods use `this.field` to read and write fields.
 
+## Inheritance
+
+Use JavaScript-style `extends` to derive a class from one previously declared:
+
+```lynx
+class Animal {
+    str name = "";
+
+    local init(str name) {
+        this.name = name;
+    }
+
+    local speak() {
+        return "...";
+    }
+}
+
+class Dog extends Animal {
+    local speak() {
+        return "woof";
+    }
+}
+```
+
+`Dog` inherits `Animal`'s fields, methods, and `init` constructor. A child
+method with the same name overrides the inherited method. Method lookup uses
+the instance's actual class, so an overridden method still runs when the
+instance is stored in a variable typed as its parent:
+
+```lynx
+Animal pet = new Dog("Rex");
+println(pet.name);       // Rex
+println(pet.speak());    // woof
+```
+
+Inheritance is single-parent, and the parent class must be declared first.
+Inherited fields initialize from parent to child; a child field with the same
+name replaces the inherited field. If the child declares its own `init`, that
+constructor replaces the inherited `init`; Lynxer currently has no `super`
+call syntax to invoke the parent constructor explicitly.
+
 ## Construction
 
 ```lynx

@@ -1150,16 +1150,14 @@ Value MethodCallExpression::evaluate(Environment& environment) const {
         throw SourceError("unknown class '" + (*record)->typeName + "'",
                           line_, column_);
     }
-    for (const ClassMethod& method : classDef->methods) {
-        if (method.name == method_) {
-            std::vector<Value> arguments;
-            arguments.reserve(arguments_.size());
-            for (const auto& argument : arguments_) {
-                arguments.push_back(argument->evaluate(environment));
-            }
-            return runClassMethod(*record, method, std::move(arguments),
-                                  environment, line_, column_);
+    if (const ClassMethod* method = findClassMethod(classDef, method_)) {
+        std::vector<Value> arguments;
+        arguments.reserve(arguments_.size());
+        for (const auto& argument : arguments_) {
+            arguments.push_back(argument->evaluate(environment));
         }
+        return runClassMethod(*record, *method, std::move(arguments),
+                              environment, line_, column_);
     }
     noFieldError(**record, method_, line_, column_);
 }
@@ -1201,24 +1199,34 @@ Value NewExpression::evaluate(Environment& environment) const {
         record->typeName = typeName_;
         record->displayName = typeName_;
         record->kind = RecordKind::Class;
-        for (const ClassFieldDef& fieldDef : classDef->fields) {
-            RecordField field;
-            field.type = fieldDef.type;
-            field.name = fieldDef.name;
-            field.constant = fieldDef.constant;
-            field.value = fieldDef.initializer
-                              ? Environment::convertForType(
-                                    fieldDef.initializer->evaluate(environment),
-                                    fieldDef.type, line_, column_)
-                              : Value{};
-            record->fields.push_back(std::move(field));
-        }
-        for (const ClassMethod& method : classDef->methods) {
-            if (method.name == "init") {
-                runClassMethod(record, method, std::move(arguments), environment,
-                               line_, column_);
-                return record;
+        for (const ClassDef* ancestor : classLineage(classDef)) {
+            for (const ClassFieldDef& fieldDef : ancestor->fields) {
+                RecordField field;
+                field.type = fieldDef.type;
+                field.name = fieldDef.name;
+                field.constant = fieldDef.constant;
+                field.value = fieldDef.initializer
+                                  ? Environment::convertForType(
+                                        fieldDef.initializer->evaluate(environment),
+                                        fieldDef.type, line_, column_)
+                                  : Value{};
+                auto existing = std::find_if(
+                    record->fields.begin(), record->fields.end(),
+                    [&field](const RecordField& current) {
+                        return current.name == field.name;
+                    });
+                if (existing == record->fields.end()) {
+                    record->fields.push_back(std::move(field));
+                } else {
+                    *existing = std::move(field);
+                }
             }
+        }
+        if (const ClassMethod* constructor =
+                findClassMethod(classDef, "init")) {
+            runClassMethod(record, *constructor, std::move(arguments),
+                           environment, line_, column_);
+            return record;
         }
         if (!arguments.empty()) {
             throw SourceError("class '" + typeName_ +

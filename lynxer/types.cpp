@@ -1,5 +1,6 @@
 #include "types.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <variant>
 
@@ -55,6 +56,49 @@ void TypeRegistry::addEnum(EnumDef def) {
     enums_.emplace(def.name, std::move(def));
 }
 
+bool classIsA(const std::string& actual, const std::string& expected) {
+    TypeRegistry& registry = TypeRegistry::instance();
+    const ClassDef* definition = registry.findClass(actual);
+    while (definition != nullptr) {
+        if (definition->name == expected) {
+            return true;
+        }
+        definition = definition->parent.empty()
+                         ? nullptr
+                         : registry.findClass(definition->parent);
+    }
+    return false;
+}
+
+const ClassMethod* findClassMethod(const ClassDef* definition,
+                                   const std::string& name) {
+    TypeRegistry& registry = TypeRegistry::instance();
+    for (const ClassDef* current = definition; current != nullptr;
+         current = current->parent.empty()
+                       ? nullptr
+                       : registry.findClass(current->parent)) {
+        for (const ClassMethod& method : current->methods) {
+            if (method.name == name) {
+                return &method;
+            }
+        }
+    }
+    return nullptr;
+}
+
+std::vector<const ClassDef*> classLineage(const ClassDef* definition) {
+    TypeRegistry& registry = TypeRegistry::instance();
+    std::vector<const ClassDef*> lineage;
+    for (const ClassDef* current = definition; current != nullptr;
+         current = current->parent.empty()
+                       ? nullptr
+                       : registry.findClass(current->parent)) {
+        lineage.push_back(current);
+    }
+    std::reverse(lineage.begin(), lineage.end());
+    return lineage;
+}
+
 bool typeMatches(const std::string& type, const Value& value) {
     if (type == "any" || type.empty()) {
         return true;
@@ -66,7 +110,9 @@ bool typeMatches(const std::string& type, const Value& value) {
         if (*record != nullptr &&
             ((*record)->kind == RecordKind::Struct ||
              (*record)->kind == RecordKind::Class)) {
-            return (*record)->typeName == type;
+            return (*record)->typeName == type ||
+                   ((*record)->kind == RecordKind::Class &&
+                    classIsA((*record)->typeName, type));
         }
         return false;
     }

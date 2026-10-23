@@ -680,9 +680,21 @@ void Parser::parseClassDefinition() {
     if (TypeRegistry::instance().hasNamedType(name.text)) {
         fail("duplicate named type '" + name.text + "'", name);
     }
+    std::string parent;
+    if (matchKeyword("extends")) {
+        const Token parentName = expect(
+            TokenKind::Identifier, "expected parent class name after 'extends'");
+        if (TypeRegistry::instance().findClass(parentName.text) == nullptr) {
+            fail("unknown parent class '" + parentName.text +
+                     "' (declare it before '" + name.text + "')",
+                 parentName);
+        }
+        parent = parentName.text;
+    }
     expectText("{", "expected '{' before class body");
     ClassDef definition;
     definition.name = name.text;
+    definition.parent = std::move(parent);
     while (!checkText("}")) {
         if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
             peekAt(2).text == "(") {

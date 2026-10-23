@@ -34,7 +34,8 @@ A file is a sequence of top-level declarations, in this order:
 1. **`global setup()`** — must be the **first** declaration. The interpreter
    raises `global setup() must be the first declaration` otherwise.
 2. **Anything else** — file-level `func`s, `global` functions, `struct`,
-   `class` and `enum` definitions, in any order before `main`.
+   `class` and `enum` definitions before `main`. A class's parent must be
+   declared before the child class.
 3. **`global main()`** — the default entry point, and the last declaration.
    A declaration after `main` fails with
    `declarations may not follow global main()`.

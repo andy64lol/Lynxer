@@ -39,6 +39,7 @@ struct ClassFieldDef {
 
 struct ClassDef {
     std::string name;
+    std::string parent;
     std::vector<ClassFieldDef> fields;
     std::vector<ClassMethod> methods;
 };
@@ -80,6 +81,13 @@ private:
     std::unordered_map<std::string, ClassDef> classes_;
     std::unordered_map<std::string, EnumDef> enums_;
 };
+
+// Class helpers walk the single-inheritance chain from the requested class
+// toward its parent classes.
+bool classIsA(const std::string& actual, const std::string& expected);
+const ClassMethod* findClassMethod(const ClassDef* definition,
+                                   const std::string& name);
+std::vector<const ClassDef*> classLineage(const ClassDef* definition);
 
 // Whether a runtime value satisfies a Lynxer declaration type (docs/types.md
 // and the Python type_matches semantics: checks without coercion).
