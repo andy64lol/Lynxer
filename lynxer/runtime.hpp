@@ -140,6 +140,15 @@ public:
     void pushScope();
     void popScope();
 
+    // Generic type aliases are scoped alongside variables. A function binds
+    // aliases from inferred argument types; declarations and returns resolve
+    // those aliases through the active scope chain.
+    void bindGenericType(const std::string& name, const std::string& type,
+                         int line, int column);
+    std::string resolveTypeName(const std::string& type) const;
+    Value convertWithTypeBindings(Value value, const std::string& type,
+                                  int line, int column) const;
+
     void declare(const std::string& name, const std::string& type, Value value,
                  int line, int column);
 
@@ -269,6 +278,7 @@ private:
     std::string canonicalName(const std::string& name) const;
 
     std::vector<std::unordered_map<std::string, Variable>> scopes_;
+    std::vector<std::unordered_map<std::string, std::string>> typeScopes_;
     std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
         functionScopes_;
     UserFunctionHandler userFunctionHandler_;

@@ -11,10 +11,12 @@
 
 namespace lynxer {
 
-Environment::Environment() : scopes_(1), functionScopes_(1) {}
+Environment::Environment()
+    : scopes_(1), typeScopes_(1), functionScopes_(1) {}
 
 void Environment::pushScope() {
     scopes_.emplace_back();
+    typeScopes_.emplace_back();
     functionScopes_.emplace_back();
 }
 
@@ -23,7 +25,42 @@ void Environment::popScope() {
         throw SourceError("cannot pop the global scope", 0, 0);
     }
     scopes_.pop_back();
+    typeScopes_.pop_back();
     functionScopes_.pop_back();
+}
+
+void Environment::bindGenericType(const std::string& name,
+                                  const std::string& type, int line,
+                                  int column) {
+    auto& current = typeScopes_.back();
+    const auto found = current.find(name);
+    if (found != current.end()) {
+        if (found->second != type) {
+            fail("generic type '" + name + "' was inferred as both '" +
+                     found->second + "' and '" + type + "'",
+                 line, column);
+        }
+        return;
+    }
+    current.emplace(name, type);
+}
+
+std::string Environment::resolveTypeName(const std::string& type) const {
+    for (auto scope = typeScopes_.rbegin(); scope != typeScopes_.rend();
+         ++scope) {
+        const auto found = scope->find(type);
+        if (found != scope->end()) {
+            return found->second;
+        }
+    }
+    return type;
+}
+
+Value Environment::convertWithTypeBindings(Value value,
+                                           const std::string& type, int line,
+                                           int column) const {
+    return convertForType(std::move(value), resolveTypeName(type), line,
+                          column);
 }
 
 void Environment::declare(const std::string& name, const std::string& type,

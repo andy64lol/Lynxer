@@ -585,6 +585,7 @@ struct Parameter {
     std::string type = "any";
     std::string name;
     ExpressionPtr defaultValue;
+    bool infersGenericType = false;
 };
 
 struct Function {

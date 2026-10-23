@@ -30,6 +30,11 @@ how values are converted. For a runnable overview see
 used as a return annotation (`-> none`), where it accepts only the no-value
 result. See [Return annotations](#return-annotations).
 
+Functions can infer a type name from an argument with `type T of value` in the
+parameter list. The inferred `T` can then type later parameters, local
+variables, and the function's return value. See
+[function parameters](functions.md#parameters-and-defaults).
+
 ## Fixed-width numeric types
 
 | Type | Range |

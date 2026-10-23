@@ -90,6 +90,19 @@ global main(){
 - A parameter may have a default (`int b = 1`).
 - A required parameter may **not** follow one with a default:
   `required parameters cannot follow a parameter with a default value`.
+- `type T of value` infers a generic type `T` from that argument:
+
+  ```lynx
+  global keep(type T of first, T second) -> T {
+      T result = second;
+      return result;
+  }
+  ```
+
+  `T` can be used for later parameter types, local declarations, and the return
+  annotation. Reusing `T` requires the arguments to have the same Lynxer type.
+  The generic parameter itself cannot have a default value; exported C
+  functions and class methods do not support inferred generic parameters.
 - Class methods are the exception: their parameters are typed but may **not**
   have defaults (see [classes.md](classes.md)).
 

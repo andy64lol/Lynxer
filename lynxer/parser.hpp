@@ -155,6 +155,7 @@ private:
     std::size_t index_ = 0;
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
+    std::unordered_set<std::string> genericTypeNames_;
     std::vector<ImportRecord> imports_;
     std::vector<std::string> programOrder_;
     std::vector<ExportRecord> exports_;

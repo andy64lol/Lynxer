@@ -993,8 +993,8 @@ RemoveVarGroupExpression::RemoveVarGroupExpression(
       column_(column) {}
 
 Value TypeCoerceExpression::evaluate(Environment& environment) const {
-    return Environment::convertForType(inner_->evaluate(environment), type_,
-                                       0, 0);
+    return environment.convertWithTypeBindings(inner_->evaluate(environment),
+                                               type_, 0, 0);
 }
 
 Value DotAccessExpression::evaluate(Environment& environment) const {
@@ -1256,10 +1256,10 @@ Value AddVarGroupExpression::evaluate(Environment& environment) const {
         }
     }
     RecordField field;
-    field.type = type_;
+    field.type = environment.resolveTypeName(type_);
     field.name = field_;
-    field.value = Environment::convertForType(value_->evaluate(environment),
-                                              type_, line_, column_);
+    field.value = environment.convertWithTypeBindings(
+        value_->evaluate(environment), type_, line_, column_);
     (*record)->fields.push_back(std::move(field));
     return Value{};
 }
@@ -1294,10 +1294,10 @@ Value VarGroupLiteralExpression::evaluate(Environment& environment) const {
     record->displayName = "vargroup";
     for (const auto& definition : fields_) {
         RecordField field;
-        field.type = definition.type;
+        field.type = environment.resolveTypeName(definition.type);
         field.name = definition.name;
         field.constant = definition.constant;
-        field.value = Environment::convertForType(
+        field.value = environment.convertWithTypeBindings(
             definition.value->evaluate(environment), definition.type, 0, 0);
         record->fields.push_back(std::move(field));
     }
@@ -1538,17 +1538,18 @@ void DeclarationStatement::execute(Environment& environment) const {
             throw SourceError(error, line_, column_);
         }
     }
-    Value value = Environment::convertForType(value_->evaluate(environment),
-                                              type_, line_, column_);
-    if (type_ == "tuple" &&
+    const std::string resolvedType = environment.resolveTypeName(type_);
+    Value value = environment.convertWithTypeBindings(
+        value_->evaluate(environment), type_, line_, column_);
+    if (resolvedType == "tuple" &&
         dynamic_cast<const ListLiteralExpression*>(value_.get()) != nullptr) {
         environment.warnTupleBracketLiteral(line_, column_);
     }
     if (constant_) {
-        environment.declareConstant(name_, type_, std::move(value), line_,
+        environment.declareConstant(name_, resolvedType, std::move(value), line_,
                                      column_);
     } else {
-        environment.declare(name_, type_, std::move(value), line_, column_);
+        environment.declare(name_, resolvedType, std::move(value), line_, column_);
     }
 }
 
@@ -1566,9 +1567,10 @@ void SharedDeclarationStatement::execute(Environment& environment) const {
     if (!readError.empty()) {
         throw SourceError(readError, line_, column_);
     }
-    Value value = Environment::convertForType(
+    const std::string resolvedType = environment.resolveTypeName(type_);
+    Value value = environment.convertWithTypeBindings(
         environment.get(source_, line_, column_), type_, line_, column_);
-    environment.declare(name_, type_, std::move(value), line_, column_);
+    environment.declare(name_, resolvedType, std::move(value), line_, column_);
     const std::string error = environment.borrowMutate(source_, name_);
     if (!error.empty()) {
         throw SourceError(error, line_, column_);
@@ -1726,8 +1728,8 @@ DotAssignmentStatement::DotAssignmentStatement(std::vector<std::string> path,
 void DotAssignmentStatement::execute(Environment& environment) const {
     Value value = value_->evaluate(environment);
     if (!type_.empty()) {
-        value = Environment::convertForType(std::move(value), type_, line_,
-                                            column_);
+        value = environment.convertWithTypeBindings(std::move(value), type_,
+                                                    line_, column_);
     }
     const Value& base = environment.get(path_[0], line_, column_);
     const auto* baseRecord = std::get_if<std::shared_ptr<RecordValue>>(&base);
@@ -1951,7 +1953,9 @@ void ExecStatement::execute(Environment& environment) const {
         }
         std::vector<std::pair<std::string, Variable>> saved;
         for (std::size_t index = 0; index < params.size(); ++index) {
-            Value converted = Environment::convertForType(
+            const std::string resolvedType =
+                environment.resolveTypeName(params[index].first);
+            Value converted = environment.convertWithTypeBindings(
                 std::move(arguments[index]), params[index].first, line_,
                 column_);
             saved.emplace_back(params[index].second,
@@ -1961,7 +1965,7 @@ void ExecStatement::execute(Environment& environment) const {
                                    : Variable{});
             environment.setVariableRaw(
                 params[index].second,
-                Variable{params[index].first, std::move(converted), false});
+                Variable{resolvedType, std::move(converted), false});
         }
         const std::vector<const Statement*>& body = (*block)->body;
         try {
@@ -1981,14 +1985,15 @@ void ExecStatement::execute(Environment& environment) const {
     std::vector<std::pair<std::string, Variable>> saved;
     for (const auto& param : params_) {
         Value value = environment.get(param.second, line_, column_);
-        value = Environment::convertForType(std::move(value), param.first,
-                                            line_, column_);
+        const std::string resolvedType = environment.resolveTypeName(param.first);
+        value = environment.convertWithTypeBindings(std::move(value),
+                                                    param.first, line_, column_);
         saved.emplace_back(param.second,
                            environment.hasVariable(param.second)
                                ? environment.variableSnapshot(param.second)
                                : Variable{});
         environment.setVariableRaw(
-            param.second, Variable{param.first, std::move(value), false});
+            param.second, Variable{resolvedType, std::move(value), false});
     }
     runBody(body_, saved, environment);
 }
@@ -2032,11 +2037,20 @@ Value invokeFunction(
                         std::to_string(args.size()),
                     line, column);
             }
-            value = Environment::convertForType(
-                std::move(value), function.parameters[index].type, line, column);
+            const Parameter& parameter = function.parameters[index];
+            std::string parameterType;
+            if (parameter.infersGenericType) {
+                parameterType = typeNameOf(value);
+                environment.bindGenericType(parameter.type, parameterType,
+                                            line, column);
+            } else {
+                parameterType = environment.resolveTypeName(parameter.type);
+            }
+            value = Environment::convertForType(std::move(value),
+                                                parameterType, line, column);
             environment.setVariableRawCurrent(
-                function.parameters[index].name,
-                Variable{function.parameters[index].type, std::move(value), false});
+                parameter.name,
+                Variable{std::move(parameterType), std::move(value), false});
         }
         for (std::size_t index = 0; index < blocks.size(); ++index) {
             const auto& block = blocks[index];
@@ -2052,9 +2066,8 @@ Value invokeFunction(
             result = control.hasValue ? control.value : Value{};
         }
         if (function.returnType != "any") {
-            result = Environment::convertForType(std::move(result),
-                                                  function.returnType, line,
-                                                  column);
+            result = environment.convertWithTypeBindings(
+                std::move(result), function.returnType, line, column);
         }
         environment.popScope();
         return result;
@@ -3235,6 +3248,9 @@ void dumpFunction(std::ostream& out, const Function& function, int indent) {
             dumpScalarLine(out, indent + 6, "Parameter");
             dumpStringField(out, indent + 6, "type", parameter.type);
             dumpStringField(out, indent + 6, "name", parameter.name);
+            if (parameter.infersGenericType) {
+                dumpScalarLine(out, indent + 6, "infersGenericType true");
+            }
             dumpExprField(out, indent + 6, "defaultValue",
                           parameter.defaultValue.get());
         }

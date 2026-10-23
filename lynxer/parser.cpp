@@ -457,7 +457,25 @@ std::vector<Parameter> Parser::parseFunctionParameters() {
     if (!checkText(")")) {
         while (true) {
             std::string type = "any";
-            if (isTypeName(current()) && peekAt(1).kind == TokenKind::Identifier) {
+            bool infersGenericType = false;
+            if (matchKeyword("type")) {
+                const Token genericType =
+                    expect(TokenKind::Identifier, "expected generic type name");
+                const bool alreadyGeneric =
+                    genericTypeNames_.count(genericType.text) != 0;
+                if (!alreadyGeneric && isTypeName(genericType)) {
+                    fail("generic type name '" + genericType.text +
+                             "' conflicts with an existing type",
+                         genericType);
+                }
+                if (!matchKeyword("of")) {
+                    fail("expected 'of' after generic type name", current());
+                }
+                type = genericType.text;
+                genericTypeNames_.insert(type);
+                infersGenericType = true;
+            } else if (isTypeName(current()) &&
+                       peekAt(1).kind == TokenKind::Identifier) {
                 type = advance().text;
             }
             const Token name =
@@ -467,6 +485,10 @@ std::vector<Parameter> Parser::parseFunctionParameters() {
             }
             ExpressionPtr defaultValue;
             if (match("=")) {
+                if (infersGenericType) {
+                    fail("a generic type parameter cannot have a default value",
+                         name);
+                }
                 sawDefault = true;
                 defaultValue = parseExpression();
             } else if (sawDefault) {
@@ -474,7 +496,8 @@ std::vector<Parameter> Parser::parseFunctionParameters() {
                      name);
             }
             parameters.push_back(
-                {std::move(type), name.text, std::move(defaultValue)});
+                {std::move(type), name.text, std::move(defaultValue),
+                 infersGenericType});
             if (!match(",")) {
                 break;
             }
@@ -532,7 +555,15 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
     function.name = name.text;
     function.isGlobal = kind == "global";
     function.isFileFunction = kind == "func";
+    const auto outerGenericTypes = genericTypeNames_;
     function.parameters = parseFunctionParameters();
+    if ((name.text == "setup" || name.text == "main") &&
+        std::any_of(function.parameters.begin(), function.parameters.end(),
+                    [](const Parameter& parameter) {
+                        return parameter.infersGenericType;
+                    })) {
+        fail("entry-point functions cannot use generic type parameters", name);
+    }
     if (match("-")) {
         expectText(">", "expected '>' after '-' in return type");
         function.returnType = parseTypeName("expected return type after '->'");
@@ -567,6 +598,7 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
         fail("entry-point functions cannot declare codeblock parameters", name);
     }
     function.statements = parseBlock("function body");
+    genericTypeNames_ = outerGenericTypes;
     (void)keyword;
     (void)topLevel;
     return function;
@@ -588,6 +620,12 @@ Function Parser::parseExport() {
     function.isGlobal = true;
     function.isFileFunction = false;
     function.parameters = parseFunctionParameters();
+    if (std::any_of(function.parameters.begin(), function.parameters.end(),
+                    [](const Parameter& parameter) {
+                        return parameter.infersGenericType;
+                    })) {
+        fail("exported functions cannot use generic type parameters", name);
+    }
     if (match("-")) {
         expectText(">", "expected '>' after '-' in return type");
         function.returnType = parseTypeName("expected return type after '->'");
@@ -618,6 +656,7 @@ StatementPtr Parser::parseLocalFunction() {
     expectText("(", "expected '(' after function name");
     auto function = std::make_shared<Function>();
     function->name = name.text;
+    const auto outerGenericTypes = genericTypeNames_;
     function->parameters = parseFunctionParameters();
     if (match("-")) {
         expectText(">", "expected '>' after '-' in return type");
@@ -649,6 +688,7 @@ StatementPtr Parser::parseLocalFunction() {
         }
     }
     function->statements = parseBlock("local function body");
+    genericTypeNames_ = outerGenericTypes;
     (void)keyword;
     return std::make_unique<FunctionDeclarationStatement>(std::move(function));
 }
