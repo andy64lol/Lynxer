@@ -2,6 +2,7 @@
 
 #include "bundle.hpp"
 #include "config.hpp"
+#include "debugger.hpp"
 #include "error.hpp"
 #include "exports.hpp"
 #include "formatter.hpp"
@@ -154,6 +155,7 @@ void printUsage() {
     std::cout << "  lynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
     std::cout << "  lynxer --lint <file.lynx>                   Check syntax and run static analysis\n";
+    std::cout << "  lynxer --debug <file.lynx> [args...]         Run with the source debugger\n";
     std::cout << "  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
     std::cout << "  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
     std::cout << "  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
@@ -1672,6 +1674,27 @@ int shellMain(int argc, char** argv) {
             return 1;
         }
         return lintFile(args[1], source);
+    }
+    if (args[0] == "--debug") {
+        if (args.size() < 2) {
+            std::cerr << "lynxer: --debug requires a source file\n";
+            return 1;
+        }
+        const std::string& display = args[1];
+        bool ok = false;
+        const std::string source = readFile(display, display, ok);
+        if (!ok) return 1;
+        programArguments.assign(1, display);
+        programArguments.insert(programArguments.end(), args.begin() + 2,
+                                args.end());
+        setDebuggerEnabled(true);
+        const int exitCode = runProgram(display, source);
+        setDebuggerEnabled(false);
+        if (interruptRequested()) {
+            std::cout << '\n';
+            return 130;
+        }
+        return exitCode;
     }
 
     const std::string& display = args[0];

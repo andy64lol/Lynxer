@@ -168,6 +168,11 @@ public:
 
     Variable variableSnapshot(const std::string& name) const;
     std::unordered_map<std::string, Variable> currentVariables() const;
+    std::unordered_map<std::string, Variable> visibleVariablesAtDepth(
+        std::size_t depth) const;
+    std::unordered_map<std::string, Variable> variablesAtScope(
+        std::size_t depth) const;
+    std::size_t scopeDepth() const;
 
     void setVariableRaw(const std::string& name, const Variable& variable);
 

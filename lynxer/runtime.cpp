@@ -198,6 +198,29 @@ std::unordered_map<std::string, Variable> Environment::currentVariables() const 
     return *scopes_.back();
 }
 
+std::unordered_map<std::string, Variable>
+Environment::visibleVariablesAtDepth(std::size_t depth) const {
+    std::unordered_map<std::string, Variable> visible;
+    if (scopes_.empty()) return visible;
+    depth = std::min(depth, scopes_.size() - 1);
+    for (std::size_t index = 0; index <= depth; ++index) {
+        for (const auto& variable : *scopes_[index]) {
+            visible[variable.first] = variable.second;
+        }
+    }
+    return visible;
+}
+
+std::unordered_map<std::string, Variable> Environment::variablesAtScope(
+    std::size_t depth) const {
+    if (depth >= scopes_.size()) return {};
+    return *scopes_[depth];
+}
+
+std::size_t Environment::scopeDepth() const {
+    return scopes_.empty() ? 0 : scopes_.size() - 1;
+}
+
 void Environment::setVariableRaw(const std::string& name,
                                  const Variable& variable) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {

@@ -63,6 +63,18 @@ checks. A clean file prints `Lint OK: <path> (0 warning(s))` and exits `0`. It
 requires exactly one file; otherwise it prints
 `lynxer: --lint requires exactly one file argument`.
 
+## Debugging
+
+```bash
+lynxer --debug program.lynx
+```
+
+The debugger pauses before the first source statement. Commands are `step`,
+`continue`, `break [file:]line`, `delete [file:]line`, `locals`, `print name`,
+`backtrace`, `frame n`, and `detach`. Breakpoints may be set at the initial
+pause before continuing. `step` enters function calls; `frame 0` selects the
+currently stopped frame, with larger indexes moving toward its callers.
+
 ## Printing the AST
 
 ```bash

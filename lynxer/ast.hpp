@@ -371,8 +371,10 @@ public:
         sourceLine_ = line;
         sourceColumn_ = column;
     }
+    void setSourcePath(std::string path) { sourcePath_ = std::move(path); }
     int sourceLine() const { return sourceLine_; }
     int sourceColumn() const { return sourceColumn_; }
+    const std::string& sourcePath() const { return sourcePath_; }
 
     // AST optimization hooks. `optimizeChildren` recurses into owned children;
     // `rewrite` may replace this statement with zero or more statements in
@@ -386,6 +388,7 @@ public:
 private:
     int sourceLine_ = 0;
     int sourceColumn_ = 0;
+    std::string sourcePath_;
 };
 
 

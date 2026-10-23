@@ -1790,6 +1790,7 @@ StatementList Parser::parseBlock(const std::string& description) {
         const Token start = current();
         StatementPtr statement = parseStatement();
         statement->setSourceLocation(start.line, start.column);
+        statement->setSourcePath(sourcePath_);
         statements.push_back(std::move(statement));
     }
     expectText("}", "expected '}' after " + description);

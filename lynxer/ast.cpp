@@ -2,6 +2,7 @@
 
 #include "builtins.hpp"
 #include "config.hpp"
+#include "debugger.hpp"
 #include "error.hpp"
 #include "ffi_abi.h"
 #include "interrupt.hpp"
@@ -29,6 +30,15 @@
 #include <variant>
 
 namespace lynxer {
+
+namespace {
+struct DebugFrameGuard {
+    DebugFrameGuard(const std::string& name, Environment& environment) {
+        debugPushFrame(name, environment);
+    }
+    ~DebugFrameGuard() { debugPopFrame(); }
+};
+} // namespace
 
 Value invokeFunction(
     const Function& function, const std::vector<Value>& args,
@@ -807,6 +817,7 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
                           line, column);
     }
     environment.pushScope();
+    DebugFrameGuard debugFrame(method.name, environment);
     environment.setVariableRawCurrent(
         "this", Variable{receiver->typeName, receiver, false});
     for (std::size_t index = 0; index < method.params.size(); ++index) {
@@ -819,6 +830,7 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
     }
     try {
         for (const auto& statement : method.body) {
+            debugBeforeStatement(*statement, environment);
             statement->execute(environment);
         }
     } catch (const ReturnControl& control) {
@@ -2036,6 +2048,7 @@ void ExecStatement::execute(Environment& environment) const {
         const std::vector<const Statement*>& body = (*block)->body;
         try {
             for (const auto& statement : body) {
+                debugBeforeStatement(*statement, environment);
                 statement->execute(environment);
             }
         } catch (...) {
@@ -2090,6 +2103,7 @@ Value invokeFunction(
     }
 
     environment.pushScope();
+    DebugFrameGuard debugFrame(function.name, environment);
     try {
         if (function.isLambda) {
             environment.registerFunction(
@@ -2238,6 +2252,7 @@ void runSetup(const std::unordered_map<std::string, Function>& functions,
     if (setup != functions.end()) {
         environment.setSetupInProgress(true);
         try {
+            DebugFrameGuard debugFrame("setup", environment);
             for (const Parameter& parameter : setup->second.parameters) {
                 if (parameter.defaultValue == nullptr) {
                     throw SourceError(
@@ -2570,6 +2585,7 @@ void executeStatements(const StatementList& statements,
     for (const auto& statement : statements) {
         throwIfInterrupted();
         throwIfExitRequested();
+        debugBeforeStatement(*statement, environment);
         statement->execute(environment);
     }
 }
