@@ -20,8 +20,8 @@ standard-library improvements.
 
 | Document | What it covers |
 | --- | --- |
-| [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
-| [functions.md](functions.md) | The `global`, `func` and `local` declaration forms and caller-supplied codeblocks |
+| [language.md](language.md) | Program structure, variables, operators, control flow, functions, scoping, interpolation |
+| [functions.md](functions.md) | The `global`, `func` and `local` forms, inferred generic parameters, and caller-supplied codeblocks |
 | [macros.md](macros.md) | File-scoped macros, `pub` exports, token arguments and codeblock parameters |
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |
@@ -32,7 +32,7 @@ standard-library improvements.
 | [tuples.md](tuples.md) | Immutable ordered sequences |
 | [codeblocks.md](codeblocks.md) | Inline codeblock arguments |
 | [structs.md](structs.md) | Data-only records |
-| [classes.md](classes.md) | Fields plus `local` methods |
+| [classes.md](classes.md) | Fields, `local` methods, constructors, and `extends` inheritance |
 | [enums.md](enums.md) | Tagged unions and `switch` patterns |
 | [vargroups.md](vargroups.md) | Records with defaulted fields |
 | [modules.md](modules.md) | `import`, search order, module member access |

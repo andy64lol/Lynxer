@@ -1,7 +1,8 @@
 # Classes
 
 A `class` is a named type with typed fields and `local` methods, constructed
-with `new`. Declare it between `global setup()` and `global main()`.
+with `new`. A class can extend one previously declared class. Declare classes
+between `global setup()` and `global main()`.
 
 ## Declaration
 

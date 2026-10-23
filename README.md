@@ -43,8 +43,9 @@ is excluded for now. See [docs/windows.md](docs/windows.md).
 **v0.1.8.3** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
-- 39 standard-library modules, native (C++/Rust) backends included;
+- 40 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
+- class inheritance with `extends` and inferred generic function parameters;
 - single-file executables via `--compile`;
 - a full test suite on `amd64` and `arm64`.
 
@@ -116,8 +117,8 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 |------|----------|
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
-| [Language reference](docs/language.md) | Types, variables, control flow, functions |
-| [Functions](docs/functions.md) | `global`, `func` and `local` declaration forms and caller-supplied codeblocks |
+| [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
+| [Functions](docs/functions.md) | `global`, `func` and `local`, inferred generic parameters, and caller-supplied codeblocks |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
 | [Errors](docs/try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
@@ -130,7 +131,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [Extending](docs/extending.md) | Adding a module: wrapper, backend, fixture, contract |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
 | [Structs](docs/structs.md) | Data-only named types with positional constructors |
-| [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
+| [Classes](docs/classes.md) | Instances, constructors, fields, methods, and `extends` inheritance |
 | [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
 | [Limitations](docs/limitations.md) | Planned implementation gaps |
 

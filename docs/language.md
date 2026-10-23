@@ -287,6 +287,11 @@ global main() {
 - A parameter may have a default (`int b = 1`).
 - A required parameter may **not** follow one with a default:
   `required parameters cannot follow a parameter with a default value`.
+- `type T of value` declares an inferred type parameter for an ordinary
+  function. Reuse `T` in later parameter types, local declarations, or the
+  return annotation; each call infers `T` from `value`. See
+  [functions.md](functions.md#parameters-and-defaults) for an example and
+  restrictions.
 - Class methods are the exception: their parameters are typed but may **not**
   have defaults (see [classes.md](classes.md)).
 
