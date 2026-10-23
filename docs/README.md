@@ -15,6 +15,7 @@ standard-library improvements.
 | --- | --- |
 | [install.md](install.md) | Requirements, build commands, artifacts, environment variables |
 | [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `lynxer` executable |
+| [language-server.md](language-server.md) | stdio LSP setup, diagnostics, completion, hover and navigation |
 
 **The language**
 
