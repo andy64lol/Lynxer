@@ -1,7 +1,7 @@
 pkgbase = lynxer
 	pkgdesc = A small, statically-flavoured C-style programming language with a standalone native runtime
-	pkgver = 0.1.8.3
-	pkgrel = 2
+	pkgver = 0.1.8.4
+	pkgrel = 1
 	url = https://github.com/andy64lol/Lynxer
 	arch = x86_64
 	arch = aarch64
@@ -23,7 +23,7 @@ pkgbase = lynxer
 	depends = libffi
 	depends = alsa-lib
 	depends = bzip2
-	source = git+https://github.com/andy64lol/Lynxer.git#commit=ca885adbae1079992a2f174c5de52a4caf8434c3
+	source = git+https://github.com/andy64lol/Lynxer.git#commit=b1d16d5dc8c062291abc3bce99c7e1a41233da55
 	sha256sums = SKIP
 
 pkgname = lynxer

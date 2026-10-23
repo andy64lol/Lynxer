@@ -1,7 +1,7 @@
 # Maintainer: Andy <andy64lolxd@gmail.com>
 pkgname=lynxer
-pkgver=0.1.8.3
-pkgrel=2
+pkgver=0.1.8.4
+pkgrel=1
 pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime"
 arch=('x86_64' 'aarch64')
 url="https://github.com/andy64lol/Lynxer"
@@ -9,7 +9,7 @@ license=('MIT')
 depends=('libffi' 'alsa-lib' 'bzip2')
 makedepends=('rust' 'pkgconf' 'cmake' 'clang' 'curl' 'git' 'libglvnd' 'libx11' 'libxext'
              'libxrandr' 'libxi' 'libxinerama' 'libxcursor' 'libxxf86vm')
-_commit=ca885adbae1079992a2f174c5de52a4caf8434c3
+_commit=b1d16d5dc8c062291abc3bce99c7e1a41233da55
 source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
 sha256sums=('SKIP')
 
