@@ -194,7 +194,8 @@ public:
     bool isBeingBorrowed(const std::string& name) const;
 
     void registerFunction(const std::string& name,
-                          std::shared_ptr<void> function);
+                          std::shared_ptr<void> function,
+                          bool lambdaScopeOnly = false);
 
     std::shared_ptr<void> findFunction(const std::string& name) const;
 
@@ -281,6 +282,7 @@ private:
     std::vector<std::unordered_map<std::string, std::string>> typeScopes_;
     std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
         functionScopes_;
+    std::vector<std::unordered_set<std::string>> lambdaScopeOnlyFunctions_;
     UserFunctionHandler userFunctionHandler_;
     std::unordered_map<std::string, ModuleFunction> moduleFunctions_;
     std::unordered_map<std::string, std::shared_ptr<RecordValue>> modules_;

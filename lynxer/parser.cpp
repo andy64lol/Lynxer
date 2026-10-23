@@ -651,11 +651,20 @@ Function Parser::parseExport() {
 }
 
 StatementPtr Parser::parseLocalFunction() {
-    const Token keyword = expectText("local", "expected 'local' function");
+    return parseScopedFunction("local");
+}
+
+StatementPtr Parser::parseLambda() {
+    return parseScopedFunction("lambda");
+}
+
+StatementPtr Parser::parseScopedFunction(const std::string& kind) {
+    const Token keyword = expectText(kind, "expected '" + kind + "' function");
     const Token name = expect(TokenKind::Identifier, "expected function name");
     expectText("(", "expected '(' after function name");
     auto function = std::make_shared<Function>();
     function->name = name.text;
+    function->isLambda = kind == "lambda";
     const auto outerGenericTypes = genericTypeNames_;
     function->parameters = parseFunctionParameters();
     if (match("-")) {
@@ -687,7 +696,7 @@ StatementPtr Parser::parseLocalFunction() {
             function->codeblockParameters.push_back(blockName);
         }
     }
-    function->statements = parseBlock("local function body");
+    function->statements = parseBlock(kind + " function body");
     genericTypeNames_ = outerGenericTypes;
     (void)keyword;
     return std::make_unique<FunctionDeclarationStatement>(std::move(function));
@@ -932,6 +941,10 @@ StatementPtr Parser::parseStatement() {
         peekAt(2).text == "(") {
         return parseLocalFunction();
     }
+    if (checkText("lambda") && peekAt(1).kind == TokenKind::Identifier &&
+        peekAt(2).text == "(") {
+        return parseLambda();
+    }
     if (checkText("async") && peekAt(1).kind == TokenKind::Identifier &&
         peekAt(2).text == "(") {
         Function function = parseFunction("async", false);
@@ -1075,28 +1088,17 @@ ExpressionPtr Parser::parseCallExpression() {
         name += "." + part.text;
     }
     expectText("(", "expected '(' after function name");
-    std::vector<ExpressionPtr> arguments = parseArguments(name);
+    std::vector<ExpressionPtr> arguments = parseArguments();
     return std::make_unique<CallExpression>(std::move(name),
                                              std::move(arguments), start.line,
                                              start.column);
 }
 
-std::vector<ExpressionPtr> Parser::parseArguments(const std::string& name) {
-    std::string resolved = name;
-    if (resolved.rfind("global.", 0) == 0) {
-        resolved = resolved.substr(7);
-    }
-    const bool allowInter = resolved == "print" || resolved == "println" ||
-                            resolved == "input" || resolved == "inputln";
+std::vector<ExpressionPtr> Parser::parseArguments() {
     std::vector<ExpressionPtr> arguments;
     if (!checkText(")")) {
         for (;;) {
-            if (allowInter && check(TokenKind::InterpString)) {
-                const Token token = advance();
-                arguments.push_back(parseInterpString(token));
-            } else {
-                arguments.push_back(parseExpression());
-            }
+            arguments.push_back(parseExpression());
             if (!match(",")) {
                 break;
             }
@@ -2010,9 +2012,7 @@ ExpressionPtr Parser::parsePrimary() {
         return std::make_unique<LiteralExpression>(CharValue{token.text});
     }
     if (token.kind == TokenKind::InterpString) {
-        fail("interpolated strings are only allowed as arguments of print, "
-             "println, input, and inputln",
-             token);
+        return parseInterpString(token);
     }
     if (token.kind == TokenKind::Identifier) {
         if (token.text == "true") {
@@ -2029,7 +2029,7 @@ ExpressionPtr Parser::parsePrimary() {
                 expect(TokenKind::Identifier, "expected type after 'new'");
             expectText("(", "expected '(' after type name");
             return std::make_unique<NewExpression>(
-                type.text, parseArguments(type.text), token.line, token.column);
+                type.text, parseArguments(), token.line, token.column);
         }
         return parsePostfix(
             std::make_unique<VariableExpression>(token.text, token.line,
@@ -2132,7 +2132,7 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
             auto* variable = dynamic_cast<VariableExpression*>(expression.get());
             if (variable != nullptr) {
                 std::vector<ExpressionPtr> arguments =
-                    parseArguments(variable->name());
+                    parseArguments();
                 expression = std::make_unique<CallExpression>(
                     variable->name(), std::move(arguments), start.line,
                     start.column);
@@ -2160,7 +2160,7 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
                 fail("only named functions can be called directly", current());
             }
             std::vector<ExpressionPtr> arguments =
-                parseArguments(qualified);
+                parseArguments();
             expression = std::make_unique<CallExpression>(
                 std::move(qualified), std::move(arguments), start.line,
                 start.column);
@@ -2182,7 +2182,7 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
                     receiver != nullptr) {
                     expression = std::make_unique<CallExpression>(
                         receiver->name() + "." + field.text,
-                        parseArguments(field.text), start.line, start.column);
+                        parseArguments(), start.line, start.column);
                     continue;
                 }
             }
@@ -2194,7 +2194,7 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
                 receiver != nullptr && isWinApiPrefix(receiver->name())) {
                 expression = std::make_unique<CallExpression>(
                     receiver->name() + "." + field.text,
-                    parseArguments(field.text), start.line, start.column);
+                    parseArguments(), start.line, start.column);
                 continue;
             }
             std::function<bool(const Expression&, std::string&)> qualify =
@@ -2219,11 +2219,11 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
                  qualified.rfind("local.", 0) == 0)) {
                 qualified += "." + field.text;
                 expression = std::make_unique<CallExpression>(
-                    std::move(qualified), parseArguments(field.text), start.line,
+                    std::move(qualified), parseArguments(), start.line,
                     start.column);
             } else {
                 expression = std::make_unique<MethodCallExpression>(
-                    std::move(expression), field.text, parseArguments(field.text),
+                    std::move(expression), field.text, parseArguments(),
                     start.line, start.column);
             }
         } else {

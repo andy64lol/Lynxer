@@ -12,12 +12,14 @@
 namespace lynxer {
 
 Environment::Environment()
-    : scopes_(1), typeScopes_(1), functionScopes_(1) {}
+    : scopes_(1), typeScopes_(1), functionScopes_(1),
+      lambdaScopeOnlyFunctions_(1) {}
 
 void Environment::pushScope() {
     scopes_.emplace_back();
     typeScopes_.emplace_back();
     functionScopes_.emplace_back();
+    lambdaScopeOnlyFunctions_.emplace_back();
 }
 
 void Environment::popScope() {
@@ -27,6 +29,7 @@ void Environment::popScope() {
     scopes_.pop_back();
     typeScopes_.pop_back();
     functionScopes_.pop_back();
+    lambdaScopeOnlyFunctions_.pop_back();
 }
 
 void Environment::bindGenericType(const std::string& name,
@@ -556,15 +559,28 @@ bool Environment::isBeingBorrowed(const std::string& name) const {
 }
 
 void Environment::registerFunction(const std::string& name,
-                                   std::shared_ptr<void> function) {
+                                   std::shared_ptr<void> function,
+                                   bool lambdaScopeOnly) {
     functionScopes_.back()[name] = std::move(function);
+    if (lambdaScopeOnly) {
+        lambdaScopeOnlyFunctions_.back().insert(name);
+    } else {
+        lambdaScopeOnlyFunctions_.back().erase(name);
+    }
 }
 
 std::shared_ptr<void> Environment::findFunction(const std::string& name) const {
+    std::size_t scopeIndex = functionScopes_.size();
     for (auto scope = functionScopes_.rbegin(); scope != functionScopes_.rend();
          ++scope) {
+        --scopeIndex;
         const auto found = scope->find(name);
         if (found != scope->end()) {
+            const bool lambdaScopeOnly =
+                lambdaScopeOnlyFunctions_[scopeIndex].count(name) != 0;
+            if (lambdaScopeOnly && scopeIndex + 1 != functionScopes_.size()) {
+                continue;
+            }
             return found->second;
         }
     }

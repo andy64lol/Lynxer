@@ -251,13 +251,14 @@ checked against the function's return annotation, if any.
 ## Functions
 
 See [functions.md](functions.md) for a full page on each form. There are three
-declaration forms:
+function declaration forms and a scoped named lambda form:
 
 | Form | Written | Where | Called from |
 |------|---------|-------|-------------|
 | Global function | `global name(...)` | between `setup` and `main` | `global.name(...)` or a bare name in the same file |
 | File-level function | `func name(...)` | between `setup` and `main` | a bare name in the same file; `global.module.name(...)` from an importer |
 | Local function | `local name(...)` | inside another function body | a bare name, or `local.name(...)` |
+| Named lambda | `lambda name(...)` | inside a function body | its name in the declaring scope |
 
 `global func name(...)` is **not** valid syntax; use `func name(...)` for a
 file-level function.
@@ -280,6 +281,10 @@ global main() {
     println(square(3));        // 9
 }
 ```
+
+Named lambdas are local to their declaring function scope and are not exported;
+nested function scopes cannot see them. See
+[functions.md](functions.md#named-lambdas) for an example.
 
 ### Parameters and defaults
 
@@ -354,12 +359,23 @@ as escapes:
 ```lynx
 global main() {
     int n = 3;
-    println(inter"n is {n}");   // n is 3
+    str message = inter"n is {n}";
+    println(message);          // n is 3
+    println(inter"also {n}"); // also 3
 }
 ```
 
-Interpolation is available in the arguments of `print`, `println`, `input`, and
-`inputln`; elsewhere it is a syntax error.
+`inter"..."` is a string expression, so it can be used wherever a string value
+is accepted, including output calls, assignments, and return values:
+
+```lynx
+global describe(int n) -> str {
+    return inter"value: {n}\n";
+}
+```
+
+The embedded expressions run when the string is evaluated. Each result is
+converted to text and inserted between the literal parts.
 
 ## Modules
 

@@ -595,6 +595,7 @@ struct Function {
     std::string returnType = "any";
     bool isGlobal = false;
     bool isFileFunction = false;
+    bool isLambda = false;
     StatementList statements;
 };
 

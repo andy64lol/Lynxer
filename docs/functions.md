@@ -1,14 +1,16 @@
 # Functions
 
-Lynxer has three function declaration forms. They differ in **where** they are
-written and **how** they are called. Parameters, return annotations and
-caller-supplied [codeblocks](codeblocks.md) work the same for all three.
+Lynxer has three function declaration forms plus scoped named lambdas. They
+differ in **where** they are written and **how** they are called. Parameters,
+return annotations and caller-supplied [codeblocks](codeblocks.md) work the
+same for all four.
 
 | Form | Written | Where | Called from |
 |------|---------|-------|-------------|
 | Global function | `global name(...)` | between `setup` and `main` | `global.name(...)`, or a bare name in the same file |
 | File-level function | `func name(...)` | between `setup` and `main` | a bare name in the same file; `global.module.name(...)` from an importer |
 | Local function | `local name(...)` | inside another function body | a bare name, or `local.name(...)` |
+| Named lambda | `lambda name(...)` | inside a function body | its name in the declaring scope |
 
 `global func name(...)` is **not** valid syntax (`unexpected character ' '`);
 use `func name(...)` for a file-level function.
@@ -83,6 +85,29 @@ global main(){
 
 - A local function is not exported and cannot be called from another function.
 - It may close over the top-level variables that are in scope where it runs.
+
+## Named lambdas
+
+A named `lambda` is declared inside a function and called by its name in that
+scope. It accepts typed parameters and an optional `-> type` return annotation:
+
+```lynx
+global setup(){}
+
+global main() {
+    lambda greet(str name) -> str {
+        return inter"Hello, {name}!\n";
+    }
+
+    println(greet("Ada")); // Hello, Ada!
+}
+```
+
+Lambdas are scoped declarations, not global or exported functions. A lambda is
+available in the function scope where it is declared; nested function scopes
+cannot see it. Control-flow blocks do not create nested scopes in Lynxer; see
+[language.md](language.md#scoping). Lambdas support the same typed and inferred
+generic parameters as other ordinary functions.
 
 ## Parameters and defaults
 

@@ -2000,7 +2000,8 @@ void ExecStatement::execute(Environment& environment) const {
 
 void FunctionDeclarationStatement::execute(Environment& environment) const {
     environment.registerFunction(function_->name,
-                                 std::shared_ptr<void>(function_));
+                                 std::shared_ptr<void>(function_),
+                                 function_->isLambda);
 }
 
 Value invokeFunction(
@@ -2024,6 +2025,13 @@ Value invokeFunction(
 
     environment.pushScope();
     try {
+        if (function.isLambda) {
+            environment.registerFunction(
+                function.name,
+                std::shared_ptr<void>(const_cast<Function*>(&function),
+                                      [](void*) {}),
+                true);
+        }
         for (std::size_t index = 0; index < function.parameters.size(); ++index) {
             Value value;
             if (index < args.size()) {
@@ -3261,6 +3269,7 @@ void dumpFunction(std::ostream& out, const Function& function, int indent) {
     dumpStringField(out, indent, "returnType", function.returnType);
     dumpBoolField(out, indent, "isGlobal", function.isGlobal);
     dumpBoolField(out, indent, "isFileFunction", function.isFileFunction);
+    dumpBoolField(out, indent, "isLambda", function.isLambda);
     dumpStmtListField(out, indent, "statements", function.statements);
 }
 

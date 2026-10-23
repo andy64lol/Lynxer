@@ -40,6 +40,8 @@ private:
     Function parseFunction(const std::string& kind, bool topLevel);
     Function parseExport();
     StatementPtr parseLocalFunction();
+    StatementPtr parseLambda();
+    StatementPtr parseScopedFunction(const std::string& kind);
     bool looksLikeCodeblockSignature() const;
     std::vector<std::string> parseCodeblockSignature();
     StatementPtr parseCodeblockDeclaration();
@@ -66,7 +68,7 @@ private:
 
     ExpressionPtr parseCallExpression();
 
-    std::vector<ExpressionPtr> parseArguments(const std::string& name);
+    std::vector<ExpressionPtr> parseArguments();
 
     ExpressionPtr parseInterpString(const Token& token);
 

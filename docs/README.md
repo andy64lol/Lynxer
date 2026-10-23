@@ -21,7 +21,7 @@ standard-library improvements.
 | Document | What it covers |
 | --- | --- |
 | [language.md](language.md) | Program structure, variables, operators, control flow, functions, scoping, interpolation |
-| [functions.md](functions.md) | The `global`, `func` and `local` forms, inferred generic parameters, and caller-supplied codeblocks |
+| [functions.md](functions.md) | The `global`, `func`, `local`, and named `lambda` forms, inferred generic parameters, and caller-supplied codeblocks |
 | [macros.md](macros.md) | File-scoped macros, `pub` exports, token arguments and codeblock parameters |
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |

@@ -45,7 +45,7 @@ is excluded for now. See [docs/windows.md](docs/windows.md).
 - a native interpreter and an AST optimizer;
 - 40 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
-- class inheritance with `extends` and inferred generic function parameters;
+- class inheritance with `extends`, inferred generic parameters, and scoped named lambdas;
 - single-file executables via `--compile`;
 - a full test suite on `amd64` and `arm64`.
 
@@ -118,7 +118,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
-| [Functions](docs/functions.md) | `global`, `func` and `local`, inferred generic parameters, and caller-supplied codeblocks |
+| [Functions](docs/functions.md) | `global`, `func`, `local`, and named `lambda` declarations, inferred generic parameters, and caller-supplied codeblocks |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
 | [Errors](docs/try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
