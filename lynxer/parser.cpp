@@ -554,6 +554,8 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
     expectText("(", "expected '(' after function name");
     Function function;
     function.name = name.text;
+    function.sourceLine = name.line;
+    function.sourceColumn = name.column;
     function.isGlobal = kind == "global";
     function.isFileFunction = kind == "func";
     const auto outerGenericTypes = genericTypeNames_;
@@ -621,6 +623,8 @@ Function Parser::parseExport() {
     expectText("(", "expected '(' after exported function name");
     Function function;
     function.name = name.text;
+    function.sourceLine = name.line;
+    function.sourceColumn = name.column;
     function.isGlobal = true;
     function.isFileFunction = false;
     function.parameters = parseFunctionParameters();
@@ -668,6 +672,8 @@ StatementPtr Parser::parseScopedFunction(const std::string& kind) {
     expectText("(", "expected '(' after function name");
     auto function = std::make_shared<Function>();
     function->name = name.text;
+    function->sourceLine = name.line;
+    function->sourceColumn = name.column;
     function->isLambda = kind == "lambda";
     const auto outerGenericTypes = genericTypeNames_;
     function->parameters = parseFunctionParameters();
@@ -760,6 +766,8 @@ void Parser::parseClassDefinition() {
             expectText("(", "expected '(' after method name");
             ClassMethod classMethod;
             classMethod.name = method.text;
+            classMethod.sourceLine = method.line;
+            classMethod.sourceColumn = method.column;
             classMethod.params = parseParameters();
             const std::string savedConstructorParent =
                 currentConstructorParent_;
@@ -1779,7 +1787,10 @@ StatementList Parser::parseBlock(const std::string& description) {
         if (check(TokenKind::End)) {
             fail("unterminated " + description, current());
         }
-        statements.push_back(parseStatement());
+        const Token start = current();
+        StatementPtr statement = parseStatement();
+        statement->setSourceLocation(start.line, start.column);
+        statements.push_back(std::move(statement));
     }
     expectText("}", "expected '}' after " + description);
     return statements;

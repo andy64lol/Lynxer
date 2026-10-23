@@ -4,7 +4,7 @@ PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/n
 # Every path is repo-root relative.
 LYNXER_DIR := lynxer
 LYNXER_TARGET := $(LYNXER_DIR)/lynxer
-LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp platform.cpp winapi.cpp)
+LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp lint.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp platform.cpp winapi.cpp)
 LYNXER_OBJECTS := $(LYNXER_SOURCES:.cpp=.o)
 LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)

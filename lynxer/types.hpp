@@ -26,6 +26,8 @@ struct StructDef {
 
 struct ClassMethod {
     std::string name;
+    int sourceLine = 0;
+    int sourceColumn = 0;
     std::vector<std::pair<std::string, std::string>> params;  // type, name
     StatementList body;
 };

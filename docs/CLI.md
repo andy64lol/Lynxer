@@ -53,9 +53,14 @@ the program runs, for example
 lynxer --lint program.lynx
 ```
 
-`--lint` parses the file and reports the first syntax error without running it.
-A clean file prints `Lint OK: <path>` and exits `0`. It requires exactly one
-file; otherwise it prints
+`--lint` parses the file and runs conservative static checks without executing
+it. It checks known initializer, assignment, return, call, method, and
+constructor types; argument counts; unreachable statements; unused local
+variables and parameters; and conversions that may lose information. Warnings
+are printed but do not fail lint; static errors and syntax errors exit `1`.
+Values and external calls whose types cannot be known are left to runtime
+checks. A clean file prints `Lint OK: <path> (0 warning(s))` and exits `0`. It
+requires exactly one file; otherwise it prints
 `lynxer: --lint requires exactly one file argument`.
 
 ## Printing the AST

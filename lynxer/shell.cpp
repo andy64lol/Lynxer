@@ -7,6 +7,7 @@
 #include "formatter.hpp"
 #include "interrupt.hpp"
 #include "lexer.hpp"
+#include "lint.hpp"
 #include "native_name.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
@@ -22,6 +23,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 
@@ -151,7 +153,7 @@ void printUsage() {
     std::cout << "Usage:\n";
     std::cout << "  lynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
-    std::cout << "  lynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
+    std::cout << "  lynxer --lint <file.lynx>                   Check syntax and run static analysis\n";
     std::cout << "  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
     std::cout << "  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
     std::cout << "  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
@@ -289,17 +291,40 @@ int listStdlibs() {
 }
 
 int lintFile(const std::string& display, const std::string& source) {
+    std::unordered_map<std::string, Function> functions;
     try {
         Lexer lexer(source, display);
         Parser parser(lexer.scan(), display);
-        parser.parseProgram();
+        functions = parser.parseProgram();
     } catch (const SourceError& error) {
         std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     }
+    const std::vector<LintDiagnostic> diagnostics = analyzeLint(functions);
+    std::size_t errors = 0;
+    std::size_t warnings = 0;
+    for (const LintDiagnostic& diagnostic : diagnostics) {
+        const char* severity = diagnostic.severity == LintDiagnostic::Severity::Error
+                                   ? "error"
+                                   : "warning";
+        if (diagnostic.severity == LintDiagnostic::Severity::Error) {
+            ++errors;
+        } else {
+            ++warnings;
+        }
+        std::cerr << display;
+        if (diagnostic.line > 0) {
+            std::cerr << ':' << diagnostic.line;
+            if (diagnostic.column > 0) std::cerr << ':' << diagnostic.column;
+        }
+        std::cerr << ": " << severity << ": " << diagnostic.message << '\n';
+    }
+    if (errors != 0) {
+        return 1;
+    }
     std::cout << Config::instance().format("status.lint_ok", "Lint OK: {0}",
                                            "{0}", display)
-              << '\n';
+              << " (" << warnings << " warning(s))\n";
     return 0;
 }
 
