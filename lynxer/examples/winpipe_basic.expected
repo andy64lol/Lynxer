@@ -1,0 +1,7 @@
+server-create=true
+server-connect=true
+server-read=ping
+server-write=true
+client-open=true
+client-write=true
+client-read=pong

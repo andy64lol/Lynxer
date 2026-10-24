@@ -1,0 +1,64 @@
+////
+Lynxer standard library: winreg.
+Windows registry reader/writer backed by the native C++ module
+`stdlib/winreg.so`.
+
+Roots are named `HKCU`, `HKLM`, `HKCR`, `HKU` or `HKCC`; the long `HKEY_*`
+spellings are accepted too. `readString`/`readInt` return `""`/`-1` when the
+value is missing or has an unexpected type. Writes create the key when needed.
+`deleteKey` removes an empty key; `deleteTree` removes a key and its children.
+This module exists only in Windows builds.
+////
+global setup(){ importAs("winreg.so", "nativeWinreg"); }
+
+global keyExists(str root, str path) -> bool {
+    return global.nativeWinreg.keyExists(root, path) isnt 0;
+}
+global valueExists(str root, str path, str name) -> bool {
+    return global.nativeWinreg.valueExists(root, path, name) isnt 0;
+}
+global readString(str root, str path, str name) -> str {
+    return global.nativeWinreg.readString(root, path, name);
+}
+global readInt(str root, str path, str name) -> int {
+    return global.nativeWinreg.readInt(root, path, name);
+}
+global readDefault(str root, str path) -> str {
+    return global.nativeWinreg.readDefault(root, path);
+}
+global writeString(str root, str path, str name, str value) -> bool {
+    return global.nativeWinreg.writeString(root, path, name, value) isnt 0;
+}
+global writeExpandString(str root, str path, str name, str value) -> bool {
+    return global.nativeWinreg.writeExpandString(root, path, name, value) isnt 0;
+}
+global writeInt(str root, str path, str name, int value) -> bool {
+    return global.nativeWinreg.writeInt(root, path, name, value) isnt 0;
+}
+global writeDefault(str root, str path, str value) -> bool {
+    return global.nativeWinreg.writeDefault(root, path, value) isnt 0;
+}
+global createKey(str root, str path) -> bool {
+    return global.nativeWinreg.createKey(root, path) isnt 0;
+}
+global deleteValue(str root, str path, str name) -> bool {
+    return global.nativeWinreg.deleteValue(root, path, name) isnt 0;
+}
+global deleteKey(str root, str path) -> bool {
+    return global.nativeWinreg.deleteKey(root, path) isnt 0;
+}
+global deleteTree(str root, str path) -> bool {
+    return global.nativeWinreg.deleteTree(root, path) isnt 0;
+}
+global listKeys(str root, str path) -> list {
+    str raw = global.nativeWinreg.listKeys(root, path);
+    if(raw is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(raw, "\n");
+}
+global listValues(str root, str path) -> list {
+    str raw = global.nativeWinreg.listValues(root, path);
+    if(raw is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(raw, "\n");
+}
+
+global main(){}

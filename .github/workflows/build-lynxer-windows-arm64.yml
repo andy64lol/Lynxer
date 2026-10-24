@@ -78,6 +78,16 @@ jobs:
             "$work/libexport_basic.dll.a" -o "$work/export_test.exe"
           (cd "$work" && ./export_test.exe)
 
+      - name: Collect runtime DLLs
+        shell: msys2 {0}
+        run: |
+          mkdir -p lynxer/runtime
+          ldd lynxer/lynxer.exe | awk '/=> \// {print $3}' | while IFS= read -r dll; do
+            case "$dll" in
+              /mingw64/*|/clangarm64/*) cp "$dll" lynxer/runtime/; cp "$dll" lynxer/ ;;
+            esac
+          done
+
       - name: Upload the Windows ARM64 binary
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,11 +95,12 @@ jobs:
           name: lynxer-windows-arm64
           path: |
             lynxer/lynxer.exe
-            lynxer/lynxer.dll
+            lynxer/*.dll
             lynxer/lynxer.dll.a
             lynxer/lynxer.h
             lynxer/ffi_abi.h
             lynxer/lynxer
             lynxer/stdlib
             lynxer/lynxer.config
+            lynxer/runtime
           if-no-files-found: ignore

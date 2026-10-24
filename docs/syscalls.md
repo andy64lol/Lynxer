@@ -76,6 +76,7 @@ global main(){
 | `winAPI.setEnvironmentVariable(name, value)` | whether it was set |
 | `winAPI.expandEnvironmentStrings(text)` | `text` with `%VAR%` expanded |
 | `winAPI.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
+| `winAPI.getKnownFolderPath(name)` | a Known Folder path, or `""` |
 | `winAPI.sleep(milliseconds)` | — |
 | `winAPI.outputDebugString(text)` | — |
 | `winAPI.beep(frequency, duration)` | whether it played |
@@ -107,7 +108,7 @@ file attributes and paths (`getFileAttributes`, `setFileAttributes`,
 (`queryPerformanceCounter`, `queryPerformanceFrequency`). The full reference is
 [windows-api.md](windows-api.md).
 
-Everything here is `kernel32`, so no extra import library is needed. The long
+Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32`. The long
 tail — other DLLs, `user32`, `advapi32`, `*A`/`*W` pairs, structs — is reachable
 today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature
 (see [native-modules.md](native-modules.md)); a curated wrapper for it may come

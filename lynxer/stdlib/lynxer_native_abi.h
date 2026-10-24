@@ -37,6 +37,20 @@
 
 #include <stdint.h>
 
+// Marks a symbol as exported from a shared library: the module entry points
+// (`lynxer_module_init_v1` and the optional `lynxer_module_attach_v1`/`_v2`)
+// and, for MSVC/clang-cl modules, every op registered by name. The bundled
+// MinGW/CLANGARM64 rule passes `-Wl,--export-all-symbols`; without an export
+// the DLL builds and then fails to load with "procedure not found". POSIX
+// builds keep the symbol visible even under `-fvisibility=hidden`.
+#if defined(_WIN32)
+#define LYNXER_MODULE_EXPORT __declspec(dllexport)
+#elif defined(__GNUC__) || defined(__clang__)
+#define LYNXER_MODULE_EXPORT __attribute__((visibility("default")))
+#else
+#define LYNXER_MODULE_EXPORT
+#endif
+
 #ifdef __cplusplus
 #include <string>
 #endif

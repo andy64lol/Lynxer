@@ -1,0 +1,36 @@
+////
+Named-pipe regression fixture for the `winAPI` surface.
+
+Windows-only: it starts the server and client helpers through
+`multiprocessing`. The client retries while the server is still creating the
+pipe, so the order the two commands start in does not matter.
+////
+
+global setup(){
+    import("os");
+    import("text");
+    import("multiprocessing");
+    str arch = "amd64";
+    if(global.os.getSystemMachine() is "aarch64"){ arch = "arm64"; }
+    syscalls("winAPI", arch);
+}
+
+global main(){
+    str exe = winAPI.getModuleFileName();
+    str directory = global.os.absPath("lynxer/examples");
+    str server = global.os.joinPath(directory, "winapi_pipe_server.lynx");
+    str client = global.os.joinPath(directory, "winapi_pipe_client.lynx");
+    list commands = listPush(
+        listPush(listRepeat("", 0), "\"" + exe + "\" \"" + server + "\""),
+        "\"" + exe + "\" \"" + client + "\"");
+    list outputs = global.multiprocessing.runParallel(commands);
+    list serverLines = global.text.splitLines(listGet(outputs, 0));
+    list clientLines = global.text.splitLines(listGet(outputs, 1));
+    println(listGet(serverLines, 0));
+    println(listGet(serverLines, 1));
+    println(listGet(serverLines, 2));
+    println(listGet(serverLines, 3));
+    println(listGet(clientLines, 0));
+    println(listGet(clientLines, 1));
+    println(listGet(clientLines, 2));
+}

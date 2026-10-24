@@ -11,7 +11,12 @@ name = "lynxer_ffi"
 # and is never installed into `lynxer/stdlib/`.
 crate-type = ["staticlib"]
 
-[dependencies]
+[target.'cfg(not(windows))'.dependencies]
 # `system` links the host libffi (needs libffi headers + pkg-config) instead of
 # building the vendored copy.
 libffi = { version = "5.2", features = ["system"] }
+
+[target.'cfg(windows)'.dependencies]
+# Windows has no system libffi; build the vendored copy so cross-builds and
+# native builds alike carry their own implementation.
+libffi = { version = "5.2" }

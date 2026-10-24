@@ -29,8 +29,28 @@ static std::string textOrEmpty(const char* text) {
     return text == nullptr ? std::string() : std::string(text);
 }
 
+// Prefix absolute paths beyond MAX_PATH with the extended-length marker so the
+// C++ streams and <filesystem> reach them on Windows. Values returned to
+// Lynxer are untouched.
+static fs::path ioPath(const std::string& value) {
+#if defined(_WIN32)
+    fs::path path = fs::u8path(value);
+    const std::wstring native = path.native();
+    if (native.size() < 248 || !path.is_absolute() ||
+        native.rfind(L"\\\\?\\", 0) == 0) {
+        return path;
+    }
+    if (native.rfind(L"\\\\", 0) == 0) {
+        return fs::path(L"\\\\?\\UNC\\" + native.substr(2));
+    }
+    return fs::path(L"\\\\?\\" + native);
+#else
+    return fs::path(value);
+#endif
+}
+
 static bool readWholeFile(const std::string& path, std::string& output) {
-    std::ifstream input(path, std::ios::binary);
+    std::ifstream input(ioPath(path), std::ios::binary);
     if (!input) {
         return false;
     }
@@ -46,7 +66,20 @@ static std::vector<std::string> splitContentLines(const std::string& content) {
         return lines;
     }
     std::string current;
-    for (const char character : content) {
+    for (std::size_t index = 0; index < content.size(); ++index) {
+        const char character = content[index];
+#if defined(_WIN32)
+        // Accept LF, CRLF and lone CR on Windows. POSIX keeps its existing
+        // LF-only split so a stray CR is not silently discarded there.
+        if (character == '\r') {
+            if (index + 1 < content.size() && content[index + 1] == '\n') {
+                ++index;
+            }
+            lines.push_back(current);
+            current.clear();
+            continue;
+        }
+#endif
         if (character == '\n') {
             lines.push_back(current);
             current.clear();
@@ -83,7 +116,7 @@ extern "C" const char* fileIO_readFile(const char* path) {
 
 extern "C" std::int64_t fileIO_writeFile(const char* path,
                                          const char* content) {
-    std::ofstream output(textOrEmpty(path), std::ios::binary | std::ios::trunc);
+    std::ofstream output(ioPath(textOrEmpty(path)), std::ios::binary | std::ios::trunc);
     if (!output) {
         return 0;
     }
@@ -93,7 +126,7 @@ extern "C" std::int64_t fileIO_writeFile(const char* path,
 
 extern "C" std::int64_t fileIO_appendFile(const char* path,
                                           const char* content) {
-    std::ofstream output(textOrEmpty(path), std::ios::binary | std::ios::app);
+    std::ofstream output(ioPath(textOrEmpty(path)), std::ios::binary | std::ios::app);
     if (!output) {
         return 0;
     }
@@ -103,19 +136,19 @@ extern "C" std::int64_t fileIO_appendFile(const char* path,
 
 extern "C" std::int64_t fileIO_fileExists(const char* path) {
     std::error_code error;
-    return fs::is_regular_file(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::is_regular_file(ioPath(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t fileIO_deleteFile(const char* path) {
     std::error_code error;
-    return fs::remove(fs::path(textOrEmpty(path)), error) ? 1 : 0;
+    return fs::remove(ioPath(textOrEmpty(path)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t fileIO_copyFile(const char* source,
                                         const char* destination) {
     std::error_code error;
-    fs::copy_file(fs::path(textOrEmpty(source)),
-                  fs::path(textOrEmpty(destination)),
+    fs::copy_file(ioPath(textOrEmpty(source)),
+                  ioPath(textOrEmpty(destination)),
                   fs::copy_options::overwrite_existing, error);
     return error ? 0 : 1;
 }
@@ -123,7 +156,7 @@ extern "C" std::int64_t fileIO_copyFile(const char* source,
 extern "C" std::int64_t fileIO_moveFile(const char* source,
                                         const char* destination) {
     std::error_code error;
-    fs::rename(fs::path(textOrEmpty(source)), fs::path(textOrEmpty(destination)),
+    fs::rename(ioPath(textOrEmpty(source)), ioPath(textOrEmpty(destination)),
                error);
     return error ? 0 : 1;
 }
@@ -131,7 +164,7 @@ extern "C" std::int64_t fileIO_moveFile(const char* source,
 extern "C" std::int64_t fileIO_fileSize(const char* path) {
     std::error_code error;
     const std::uintmax_t size =
-        fs::file_size(fs::path(textOrEmpty(path)), error);
+        fs::file_size(ioPath(textOrEmpty(path)), error);
     return error ? -1 : static_cast<std::int64_t>(size);
 }
 
@@ -140,19 +173,7 @@ extern "C" std::int64_t fileIO_countLines(const char* path) {
     if (!readWholeFile(textOrEmpty(path), content)) {
         return -1;
     }
-    if (content.empty()) {
-        return 0;
-    }
-    std::int64_t lines = 0;
-    for (const char character : content) {
-        if (character == '\n') {
-            ++lines;
-        }
-    }
-    if (content.back() != '\n') {
-        ++lines;
-    }
-    return lines;
+    return static_cast<std::int64_t>(splitContentLines(content).size());
 }
 
 extern "C" const char* fileIO_readLine(const char* path, std::int64_t index) {

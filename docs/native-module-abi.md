@@ -49,6 +49,13 @@ name — not the offending name.
 - `register_type(name, layout)` — exposed as a string field holding a native
   memory layout (used with the `memory*` builtins).
 
+On Windows, every registered `symbol` must also be exported from the DLL, not
+just `lynxer_module_init_v1`. The bundled MinGW/CLANGARM64 module rule passes
+`-Wl,--export-all-symbols`; an MSVC/clang-cl module must put
+`LYNXER_MODULE_EXPORT` on each op (or use a `.def` file). The
+`examples/native_signatures.cpp` module does this, and its MSVC CI job checks
+both the entry point and an op export.
+
 Loading happens in `lynxer/ast.cpp` (`ImportStatement::execute`), where
 `dlopen` is called with `RTLD_NOW | RTLD_LOCAL` and the initializer is invoked
 with the three callbacks. Modules are kept loaded for the lifetime of their
@@ -447,10 +454,33 @@ An additive change must not alter how existing shapes or signatures behave.
 
 ## Platform support
 
-Native modules are supported on Linux, macOS, and the MinGW-w64 Windows
-builds. The bundled Lynxer wrappers keep their `.so` import names on Windows
-for source compatibility; those files contain PE DLLs and load through
-`LoadLibrary`. Third-party modules must be built for the host OS and toolchain.
+Native modules are supported on Linux, macOS, and Windows. The bundled Lynxer
+wrappers keep their `.so` import names on Windows for source compatibility;
+those files contain PE DLLs and load through `LoadLibrary`. Third-party modules
+must be built for the host OS and toolchain.
+
+On Windows, export the entry point explicitly when building with MSVC or
+clang-cl (MinGW exports it by default):
+
+```cpp
+#include "lynxer_native_abi.h"
+
+extern "C" LYNXER_MODULE_EXPORT int lynxer_module_init_v1(
+    RegisterFunction function, RegisterConstant constant, RegisterType type) {
+    return function("sum", "pair_sum", "cdecl:int64(int64,int64)") ? 0 : 1;
+}
+```
+
+Build it as a DLL and load it by path, exactly like a `.so`:
+
+```bat
+cl /std:c++17 /LD /Ilynxer\stdlib pair.cpp /link /OUT:pair.dll
+lynxer app.lynx
+```
+
+`LYNXER_MODULE_EXPORT` is `__declspec(dllexport)` on Windows and a
+default-visibility attribute elsewhere, so the same source works on every
+supported host.
 
 ## The reverse direction: exporting Lynxer functions
 

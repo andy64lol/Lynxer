@@ -45,7 +45,7 @@ STDLIB_MODULES = [
     "js", "json",
     "lua", "markdown", "math", "multiprocessing", "network", "os", "path", "pdf", "random", "raylib", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
-    "turtle", "typing", "uuid", "watch", "xml", "yaml",
+    "turtle", "typing", "uuid", "watch", "winpipe", "winreg", "xml", "yaml",
 ]
 
 

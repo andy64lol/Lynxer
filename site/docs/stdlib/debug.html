@@ -116,6 +116,8 @@
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
+<li><a href="winpipe.html">winpipe</a></li>
+<li><a href="winreg.html">winreg</a></li>
 <li><a href="xml.html">xml</a></li>
 <li><a href="yaml.html">yaml</a></li>
 </ul>
@@ -170,6 +172,13 @@
 <tr><td><code>envAll</code></td><td><code>() -&gt; str</code></td><td>All variables as a JSON object</td></tr>
 <tr><td><code>getMemory</code></td><td><code>() -&gt; float</code></td><td>Peak RSS in megabytes (<code>getrusage</code>), or <code>-1.0</code></td></tr>
 </table>
+<h2 id="crash-diagnostics">Crash diagnostics</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>crashLogPath</code></td><td><code>() -&gt; str</code></td><td><code>%LOCALAPPDATA%\Lynxer\crash.log</code> on Windows; <code>$XDG_STATE_HOME/lynxer/crash.log</code> (or <code>~/.local/state/lynxer/crash.log</code>) elsewhere</td></tr>
+<tr><td><code>recordCrash</code></td><td><code>(str message) -&gt; bool</code></td><td>Appends a timestamped trace to the crash log</td></tr>
+</table>
+<p>Set <code>LYNXER_CRASH_LOG</code> to override the path, which also makes the diagnostics testable without touching the user's state directory.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;debug&quot;); }
 

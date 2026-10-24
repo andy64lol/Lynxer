@@ -15,7 +15,17 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-ROOT = Path(__file__).resolve().parents[1]
+def project_root() -> Path:
+    configured = os.environ.get("LYNXER_ROOT")
+    if configured:
+        return Path(configured)
+    try:
+        return Path(__file__).resolve().parents[1]
+    except NameError:
+        return Path.cwd()
+
+
+ROOT = project_root()
 DECLARATION = re.compile(
     r"^\s*(?:(global|func|local|lambda|async|class|struct|enum)\s+)?"
     r"([A-Za-z_]\w*)"

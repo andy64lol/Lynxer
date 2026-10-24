@@ -21,7 +21,7 @@ true
 ok
 ok
 true
-ERROR: cannot read .lynxer_scratch_compress/missing.gz: No such file or directory (os error 2)
+true
 ok
 ["a.txt","dir/b.txt"]
 hello

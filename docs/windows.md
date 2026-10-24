@@ -13,7 +13,7 @@ now lives in one place, `lynxer/platform.hpp` / `lynxer/platform.cpp`:
 | --- | --- | --- |
 | Running executable path | `/proc/self/exe` (dyld on macOS) | `GetModuleFileNameW` |
 | Dynamic library | `dlopen`/`dlsym`/`dlclose` | `LoadLibraryW`/`GetProcAddress`/`FreeLibrary` |
-| Subprocess | `fork`/`execvp`/`waitpid` | `CreateProcessA`/`WaitForSingleObject` |
+| Subprocess | `fork`/`execvp`/`waitpid` | `CreateProcessA` in a kill-on-close Job Object |
 | Temporary directory | `mkdtemp` | unique directory under `GetTempPath` |
 | Executable bit | `chmod 0755` | no-op (extension-based) |
 | Install link | `symlink` | copy |
@@ -27,11 +27,26 @@ The standard streams are put in binary mode on Windows, so `\n` is not
 translated to `\r\n`: Lynxer's output is byte-identical to POSIX, which the
 fixture comparisons rely on. The console is also switched to ANSI escape
 processing (`platform::enableVirtualTerminal()`), so `tui` and `graphics`
-sequences render; a redirected stream has no console mode and is unaffected.
+sequences render, and both console code pages are set to UTF-8 so non-ASCII
+text round-trips. A redirected stream has no console mode and is unaffected.
+
+**Named pipes.** `winpipe` (`stdlib/winpipe.cpp` + `stdlib/winpipe.lynx`) is a
+Windows-only blocking named-pipe module (`create`/`connect`/`open`/`read`/
+`write`/`disconnect`/`peek`/`close`). It complements the low-level `winAPI`
+pipe calls and gives `server`-style programs a local IPC option beside sockets.
+See [stdlib/winpipe.md](stdlib/winpipe.md).
+
+**Registry.** `winreg` (`stdlib/winreg.cpp` + `stdlib/winreg.lynx`) is a
+Windows-only module for reading and writing `HKCU`/`HKLM`/`HKCR`/`HKU`/`HKCC`
+values. It supports string, expand-string, multi-string, DWORD and QWORD
+values, key/value enumeration, and recursive deletion. The `winreg_basic.lynx`
+fixture writes under `HKCU` and cleans up after itself. See
+[stdlib/winreg.md](stdlib/winreg.md).
 
 **Windows API surface.** On Windows, selecting the Windows target
 (`syscalls("winAPI", "amd64")`, with `windows` and `win32` as synonyms) enables
-the `winAPI.*` namespace — all `kernel32`: the system information calls
+the `winAPI.*` namespace — mostly `kernel32`, with `shell32`/`ole32` for Known
+Folders: the system information calls
 (`getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
 `getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
 `getTickCount`, `getLastError`, `getDiskFreeBytes`), the environment calls
@@ -43,8 +58,9 @@ and file/handle access (`createFile`, `readFile`, `writeFile`, `closeHandle`,
 `waitForSingleObject`), the console session (`getStdHandle`, `getConsoleMode`,
 `setConsoleMode`, `setConsoleTitle`, `getConsoleOutputCP`,
 `setConsoleOutputCP`), file attributes and paths (`getFileAttributes`,
-`setFileAttributes`, `getFullPathName`, `flushFileBuffers`), the high-resolution
-timer (`queryPerformanceCounter`, `queryPerformanceFrequency`), and `sleep`,
+`setFileAttributes`, `getFullPathName`, `flushFileBuffers`), the
+high-resolution timer (`queryPerformanceCounter`, `queryPerformanceFrequency`),
+Known Folders (`getKnownFolderPath`), and `sleep`,
 `beep` and `outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
 Win32 calls live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`.
 See [syscalls.md](syscalls.md#windows-api-calls).
@@ -53,7 +69,14 @@ See [syscalls.md](syscalls.md#windows-api-calls).
 read back through `platform::executablePath()` (`GetModuleFileNameW`), and the
 compiled-executable parity loop passes on Windows. Native modules load through
 the same ABI too: `examples/native_signatures.cpp` builds and its fixture passes
-(the Rust `libffi` engine compiles under both Windows toolchains).
+(the Rust `libffi` engine compiles under both Windows toolchains). The shared
+`LYNXER_MODULE_EXPORT` macro in `stdlib/lynxer_native_abi.h` expands to
+`__declspec(dllexport)` on Windows, so the entry point and any op marked with
+it are exported under MSVC and clang-cl as well as MinGW. Every registered op
+must be exported: the bundled MinGW/CLANGARM64 module rule passes
+`-Wl,--export-all-symbols`, while an MSVC/clang-cl module marks each op with
+`LYNXER_MODULE_EXPORT` (or uses a `.def` file); see
+[native-module-abi.md](native-module-abi.md#platform-support).
 
 One consequence of the copy-instead-of-symlink install: on POSIX
 `/proc/self/exe` resolves `$PREFIX/bin/lynxer` to the real binary, so
@@ -79,20 +102,31 @@ Windows build yet:
 - **Low-level fixtures.** `lowlevel_*` and `syscall*` fixtures are Linux-only
   and stay out of the Windows test run.
 - **Windows-specific stdlib fixture parity.** `cli`, `debug`, `os` and `path`
-  now build with Win32 equivalents for their OS calls. The current fixture
-  exclusions remain because they assert POSIX separators or invoke shell
-  commands such as `sh`/`printf`; they do not indicate missing module DLLs.
+  now build with Win32 equivalents for their OS calls. `path`/`fileIO` also
+  accept `/` and `\`, open absolute paths beyond `MAX_PATH` through the
+  `\\?\` extended-length prefix, and normalize CRLF/lone-CR on Windows text
+  reads. The current fixture exclusions remain because they assert POSIX
+  separators or invoke shell commands such as `sh`/`printf`; they do not
+  indicate missing module DLLs.
 - **Process modules.** `js` and `multiprocessing` now run commands through a
   `CreateProcess`/pipe backend with timeout termination through Job Objects.
   Their fixtures remain filtered because they use POSIX shell commands.
-- **The `watch` Rust backend.** Its only backends are Linux (inotify) and
-  macOS/BSD (kqueue); Windows needs `ReadDirectoryChangesW`.
+- **The `watch` Rust backend.** Windows uses `ReadDirectoryChangesW` with
+  overlapped I/O. Directory watches have no pollable descriptor there, so
+  `watchFd` returns `-1` and programs must use `watchWait`; the dedicated
+  `winwatch` fixture covers that path.
 - **Test groups.** `testLynxer` skips low-level/syscall fixtures and tests that
   assume POSIX command names, paths or exit behavior: `native_stdlibs`,
   `program_args`, `stdlibTestAll`, and the entries in
   `LYNXER_WINDOWS_SKIP_STEMS`. The module DLLs for `cli`, `debug`, `os` and
   `path` are built; their current fixtures still contain POSIX-specific
-  expectations. Fixtures that render through `graphics`/`game` are skipped
+  expectations. A locally cross-linked x86_64 build (vendored libffi) passes
+  `winapi`, `winapi_pipe`, `winreg_basic`, `winpipe_basic`, `winwatch`,
+  `stdlib_os_dirs`, `stdlib_debug_crash`, `stdlib_debug`, `stdlib_fileIO`,
+  `stdlib_compress`, `stdlib_compress_limits`, `stdlib_crypto`,
+  `stdlib_image_codecs`, `stdlib_image_formats`, `stdlib_image_svg` and
+  `stdlib_xml_limits` under Wine; the CI jobs run the same fixtures on real
+  Windows. Fixtures that render through `graphics`/`game` are skipped
   too (`stdlib_game_api`, `stdlib_graphics_raster*`, `stdlib_turtle`): they need
   an OpenGL context, which the Windows runner does not have, whereas the Linux
   CI installs Mesa llvmpipe. Three more fixtures are skipped: `builtin_ffi` and
@@ -103,8 +137,7 @@ Windows build yet:
   off Windows, so POSIX coverage is unchanged.
 
 `LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ module a Windows
-build skips (`sys`), and `watch` is filtered out of
-`LYNXER_RUST_MODULE_NAMES`.
+build skips (`sys`); `watch` now builds on Windows.
 
 ## Shared-library embedding
 
@@ -138,13 +171,47 @@ GNU ABI used in CI; an MSVC/clang-cl runtime is still unavailable.
   defaults. Still to do: a native MSVC/clang-cl build and the 32-bit
   `__stdcall` convention.
 - **Stdlib backends.** `cli`/`debug`/`os`/`path` and `js`/`multiprocessing` now
-  have Win32 implementations; `watch` needs `ReadDirectoryChangesW`;
-  `tui`/`graphics`/
-  `sound` need console and device handling. `fileIO`/`shell` and the data-format
-  modules build as-is.
+  have Win32 implementations; `network` maps to Winsock through Rust's
+  `std::net`; `watch` uses `ReadDirectoryChangesW`. `tui` uses crossterm's
+  Windows console backend, `graphics`/`game` use macroquad's Windows OpenGL
+  backend plus the headless CPU raster path, and `sound` uses cpal/rodio over
+  WASAPI and tolerates a missing device. All three Rust backends pass
+  `cargo check --target x86_64-pc-windows-gnullvm`, and the Windows CI builds
+  their cdylibs. `fileIO`/`shell` and the data-format modules build as-is.
+- **Every fixture in `LYNXER_WINDOWS_SKIP_STEMS`.** The list is intentional;
+  the modules themselves build on Windows unless noted.
+
+  | Fixture | Why it is skipped |
+  | --- | --- |
+  | `stdlib_cli` | Drives `printf` through the shell |
+  | `stdlib_js` | Needs Node.js on `PATH`; the Windows runner does not install it |
+  | `stdlib_multiprocessing` | Uses `printf` commands |
+  | `stdlib_os`, `stdlib_path` | Assert POSIX separators, `/tmp`, and POSIX path semantics |
+  | `stdlib_sys` | The `sys` module is not built on Windows |
+  | `stdlib_watch` | Replaced by the Windows-only `winwatch` fixture |
+  | `stdlibTestAll` | Runs the aggregate suite, including POSIX-only modules |
+  | `native_stdlibs` | Imports `sys` and checks for `sh` |
+  | `program_args` | Launched with POSIX shell quoting in the gate |
+  | `stdlib_game_api`, `stdlib_graphics_raster`, `stdlib_graphics_raster_shapes`, `stdlib_turtle` | Need an OpenGL context; the Windows runner has none |
+
 - **Embedding and `--emit-library`.** Supported on the MinGW-w64 builds. A
   Windows emitted DLL depends on `lynxer.dll`, which must be available through
   the Windows DLL search path. MSVC/clang-cl is not supported yet.
+
+## C runtime and minimum Windows version
+
+Lynxer targets **Windows 10 or newer** on both x64 and ARM64. The AMD64 build
+uses the MSYS2 MINGW64 toolchain and therefore `msvcrt.dll` plus the MSYS2 GCC
+runtime DLLs (`libgcc_s_seh-1.dll`, `libstdc++-6.dll`,
+`libwinpthread-1.dll`). `libffi` is built from the vendored crate and linked
+into the interpreter, so no separate `libffi` DLL is shipped. The ARM64 build
+uses CLANGARM64 and the UCRT plus the CLANGARM64 runtime DLLs. The Windows CI
+workflows run `ldd` on `lynxer.exe` and copy the non-system DLLs into
+`lynxer/runtime`; release zips must ship those DLLs next to `lynxer.exe`.
+`packaging/windows/stage-payload.sh` copies them into the installer payload,
+and the installer puts them in `<prefix>/lib/lynxer` and adds that directory
+to the user `PATH` (so both `lynxer.exe` and emitted DLLs find them).
+No Visual C++ Redistributable is required.
 
 ## The Windows ecosystem
 
@@ -155,27 +222,36 @@ install, update and tool the way Windows users expect.
 | --- | --- | --- |
 | Prebuilt binaries | **done** | `lynxer-windows-amd64.zip` / `lynxer-windows-arm64.zip` on every release (CI) |
 | `--install` / `--uninstall` | **partial** | lays out `<prefix>/lib/lynxer` and a `bin` launcher (a copy), but does not touch `PATH` or register an uninstaller |
-| Package managers | todo | `winget`, `Scoop` and `Chocolatey` manifests for the release zips |
-| Installer | todo | an MSI (or self-extracting EXE) that sets `PATH` and registers an uninstall entry, built on the `--install` layout |
-| Editor and shell | todo | a VS Code extension (syntax highlighting, `--lint`/`--format`) and PowerShell/CMD completion |
+| Package managers | **partial** | `render-package-manifests.py` renders `winget`, `Scoop` and `Chocolatey` manifests; registry submission remains |
+| Installer | **partial** | `packaging/windows/lynxer.iss` builds an Inno Setup installer on the `--install` layout, adds `bin` and `lib/lynxer` to the user `PATH`, and registers an uninstall entry; CI compiles it on the AMD64 job; signing remains |
+| Editor and shell | **done** | `editors/vscode` (syntax highlighting, `--lint`/`--format`) plus PowerShell and Clink completion |
+| Background tasks | **partial** | `packaging/windows/lynxer-task.ps1` registers a program with Task Scheduler; a SCM service host is not shipped |
 | Code signing | todo | Authenticode signatures so a download does not trip SmartScreen |
-| C runtime | todo | decide UCRT static linking vs. the VC++ redistributable, and record the minimum Windows version per target |
+| C runtime | **done** | Windows 10+; AMD64 MSYS2 MINGW64 (`msvcrt.dll` + GCC runtime DLLs), ARM64 CLANGARM64 (UCRT + CLANGARM64 runtime DLLs); CI collects them with `ldd` |
 
 ## Runtime breadth
 
 Several host capabilities still ride the POSIX implementation and need a Win32
 backend behind `lynxer/platform.*`:
 
-- **Console I/O and Unicode.** `cli`/`tui` should read and write through the wide
-  console API (or a UTF-8 console code page), so non-ASCII input, colours and
-  `beep` behave under both Windows Terminal and the legacy console host.
+- **Console I/O and Unicode.** Done: both console code pages are set to UTF-8
+  and ANSI/VT processing is enabled when the process owns a console, so
+  non-ASCII input, colours and `beep` behave under Windows Terminal and the
+  legacy console host. Redirected streams stay byte-identical.
 - **Asynchronous I/O.** An IOCP backend where POSIX uses `epoll`/`poll`, for the
   async task runtime and the networking paths.
-- **Process control.** Job Objects for process-tree termination and resource
-  limits, replacing the POSIX process-group semantics.
-- **IPC.** Named pipes alongside sockets, behind the same surface.
-- **Services and tasks.** A Windows Service Control Manager / Task Scheduler
-  story for `server` and background work.
+- **Process control.** Core subprocesses now run in a kill-on-close Job
+  Object (`platform::spawnProcess`), so the child tree is torn down with the
+  interpreter. Per-process resource limits remain.
+- **IPC and shell.** The `winpipe` module provides blocking named pipes beside
+  sockets; `shellOpen`, clipboard access and tray notifications are available
+  through `winAPI`.
+- **Services and tasks.** The `server` module stays a foreground console
+  process on Windows (it does not install a Linux unit). Background startup is
+  left to Task Scheduler (`schtasks /create`) or an external SCM wrapper; a
+  built-in `--install-service` path is not planned for the first Windows
+  release. The registry API is available through `winreg` for programs that
+  need to store configuration there.
 - **User data and configuration.** `%APPDATA%`/`%LOCALAPPDATA%` and the Known
   Folders in place of `$HOME`, and the registry in place of `/etc`.
 - **Diagnostics.** A crash handler that can print a readable trace (the

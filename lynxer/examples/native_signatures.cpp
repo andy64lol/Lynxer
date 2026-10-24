@@ -33,88 +33,88 @@ static const char* stable(std::string value) {
     return result.c_str();
 }
 
-extern "C" std::int64_t sig_v() { return 7; }
-extern "C" double sig_d() { return 2.5; }
-extern "C" const char* sig_s() { return "zero"; }
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_v() { return 7; }
+extern "C" LYNXER_MODULE_EXPORT double sig_d() { return 2.5; }
+extern "C" LYNXER_MODULE_EXPORT const char* sig_s() { return "zero"; }
 
-extern "C" std::int64_t sig_ii(std::int64_t a, std::int64_t b) { return a + b; }
-extern "C" std::int64_t sig_i(std::int64_t a) { return a; }
-extern "C" const char* sig_ss_arg(const char* a) { return stable(std::string(a)); }
-extern "C" std::int64_t sig_si(const char* a) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_ii(std::int64_t a, std::int64_t b) { return a + b; }
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_i(std::int64_t a) { return a; }
+extern "C" LYNXER_MODULE_EXPORT const char* sig_ss_arg(const char* a) { return stable(std::string(a)); }
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_si(const char* a) {
     return static_cast<std::int64_t>(std::strlen(a));
 }
-extern "C" std::int64_t sig_sss2(const char* a, const char* b) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_sss2(const char* a, const char* b) {
     return std::strcmp(a, b) == 0 ? 1 : 0;
 }
-extern "C" const char* sig_sn(const char* a, std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_sn(const char* a, std::int64_t n) {
     return stable(std::string(n < 0 ? 0 : static_cast<std::size_t>(n), a[0]));
 }
-extern "C" std::int64_t sig_iii(std::int64_t a, std::int64_t b, std::int64_t c) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_iii(std::int64_t a, std::int64_t b, std::int64_t c) {
     return a + b + c;
 }
-extern "C" double sig_dd_arg(double x) { return x; }
-extern "C" double sig_dd(double x, double y) { return x + y; }
-extern "C" double sig_ddd(double x, double y, double z) { return x + y + z; }
-extern "C" std::int64_t sig_di(double x) { return static_cast<std::int64_t>(x); }
-extern "C" double sig_dd_i(double x, std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT double sig_dd_arg(double x) { return x; }
+extern "C" LYNXER_MODULE_EXPORT double sig_dd(double x, double y) { return x + y; }
+extern "C" LYNXER_MODULE_EXPORT double sig_ddd(double x, double y, double z) { return x + y + z; }
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_di(double x) { return static_cast<std::int64_t>(x); }
+extern "C" LYNXER_MODULE_EXPORT double sig_dd_i(double x, std::int64_t n) {
     return x + static_cast<double>(n);
 }
 
-extern "C" const char* sig_ds(double x) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_ds(double x) {
     return stable(std::to_string(x));
 }
-extern "C" double sig_sd(const char* a) {
+extern "C" LYNXER_MODULE_EXPORT double sig_sd(const char* a) {
     return std::strtod(a, nullptr);
 }
-extern "C" const char* sig_ss(const char* a, const char* b) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_ss(const char* a, const char* b) {
     return stable(std::string(a) + b);
 }
-extern "C" double sig_sdd(const char* a, const char* b) {
+extern "C" LYNXER_MODULE_EXPORT double sig_sdd(const char* a, const char* b) {
     return std::strtod(a, nullptr) + std::strtod(b, nullptr);
 }
-extern "C" const char* sig_sss(const char* a, const char* b, const char* c) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_sss(const char* a, const char* b, const char* c) {
     return stable(std::string(a) + b + c);
 }
-extern "C" const char* sig_ssi(const char* a, const char* b, std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_ssi(const char* a, const char* b, std::int64_t n) {
     return stable(std::string(a) + b + std::to_string(n));
 }
-extern "C" const char* sig_sssi(const char* a, const char* b, const char* c,
+extern "C" LYNXER_MODULE_EXPORT const char* sig_sssi(const char* a, const char* b, const char* c,
                                 std::int64_t n) {
     return stable(std::string(a) + b + c + std::to_string(n));
 }
-extern "C" std::int64_t sig_si_n(const char* a, std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_si_n(const char* a, std::int64_t n) {
     return static_cast<std::int64_t>(std::strlen(a)) + n;
 }
-extern "C" const char* sig_is(std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT const char* sig_is(std::int64_t n) {
     return stable("n" + std::to_string(n));
 }
-extern "C" double sig_id(std::int64_t n) {
+extern "C" LYNXER_MODULE_EXPORT double sig_id(std::int64_t n) {
     return static_cast<double>(n);
 }
-extern "C" std::int64_t sig_sii(const char* a, std::int64_t n, std::int64_t m) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_sii(const char* a, std::int64_t n, std::int64_t m) {
     return static_cast<std::int64_t>(std::strlen(a)) + n + m;
 }
 
 // Shapes the old fixed table could not express: a mixed string/int/string
 // argument list, four integers, and a `void` return.
-extern "C" std::int64_t sig_sis(const char* a, std::int64_t n, const char* b) {
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_sis(const char* a, std::int64_t n, const char* b) {
     return static_cast<std::int64_t>(std::strlen(a)) + n +
            static_cast<std::int64_t>(std::strlen(b));
 }
-extern "C" std::int64_t sig_quad(std::int64_t a, std::int64_t b,
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_quad(std::int64_t a, std::int64_t b,
                                  std::int64_t c, std::int64_t d) {
     return a + b + c + d;
 }
-extern "C" void sig_void(std::int64_t) {}
+extern "C" LYNXER_MODULE_EXPORT void sig_void(std::int64_t) {}
 
 // A `bytes` parameter arrives as (pointer, length); a `bytes` return is a
 // length-prefixed buffer built with `lynxerBytes`.
-extern "C" std::int64_t sig_bytes_len(const std::uint8_t* data,
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_bytes_len(const std::uint8_t* data,
                                       std::int64_t length) {
     (void)data;
     return length;
 }
-extern "C" const std::uint8_t* sig_bytes_upper(const std::uint8_t* data,
+extern "C" LYNXER_MODULE_EXPORT const std::uint8_t* sig_bytes_upper(const std::uint8_t* data,
                                                std::int64_t length) {
     std::string output;
     if (length > 0) {
@@ -131,12 +131,13 @@ extern "C" const std::uint8_t* sig_bytes_upper(const std::uint8_t* data,
 
 // Version 2 carries an owned-by-caller, recursively typed value tree. Echoing
 // it exercises nested input and result copying without JSON or handles.
-extern "C" const LynxerFfiValue* sig_value(const LynxerFfiValue* value) {
+extern "C" LYNXER_MODULE_EXPORT const LynxerFfiValue* sig_value(const LynxerFfiValue* value) {
     return value;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
-                                     RegisterType t) {
+extern "C" LYNXER_MODULE_EXPORT int lynxer_module_init_v1(RegisterFunction f,
+                                                          RegisterConstant c,
+                                                          RegisterType t) {
     return f("v", "sig_v", "cdecl:int64()") &&
                    f("d", "sig_d", "cdecl:double()") &&
                    f("s", "sig_s", "cdecl:cstring()") &&

@@ -1,0 +1,15 @@
+////
+Fixture for the debug crash-trace path. It redirects the log to the temporary
+directory so it does not touch the user's state.
+////
+global setup(){ import("debug"); import("os"); import("fileIO"); }
+
+global main(){
+    str path = global.os.joinPath(global.os.tempDir(), "lynxer-crash-test.log");
+    if(global.os.exists(path)){ global.os.remove(path); }
+    println(global.os.setenv("LYNXER_CRASH_LOG", path));
+    println(global.debug.crashLogPath() is path);
+    println(global.debug.recordCrash("boom"));
+    println(returnLength(global.fileIO.readFile(path)) > 0);
+    println(global.os.remove(path));
+}

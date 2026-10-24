@@ -53,6 +53,16 @@ these unsuitable for exact-output tests.
 | `envAll` | `() -> str` | All variables as a JSON object |
 | `getMemory` | `() -> float` | Peak RSS in megabytes (`getrusage`), or `-1.0` |
 
+## Crash diagnostics
+
+| Function | Signature | Notes |
+| --- | --- | --- |
+| `crashLogPath` | `() -> str` | `%LOCALAPPDATA%\Lynxer\crash.log` on Windows; `$XDG_STATE_HOME/lynxer/crash.log` (or `~/.local/state/lynxer/crash.log`) elsewhere |
+| `recordCrash` | `(str message) -> bool` | Appends a timestamped trace to the crash log |
+
+Set `LYNXER_CRASH_LOG` to override the path, which also makes the diagnostics
+testable without touching the user's state directory.
+
 ## Example
 
 ```lynx

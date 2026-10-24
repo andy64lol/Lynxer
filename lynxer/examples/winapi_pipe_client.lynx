@@ -1,0 +1,19 @@
+////
+Client half of winapi_pipe.lynx. Launched by the parent; not a standalone
+fixture.
+////
+global setup(){
+    import("os");
+    str arch = "amd64";
+    if(global.os.getSystemMachine() is "aarch64"){ arch = "arm64"; }
+    syscalls("winAPI", arch);
+}
+
+global main(){
+    str name = "lynxer-winapi-fixture-pipe";
+    int client = winAPI.openNamedPipe(name);
+    println("client-open=" + strOf(client > 0));
+    println("client-write=" + strOf(winAPI.writeNamedPipe(client, "ping") is 4));
+    println("client-read=" + winAPI.readNamedPipe(client, 16));
+    winAPI.closeHandle(client);
+}

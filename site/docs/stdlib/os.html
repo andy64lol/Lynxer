@@ -116,6 +116,8 @@
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
+<li><a href="winpipe.html">winpipe</a></li>
+<li><a href="winreg.html">winreg</a></li>
 <li><a href="xml.html">xml</a></li>
 <li><a href="yaml.html">yaml</a></li>
 </ul>
@@ -133,7 +135,7 @@
         </div>
 <h1 id="os">os</h1>
 <p>Filesystem, process, environment and platform helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/os.so</code>, built from <code>stdlib/os.cpp</code> over <code>&lt;filesystem&gt;</code> and POSIX APIs. <strong>Import:</strong> <code>import(&quot;os&quot;)</code> → <code>global.os.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/os.so</code>, built from <code>stdlib/os.cpp</code> over <code>&lt;filesystem&gt;</code> and the host APIs (POSIX or Win32). <strong>Import:</strong> <code>import(&quot;os&quot;)</code> → <code>global.os.*</code></p>
 <p>Functions return safe defaults on failure (<code>false</code>, <code>&quot;&quot;</code>, <code>-1</code>, an empty list).</p>
 <h2 id="files-and-directories">Files and directories</h2>
 <table>
@@ -163,8 +165,11 @@
 <tr><td><code>expandUser</code></td><td><code>(str path) -&gt; str</code></td><td>Expands a leading <code>~</code> or <code>~user</code></td></tr>
 <tr><td><code>sep</code></td><td><code>() -&gt; str</code></td><td><code>/</code> on POSIX hosts</td></tr>
 <tr><td><code>getenv</code> / <code>setenv</code></td><td><code>(str key[, str value])</code></td><td>Reads / writes an environment variable</td></tr>
-<tr><td><code>tempDir</code></td><td><code>() -&gt; str</code></td><td><code>$TMPDIR</code>, <code>$TEMP</code>, <code>$TMP</code>, else <code>/tmp</code></td></tr>
-<tr><td><code>homedir</code></td><td><code>() -&gt; str</code></td><td><code>$HOME</code></td></tr>
+<tr><td><code>tempDir</code></td><td><code>() -&gt; str</code></td><td><code>$TMPDIR</code>, <code>$TEMP</code>, <code>$TMP</code>, else <code>/tmp</code> (Windows: <code>GetTempPathW</code>)</td></tr>
+<tr><td><code>homedir</code></td><td><code>() -&gt; str</code></td><td><code>$HOME</code> (Windows: <code>%USERPROFILE%</code>)</td></tr>
+<tr><td><code>configDir</code></td><td><code>() -&gt; str</code></td><td><code>$XDG_CONFIG_HOME</code> or <code>$HOME/.config</code> (Windows: <code>%APPDATA%</code>)</td></tr>
+<tr><td><code>dataDir</code></td><td><code>() -&gt; str</code></td><td><code>$XDG_DATA_HOME</code> or <code>$HOME/.local/share</code> (Windows: <code>%LOCALAPPDATA%</code>)</td></tr>
+<tr><td><code>cacheDir</code></td><td><code>() -&gt; str</code></td><td><code>$XDG_CACHE_HOME</code> or <code>$HOME/.cache</code> (Windows: <code>%LOCALAPPDATA%</code>)</td></tr>
 <tr><td><code>username</code></td><td><code>() -&gt; str</code></td><td>Login name from the password database</td></tr>
 <tr><td><code>hostname</code></td><td><code>() -&gt; str</code></td><td><code>gethostname(2)</code></td></tr>
 <tr><td><code>getpid</code></td><td><code>() -&gt; int</code></td><td>Process id</td></tr>

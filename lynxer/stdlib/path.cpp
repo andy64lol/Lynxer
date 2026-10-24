@@ -48,6 +48,50 @@ static std::string pathToUtf8(const fs::path& value) {
 #endif
 }
 
+// `std::filesystem` and the C++ streams still go through the ANSI/MAX_PATH
+// Win32 path unless the extended-length prefix is present. Prefix absolute
+// paths that exceed the classic limit so `path`/`fileIO` can open them; leave
+// short paths and the values returned to Lynxer untouched.
+static fs::path ioPath(const std::string& value) {
+#if defined(_WIN32)
+    fs::path path = fs::u8path(value);
+    const std::wstring native = path.native();
+    if (native.size() < 248 || !path.is_absolute() ||
+        native.rfind(L"\\\\?\\", 0) == 0) {
+        return path;
+    }
+    if (native.rfind(L"\\\\", 0) == 0) {
+        return fs::path(L"\\\\?\\UNC\\" + native.substr(2));
+    }
+    return fs::path(L"\\\\?\\" + native);
+#else
+    return fs::path(value);
+#endif
+}
+
+// Windows text editors still produce CRLF, and some tools emit a lone CR.
+// Normalize those on text reads so `readText`/`readTextEncoding` return the
+// same lines on every host. Raw `readFile` stays byte-exact.
+static std::string normalizeNewlines(std::string text) {
+#if defined(_WIN32)
+    std::string normalized;
+    normalized.reserve(text.size());
+    for (std::size_t index = 0; index < text.size(); ++index) {
+        if (text[index] == '\r') {
+            if (index + 1 < text.size() && text[index + 1] == '\n') {
+                ++index;
+            }
+            normalized += '\n';
+        } else {
+            normalized += text[index];
+        }
+    }
+    return normalized;
+#else
+    return text;
+#endif
+}
+
 static const char* stable(std::string value) {
     thread_local std::string result;
     result = std::move(value);
@@ -212,7 +256,7 @@ static std::string expandHome(const std::string& input) {
 }
 
 static bool readWholeFile(const std::string& path, std::string& output) {
-    std::ifstream input(pathFromUtf8(path), std::ios::binary);
+    std::ifstream input(ioPath(path), std::ios::binary);
     if (!input) {
         return false;
     }
@@ -464,22 +508,22 @@ extern "C" const char* path_withSuffix(const char* value,
 
 extern "C" std::int64_t path_exists(const char* value) {
     std::error_code error;
-    return fs::exists(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::exists(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isFile(const char* value) {
     std::error_code error;
-    return fs::is_regular_file(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::is_regular_file(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isDir(const char* value) {
     std::error_code error;
-    return fs::is_directory(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::is_directory(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_isSymlink(const char* value) {
     std::error_code error;
-    return fs::is_symlink(fs::symlink_status(pathFromUtf8(textOrEmpty(value)),
+    return fs::is_symlink(fs::symlink_status(ioPath(textOrEmpty(value)),
                                              error)) &&
                    !error
                ? 1
@@ -534,7 +578,7 @@ extern "C" std::int64_t path_sameFile(const char* first, const char* second) {
 
 static std::string listDirectory(const std::string& base) {
     std::error_code error;
-    fs::directory_iterator iterator(pathFromUtf8(base), error);
+    fs::directory_iterator iterator(ioPath(base), error);
     if (error) {
         return "";
     }
@@ -599,40 +643,40 @@ extern "C" const char* path_rglob(const char* value, const char* pattern) {
 
 extern "C" std::int64_t path_mkdir(const char* value) {
     std::error_code error;
-    return fs::create_directory(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::create_directory(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_mkdirs(const char* value) {
     std::error_code error;
-    fs::create_directories(pathFromUtf8(textOrEmpty(value)), error);
+    fs::create_directories(ioPath(textOrEmpty(value)), error);
     return error ? 0 : 1;
 }
 
 extern "C" std::int64_t path_rmdir(const char* value) {
     std::error_code error;
-    return fs::remove(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::remove(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_unlink(const char* value) {
     std::error_code error;
-    return fs::remove(pathFromUtf8(textOrEmpty(value)), error) ? 1 : 0;
+    return fs::remove(ioPath(textOrEmpty(value)), error) ? 1 : 0;
 }
 
 extern "C" std::int64_t path_unlinkMissingOk(const char* value) {
     std::error_code error;
-    fs::remove(pathFromUtf8(textOrEmpty(value)), error);
+    fs::remove(ioPath(textOrEmpty(value)), error);
     return 1;
 }
 
 extern "C" std::int64_t path_touch(const char* value) {
-    std::ofstream output(pathFromUtf8(textOrEmpty(value)),
+    std::ofstream output(ioPath(textOrEmpty(value)),
                          std::ios::binary | std::ios::app);
     if (!output) {
         return 0;
     }
     output.close();
     std::error_code error;
-    fs::last_write_time(pathFromUtf8(textOrEmpty(value)),
+    fs::last_write_time(ioPath(textOrEmpty(value)),
                         fs::file_time_type::clock::now(), error);
     return error ? 0 : 1;
 }
@@ -640,14 +684,14 @@ extern "C" std::int64_t path_touch(const char* value) {
 extern "C" const char* path_rename(const char* value, const char* target) {
     std::error_code error;
     const fs::path destination(textOrEmpty(target));
-    fs::rename(pathFromUtf8(textOrEmpty(value)), destination, error);
+    fs::rename(ioPath(textOrEmpty(value)), destination, error);
     return stable(error ? std::string() : pathToUtf8(destination));
 }
 
 extern "C" const char* path_replace(const char* value, const char* target) {
     std::error_code error;
     const fs::path destination(textOrEmpty(target));
-    fs::rename(pathFromUtf8(textOrEmpty(value)), destination, error);
+    fs::rename(ioPath(textOrEmpty(value)), destination, error);
     return stable(error ? std::string() : pathToUtf8(destination));
 }
 
@@ -658,7 +702,7 @@ extern "C" const char* path_readText(const char* value) {
     if (!readWholeFile(textOrEmpty(value), content)) {
         return stable("");
     }
-    return stable(std::move(content));
+    return stable(normalizeNewlines(std::move(content)));
 }
 
 // --- Text encodings --------------------------------------------------------
@@ -869,13 +913,13 @@ extern "C" const char* path_readTextEncoding(const char* value,
     }
     std::string decoded;
     return stable(convertEncoding(content, kind, "UTF-8", decoded)
-                      ? std::move(decoded)
+                      ? normalizeNewlines(std::move(decoded))
                       : std::string());
 }
 
 extern "C" std::int64_t path_writeText(const char* value,
                                        const char* content) {
-    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
+    std::ofstream output(ioPath(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
     if (!output) {
         return 0;
     }
@@ -897,7 +941,7 @@ extern "C" std::int64_t path_writeTextEncoding(const char* value,
     } else if (!convertEncoding(text, "UTF-8", kind, bytes)) {
         return 0;
     }
-    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
+    std::ofstream output(ioPath(textOrEmpty(value)), std::ios::binary | std::ios::trunc);
     if (!output) {
         return 0;
     }
@@ -907,7 +951,7 @@ extern "C" std::int64_t path_writeTextEncoding(const char* value,
 
 extern "C" std::int64_t path_appendText(const char* value,
                                         const char* content) {
-    std::ofstream output(pathFromUtf8(textOrEmpty(value)), std::ios::binary | std::ios::app);
+    std::ofstream output(ioPath(textOrEmpty(value)), std::ios::binary | std::ios::app);
     if (!output) {
         return 0;
     }
@@ -918,14 +962,14 @@ extern "C" std::int64_t path_appendText(const char* value,
 extern "C" std::int64_t path_size(const char* value) {
     std::error_code error;
     const std::uintmax_t size =
-        fs::file_size(pathFromUtf8(textOrEmpty(value)), error);
+        fs::file_size(ioPath(textOrEmpty(value)), error);
     return error ? -1 : static_cast<std::int64_t>(size);
 }
 
 extern "C" double path_modifiedTime(const char* value) {
 #if defined(_WIN32)
     std::error_code error;
-    const auto stamp = fs::last_write_time(pathFromUtf8(textOrEmpty(value)), error);
+    const auto stamp = fs::last_write_time(ioPath(textOrEmpty(value)), error);
     if (error) return -1.0;
     const auto systemStamp = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
         stamp - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
@@ -947,7 +991,7 @@ extern "C" double path_modifiedTime(const char* value) {
 
 extern "C" const char* path_asUri(const char* value) {
     std::error_code error;
-    const fs::path absolute = fs::absolute(pathFromUtf8(textOrEmpty(value)), error);
+    const fs::path absolute = fs::absolute(ioPath(textOrEmpty(value)), error);
     if (error) {
         return stable("");
     }

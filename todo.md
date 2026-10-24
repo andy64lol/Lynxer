@@ -132,10 +132,11 @@ surface stays a documented boundary in
   termination and path-separator normalization remain.~~
 - [x] ~~**Native-module ABI on Windows.** `.dll` (and `.so`-named) modules load
   through `platform::openLibrary` with the same `lynxer_module_init_v1` entry
-  point and `cdecl:` grammar, and the MinGW-w64/CLANGARM64 toolchains export the
-  symbols by default: `examples/native_signatures.cpp` builds and its fixture
-  passes on Windows. The `.def`/`__declspec` exports and the 32-bit `__stdcall`
-  convention ride with the MSVC path in the toolchain item.~~
+  point and `cdecl:` grammar. The C++ module rule passes
+  `-Wl,--export-all-symbols` on Windows so every registered op is resolvable
+  under both MinGW-w64 and CLANGARM64: `examples/native_signatures.cpp` builds
+  and its fixture passes on Windows. The `.def`/`__declspec` exports and the
+  32-bit `__stdcall` convention ride with the MSVC path in the toolchain item.~~
 - [x] ~~**Embedding and `--emit-library`.** The runtime builds as `lynxer.dll`
   (using `liblynxer.def` instead of the ELF version script), and
   `--emit-library` emits a `.dll` plus its `.dll.a` import library and generated
@@ -147,17 +148,19 @@ surface stays a documented boundary in
   read back through `platform::executablePath()` (`GetModuleFileNameW`), keeping
   the materialize-to-temp-dir behavior for embedded modules and assets; the
   compiled-executable parity loop passes on Windows.~~
-- [ ] **Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
+- [x] ~~**Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
   `ini`, `xml`, `regex`, `text`, `math`, `csv`, `random`, `time`, `fileIO`,
   `shell`, `cli`, `debug`, `os` and `path` (these now build with Windows APIs).
-  Still needs a Windows backend: `watch` (`ReadDirectoryChangesW`) and
-  `tui`/`graphics`/`sound` console and device handling. `js` and
-  `multiprocessing` now use `CreateProcess` with Job Object timeout cleanup.
-  Excluded from the Windows build
-  (named by `LYNXER_WINDOWS_SKIP_MODULES` and the `watch` filter on
-  `LYNXER_RUST_MODULE_NAMES`): `sys` and the syscall built-ins, the modules
-  above, plus the `lowlevel_*` fixtures. Startup code lives on the host layer;
-  see [docs/windows.md](docs/windows.md).
+  `watch` uses `ReadDirectoryChangesW` (with `watchFd` returning `-1` on
+  Windows). `tui` uses crossterm (Windows console), `graphics`/`game` use
+  macroquad (Windows OpenGL plus a headless CPU raster path), and `sound` uses
+  cpal/rodio (WASAPI, tolerating a missing device). All three Rust backends
+  pass `cargo check --target x86_64-pc-windows-gnullvm`, and the Windows CI
+  builds their cdylibs. `js` and `multiprocessing` use `CreateProcess` with
+  Job Object timeout cleanup. Excluded from the Windows build (named by
+  `LYNXER_WINDOWS_SKIP_MODULES`): `sys` and the syscall built-ins, plus the
+  `lowlevel_*` fixtures. Startup code lives on the host layer; see
+  [docs/windows.md](docs/windows.md).~~
 - [ ] **Windows API access (Win32, not syscalls).** First slice landed:
   selecting the Windows target (`syscalls("winAPI", "amd64")`, with `windows`
   and `win32` as synonyms) enables the `winAPI.*` namespace — all `kernel32`:
@@ -170,19 +173,14 @@ surface stays a documented boundary in
   `moveFile`, `createDirectory`, `removeDirectory`), `sleep`, `beep` and
   `outputDebugString` — with the `winapi.lynx` fixture run by the Windows job.
   The Win32 calls live in `lynxer/winapi.cpp`, so nothing else includes
-  `<windows.h>`. The named Linux syscalls stay Linux-only. Still to do:
+  `<windows.h>`. The named Linux syscalls stay Linux-only. Since the first
+  slice, process control, console, file attributes/paths, Known Folders,
+  high-resolution timers, shell open/dialogs, clipboard, tray notifications,
+  system/locale/time-zone information and blocking named pipes have landed.
+  Still to do:
   - Grow the table further: sockets (`WSAStartup`, `socket`, … — needs
-    `ws2_32`), other DLLs (`advapi32` registry, `user32`/`shell32`) and
-    first-class `HANDLE` values. Process control (`createProcess`,
-    `openProcess`, `terminateProcess`, `getExitCodeProcess`,
-    `waitForSingleObject`, `getCurrentThreadId`), the console session
-    (`getStdHandle`, `getConsoleMode`/`setConsoleMode`, `setConsoleTitle`,
-    `getConsoleOutputCP`/`setConsoleOutputCP`), file attributes/paths
-    (`getFileAttributes`, `setFileAttributes`, `getFullPathName`,
-    `flushFileBuffers`) and the high-resolution timer
-    (`queryPerformanceCounter`/`queryPerformanceFrequency`) have landed. The
-    long tail is already reachable through
-    `ffiLoadLibrary`/`ffiLookup`/`ffiCall` ([native-modules.md](docs/native-modules.md)).
+    `ws2_32`), registry wrappers over `advapi32` (the managed `winreg` module
+    covers the common cases) and first-class `HANDLE` values.
   - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
     (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or
     convention-aware counterpart; UTF-16 `*W` strings (handled internally) and
@@ -209,51 +207,88 @@ surface stays a documented boundary in
   notes; `README.md` links the Windows workflows; and the syscall surface is
   documented as Linux-only and target-gated by operating system.~~
 
-- [ ] **Process control and groups.** Replace the remaining POSIX process-group
-  behavior in `platform::spawnProcess` with a Windows Job Object so a timed-out
-  or killed core child takes its whole tree down. `js` and `multiprocessing`
-  now use `CreateProcess` with Job Object timeout cleanup (see the stdlib
-  platform matrix above).
-- [ ] **Path and long-path parity.** Normalize separators in `path`/`fileIO`,
-  support long paths (the `\\?\` prefix, beyond `MAX_PATH`), and accept CRLF and
-  lone-CR line endings on text reads, without changing the Linux behavior.
-- [ ] **Sockets and networking.** Back the networking surface with Winsock
-  (`WSAStartup`/`ws2_32`) behind the same Lynxer API, so `network`-style
-  programs run on Windows.
-- [ ] **Registry and services.** Add a Windows registry reader/writer
-  (a `winreg` module) and decide the service/daemon story the `server` module
-  would use in place of Linux units.
-- [ ] **Native-module authoring on Windows.** Make
-  `examples/native_signatures.cpp` build under MSVC/clang-cl (it currently
-  builds via MinGW) and document how to produce and load a `.dll` module.
+- [x] ~~**Process control and groups.** `platform::spawnProcess` now creates
+  the child suspended in a kill-on-close Job Object before it runs, so a
+  timed-out or killed core child takes its whole tree down; if the assignment
+  is refused (a non-nesting parent job), the child still runs. `js` and
+  `multiprocessing` already use `CreateProcess` with Job Object timeout
+  cleanup (see the stdlib platform matrix above).~~
+- [x] ~~**Path and long-path parity.** `path`/`fileIO` accept both separators
+  through `std::filesystem`, prefix absolute paths beyond `MAX_PATH` with the
+  `\\?\` extended-length marker for stream and filesystem I/O (including UNC
+  shares), and normalize CRLF/lone-CR on Windows text reads. The Linux path is
+  unchanged; short paths and values returned to Lynxer are not rewritten.~~
+- [x] ~~**Sockets and networking.** The `network` backend uses Rust's
+  `std::net`/`std::io`, which maps to Winsock on Windows; the crate cross-builds
+  for `x86_64-pc-windows-gnullvm` with `WS2_32` imports, and `getHostname` runs
+  through Winsock under Wine. The Lynxer API is unchanged.~~
+- [x] ~~**Registry and services.** Added the Windows-only `winreg` module
+  (`stdlib/winreg.cpp` + `winreg.lynx`) for `HKCU`/`HKLM`/`HKCR`/`HKU`/`HKCC`
+  string/int/enumeration/recursive-delete operations, with a self-cleaning
+  `winreg_basic.lynx` fixture. `server` remains a foreground console process on
+  Windows; background startup is delegated to Task Scheduler or an external
+  SCM wrapper rather than Linux units.~~
+- [x] ~~**Native-module authoring on Windows.** Added `LYNXER_MODULE_EXPORT`
+  (`__declspec(dllexport)` on Windows) to `stdlib/lynxer_native_abi.h`, used it
+  in `examples/native_signatures.cpp`, and documented the MSVC `cl /LD` build
+  and `.dll` loading path in `docs/native-module-abi.md`. Every op in the
+  example is marked too; the MinGW build was verified locally, and the
+  `native-module-msvc` CI job checks both the entry point and an op export.~~
 - [ ] **Release binaries, installer and signing.** The release already ships
-  prebuilt `lynxer-windows-amd64/arm64.zip`; add an MSI (or self-extracting
-  EXE) on top of the `--install` layout that adds `bin` to `PATH` and
-  registers an uninstall entry, and Authenticode-sign the binaries so a
-  download does not trip SmartScreen.
-- [ ] **Test parity.** Bring the Windows fixture set up to the Linux gate,
-  list every remaining skip in [docs/windows.md](docs/windows.md), and track the
-  amd64/ARM64 parity the port is aiming for.
+  prebuilt `lynxer-windows-amd64/arm64.zip`. `packaging/windows/lynxer.iss`
+  now builds an Inno Setup installer on the `--install` layout, adds `bin` to
+  the user `PATH` and registers an uninstall entry; `stage-payload.sh` prepares
+  its input; the AMD64 CI job installs Inno Setup, compiles the installer and
+  uploads it as an artifact. Still to do: Authenticode-sign the installer and
+  binaries so a download does not trip SmartScreen.
+- [ ] **Test parity.** The Windows-only fixtures now include `winreg_basic`,
+  `winwatch`, `winapi`, `winapi_pipe`, `winpipe_basic` (the pipe fixtures have
+  server/client helpers), plus the portable `stdlib_os_dirs`,
+  `stdlib_debug_crash`, `stdlib_compress`/`_limits`, `stdlib_crypto`,
+  `stdlib_image_*`, `stdlib_xml_limits`, `stdlib_debug` and `stdlib_fileIO`
+  fixtures. [docs/windows.md](docs/windows.md) lists every skipped stem with
+  its reason. A locally cross-linked x86_64 build (vendored libffi) runs all of
+  these under Wine; the skip list has shrunk to the POSIX shell/path fixtures,
+  `stdlib_sys`/`stdlib_js`/`stdlib_watch`, the aggregate suite and the OpenGL
+  renderers. Remaining: track amd64/ARM64 parity and re-check the remaining
+  skips on a real runner.
 
-- [ ] **Package managers.** Publish `winget`, `Scoop` and `Chocolatey` manifests
-  for the released `lynxer-windows-*.zip` (mirroring the AUR packages).
-- [ ] **C runtime and minimum Windows version.** Decide UCRT static linking
-  versus the VC++ redistributable, confirm the MinGW/CLANGARM64 builds need no
-  DLLs the runner lacks, and record the minimum Windows version per target.
-- [ ] **Editor and shell tooling.** A VS Code extension (syntax highlighting plus
-  `--lint`/`--format`) and PowerShell/CMD argument completion.
-- [ ] **Console I/O and Unicode.** Use the wide console API (or a UTF-8 console
-  code page) so `cli`/`tui` round-trip non-ASCII input, colours and `beep` under
-  both Windows Terminal and the legacy console.
+- [ ] **Package managers.** `packaging/windows/render-package-manifests.py`
+  now renders winget, Scoop and Chocolatey manifests (with SHA-256 hashes) from
+  the released `lynxer-windows-*.zip`. Still to do: submit them to the three
+  registries once the signed zips are published.
+- [x] ~~**C runtime and minimum Windows version.** Windows 10 is the minimum;
+  AMD64 uses MSYS2 MINGW64 (`msvcrt.dll` + GCC runtime DLLs), ARM64 uses
+  CLANGARM64 (UCRT + CLANGARM64 runtime DLLs). CI collects non-system DLLs with
+  `ldd` into `lynxer/runtime`, and release zips/installer payloads ship them
+  next to `lynxer.exe`. No Visual C++ Redistributable is required.~~
+- [x] ~~**Editor and shell tooling.** Added `editors/vscode` (TextMate grammar,
+  `--lint` diagnostics and `--format`), plus native-command completion for
+  PowerShell 7 (`editors/powershell/lynxer.ps1`) and CMD through Clink
+  (`editors/clink/lynxer.lua`). The extension and completions are published
+  from the repository; packaging the VSIX is left to the release job.~~
+- [x] ~~**Console I/O and Unicode.** `configureStandardStreams()` sets both the
+  input and output console code pages to UTF-8 when the process is attached to a
+  console, alongside the existing ANSI/VT mode, so `cli`/`tui` round-trip
+  non-ASCII text, colours and `beep` under Windows Terminal and the legacy
+  console. Redirected streams keep the binary byte-identical behavior.~~
 - [ ] **Asynchronous I/O.** An IOCP backend where POSIX uses `epoll`/`poll`, for
   the async task runtime and the networking paths.
-- [ ] **Named pipes and Shell integration.** Named pipes for IPC beside sockets,
-  and the Shell APIs (open, clipboard, notifications) behind the platform layer.
-- [ ] **Services and scheduled tasks.** A Windows Service Control Manager / Task
-  Scheduler story for `server` and background work.
-- [ ] **User data, configuration and diagnostics.** `%APPDATA%`/`%LOCALAPPDATA%`
-  and Known Folders plus the registry in place of `$HOME`/`/etc`, and a Windows
-  crash-trace path for the `debug` module.
+- [x] ~~**Named pipes and Shell integration.** Added the Windows-only `winpipe`
+  module (`create`/`connect`/`open`/`read`/`write`/`disconnect`/`peek`/
+  `close`) with a server/client fixture, plus low-level `winAPI` pipe calls,
+  `shellOpen`, `shellOpenWith`, `messageBox`, clipboard get/set and tray
+  `notify`.~~
+- [ ] **Services and scheduled tasks.** `packaging/windows/lynxer-task.ps1`
+  now installs/removes/starts/inspects a Lynxer program as a Task Scheduler
+  task (at logon, or at boot with elevation), keeping `server` a foreground
+  console process. Still to do: an optional Service Control Manager wrapper.
+- [x] ~~**User data, configuration and diagnostics.** `os.configDir`,
+  `os.dataDir` and `os.cacheDir` map to `%APPDATA%`/`%LOCALAPPDATA%` on Windows
+  and the XDG base directories on POSIX; `winAPI.getKnownFolderPath` covers
+  Desktop/Documents/Downloads and the other Known Folders; the registry reader
+  is `winreg`; and `debug.crashLogPath`/`debug.recordCrash` write
+  `%LOCALAPPDATA%\Lynxer\crash.log` (overridable with `LYNXER_CRASH_LOG`).~~
 
 ## Distribution
 

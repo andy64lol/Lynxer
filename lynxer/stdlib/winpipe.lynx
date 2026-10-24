@@ -1,0 +1,33 @@
+////
+Lynxer standard library: winpipe.
+Blocking Windows named pipes backed by the native C++ module
+`stdlib/winpipe.so`.
+
+Names are relative to `\\.\pipe\`; a full `\\.\pipe\name` path is also
+accepted. `create` returns a server handle, `connect` blocks until a client
+connects, and `open` returns a client handle (retrying for five seconds while
+the server is still creating the pipe). Reads and writes are blocking; release
+every handle with `close`. This module exists only in Windows builds.
+////
+global setup(){ importAs("winpipe.so", "nativeWinpipe"); }
+
+global create(str name) -> int { return global.nativeWinpipe.create(name); }
+global connect(int handle) -> bool {
+    return global.nativeWinpipe.connect(handle) isnt 0;
+}
+global open(str name) -> int { return global.nativeWinpipe.open(name); }
+global read(int handle, int length) -> str {
+    return global.nativeWinpipe.read(handle, length);
+}
+global write(int handle, str text) -> int {
+    return global.nativeWinpipe.write(handle, text);
+}
+global disconnect(int handle) -> bool {
+    return global.nativeWinpipe.disconnect(handle) isnt 0;
+}
+global peek(int handle) -> int { return global.nativeWinpipe.peek(handle); }
+global close(int handle) -> bool {
+    return global.nativeWinpipe.close(handle) isnt 0;
+}
+
+global main(){}

@@ -116,6 +116,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winpipe.html">winpipe</a></li>
+<li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
 <li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
@@ -134,7 +136,8 @@
 <h1 id="language-server">Language server</h1>
 <p>Lynxer includes a small Language Server Protocol process for editor support. It uses Python's standard library and communicates over stdio:</p>
 <pre><code>LYNXER_EXECUTABLE=&quot;/path/to/lynxer&quot; python3 lynxer/lsp.py</code></pre>
-<p>Set <code>LYNXER_EXECUTABLE</code> to the built Lynxer executable. Without it, the server prefers <code>lynxer/lynxer</code> next to the script and then falls back to <code>PATH</code>. Configure your editor to launch <code>python3 /path/to/Lynxer/lynxer/lsp.py</code> for <code>.lynx</code> files and use the project directory as the workspace root.</p>
+<p>Set <code>LYNXER_EXECUTABLE</code> to the built Lynxer executable. Without it, the server prefers <code>lynxer/lynxer</code> under <code>LYNXER_ROOT</code> and then falls back to <code>PATH</code>. <code>LYNXER_ROOT</code> defaults to the directory above <code>lsp.py</code>.</p>
+<p>The Zed extension in <code>editors/zed</code> supplies syntax highlighting and registers the server as <code>lynxer-lsp</code>; it launches a bundled copy of <code>lsp.py</code> automatically and sets <code>LYNXER_ROOT</code> to the workspace. Other editors can launch <code>python3 /path/to/Lynxer/lynxer/lsp.py</code> for <code>.lynx</code> files with the project directory as the workspace root. See <a href="https://github.com/andy64lol/Lynxer/blob/main/editors/zed/README.md">editors/zed/README</a> for Zed-specific overrides.</p>
 <p>The server provides:</p>
 <ul>
 <li>live diagnostics from <code>lynxer --lint</code>, including static warnings and errors;</li>

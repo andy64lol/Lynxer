@@ -8,10 +8,15 @@ LYNXER_EXECUTABLE="/path/to/lynxer" python3 lynxer/lsp.py
 ```
 
 Set `LYNXER_EXECUTABLE` to the built Lynxer executable. Without it, the server
-prefers `lynxer/lynxer` next to the script and then falls back to `PATH`.
-Configure your editor to launch
-`python3 /path/to/Lynxer/lynxer/lsp.py` for `.lynx` files and use the project
-directory as the workspace root.
+prefers `lynxer/lynxer` under `LYNXER_ROOT` and then falls back to `PATH`.
+`LYNXER_ROOT` defaults to the directory above `lsp.py`.
+
+The Zed extension in `editors/zed` supplies syntax highlighting and registers
+the server as `lynxer-lsp`; it launches a bundled copy of `lsp.py`
+automatically and sets `LYNXER_ROOT` to the workspace. Other editors can launch
+`python3 /path/to/Lynxer/lynxer/lsp.py` for `.lynx` files with the project
+directory as the workspace root. See
+[editors/zed/README.md](../editors/zed/README.md) for Zed-specific overrides.
 
 The server provides:
 

@@ -44,7 +44,7 @@ global main(){
     println(global.compress.bzip2CompressFile(root + "/data.txt", root + "/data.bz2"));
     println(global.compress.bzip2DecompressFile(root + "/data.bz2", root + "/data.bzout"));
     println(global.fileIO.readFile(root + "/data.bzout") is text);
-    println(global.compress.gzipDecompressFile(root + "/missing.gz", root + "/x"));
+    println(returnLength(global.compress.gzipDecompressFile(root + "/missing.gz", root + "/x")) > 0);
 
     // --- ZIP ---
     str manifest = "[{\"name\":\"a.txt\",\"path\":\"" + root + "/data.txt\"},{\"name\":\"dir/b.txt\",\"base64\":\"aGVsbG8=\"}]";

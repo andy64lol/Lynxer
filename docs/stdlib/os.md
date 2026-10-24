@@ -3,7 +3,8 @@
 Filesystem, process, environment and platform helpers.
 
 **Backend:** native — `stdlib/os.so`, built from `stdlib/os.cpp` over
-`<filesystem>` and POSIX APIs. **Import:** `import("os")` → `global.os.*`
+`<filesystem>` and the host APIs (POSIX or Win32). **Import:** `import("os")` →
+`global.os.*`
 
 Functions return safe defaults on failure (`false`, `""`, `-1`, an empty list).
 
@@ -37,8 +38,11 @@ Functions return safe defaults on failure (`false`, `""`, `-1`, an empty list).
 | `expandUser` | `(str path) -> str` | Expands a leading `~` or `~user` |
 | `sep` | `() -> str` | `/` on POSIX hosts |
 | `getenv` / `setenv` | `(str key[, str value])` | Reads / writes an environment variable |
-| `tempDir` | `() -> str` | `$TMPDIR`, `$TEMP`, `$TMP`, else `/tmp` |
-| `homedir` | `() -> str` | `$HOME` |
+| `tempDir` | `() -> str` | `$TMPDIR`, `$TEMP`, `$TMP`, else `/tmp` (Windows: `GetTempPathW`) |
+| `homedir` | `() -> str` | `$HOME` (Windows: `%USERPROFILE%`) |
+| `configDir` | `() -> str` | `$XDG_CONFIG_HOME` or `$HOME/.config` (Windows: `%APPDATA%`) |
+| `dataDir` | `() -> str` | `$XDG_DATA_HOME` or `$HOME/.local/share` (Windows: `%LOCALAPPDATA%`) |
+| `cacheDir` | `() -> str` | `$XDG_CACHE_HOME` or `$HOME/.cache` (Windows: `%LOCALAPPDATA%`) |
 | `username` | `() -> str` | Login name from the password database |
 | `hostname` | `() -> str` | `gethostname(2)` |
 | `getpid` | `() -> int` | Process id |

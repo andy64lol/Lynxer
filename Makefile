@@ -46,7 +46,8 @@ LYNXER_TARGET := $(LYNXER_DIR)/lynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
 # libSystem) or Windows, so it is added only off macOS.
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_PLATFORM_FLAGS :=
-LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi -lpsapi
+LYNXER_PLATFORM_LIBS := -lpthread -lm -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -luser32
+LYNXER_MODULE_LDFLAGS := -lpsapi -Wl,--export-all-symbols
 LYNXER_BUILD_SHARED := 1
 else
 LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
@@ -61,10 +62,11 @@ endif
 endif
 
 LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
+LYNXER_MODULE_LDFLAGS ?=
 
 # Modules a Windows build must skip because they have no Windows backend yet.
-# `sys` is built on Linux system calls; `js` and `multiprocessing` still use
-# the POSIX fork/poll subprocess helper.
+# `sys` is built on Linux system calls; the other portable modules have Win32
+# paths in `subprocess.hpp` or their own backends.
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_WINDOWS_SKIP_MODULES := sys
 else
@@ -74,6 +76,12 @@ endif
 # Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
 LYNXER_ALL_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
 LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuffix .cpp,$(LYNXER_WINDOWS_SKIP_MODULES))),$(LYNXER_ALL_NATIVE_SOURCES))
+# Modules whose backend is Windows-only. They are filtered out on every other
+# host so a Linux/macOS build does not try to compile Win32 headers.
+LYNXER_WINDOWS_ONLY_MODULES := winreg winpipe
+ifneq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuffix .cpp,$(LYNXER_WINDOWS_ONLY_MODULES))),$(LYNXER_NATIVE_SOURCES))
+endif
 LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
 
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
@@ -97,11 +105,6 @@ LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
 LYNXER_RUST_MODULE_NAMES := email encoding crypto compress game graphics html image ini json lua markdown network pdf raylib re regex server sound sqldb text toml tui uuid watch xml yaml
 
-# `watch` has only Linux (inotify) and macOS/BSD (kqueue) backends; a Windows
-# build needs a `ReadDirectoryChangesW` backend (see docs/windows.md).
-ifeq ($(LYNXER_ON_WINDOWS),1)
-LYNXER_RUST_MODULE_NAMES := $(filter-out watch,$(LYNXER_RUST_MODULE_NAMES))
-endif
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
@@ -110,9 +113,10 @@ LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
 LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 # `rustc --print native-static-libs` records the native libraries the staticlib
 # needs at the final link: Windows system DLL imports (ntdll, ws2_32, userenv,
-# ...), `libffi`, and the C runtime. A Rust staticlib does not carry its
-# dependencies' link directives, so the C++ link has to add them; capturing the
-# exact list here keeps that correct on every platform.
+# ...) and the C runtime. A Rust staticlib does not carry its dependencies'
+# link directives, so the C++ link has to add them; capturing the exact list
+# here keeps that correct on every platform. The vendored libffi objects are
+# already inside the archive on Windows.
 LYNXER_FFI_BUILD_LOG := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi-build.log
 LYNXER_FFI_NATIVE_LIBS := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi.native-libs
 # A Rust `staticlib` does not carry its dependencies' link directives. On Windows
@@ -304,10 +308,8 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # OpenGL context; the Windows runner has none (the Linux CI installs Mesa
 # llvmpipe, so those fixtures do run there).
 LYNXER_WINDOWS_SKIP_STEMS := \
-	stdlib_cli stdlib_compress stdlib_compress_limits stdlib_crypto \
-	stdlib_debug stdlib_fileIO stdlib_image_codecs stdlib_image_svg stdlib_image_formats stdlib_js \
-	stdlib_multiprocessing stdlib_os stdlib_path stdlib_sys stdlib_watch \
-	stdlib_xml_limits stdlibTestAll native_stdlibs program_args \
+	stdlib_cli stdlib_js stdlib_multiprocessing stdlib_os stdlib_path \
+	stdlib_sys stdlib_watch stdlibTestAll native_stdlibs program_args \
 	stdlib_game_api stdlib_graphics_raster stdlib_graphics_raster_shapes \
 	stdlib_turtle
 
@@ -324,6 +326,13 @@ LYNXER_LOWLEVEL_FIXTURES :=
 # The winAPI fixture selects the Windows target, which only a Windows host
 # accepts, so it runs there and nowhere else.
 LYNXER_WINAPI_FIXTURE := $(LYNXER_DIR)/examples/winapi.lynx
+LYNXER_WINAPI_PIPE_FIXTURE := $(LYNXER_DIR)/examples/winapi_pipe.lynx
+# `winreg` is a Windows-only module, so its fixture has the same gate.
+LYNXER_WINREG_FIXTURE := $(LYNXER_DIR)/examples/winreg_basic.lynx
+LYNXER_WINPIPE_FIXTURE := $(LYNXER_DIR)/examples/winpipe_basic.lynx
+# `watch` works on Windows but `watchFd` has no pollable descriptor there, so
+# its cross-platform fixture stays POSIX-only and this one covers Windows.
+LYNXER_WINWATCH_FIXTURE := $(LYNXER_DIR)/examples/winwatch.lynx
 # `builtin_ffi*` load `libc.so.6` by name and `ffiLoadLibrary` fails hard when
 # the library is absent; `builtin_async` drives `filesystemOpen`, part of the
 # POSIX-only managed built-in family. Neither can run on Windows.
@@ -335,6 +344,10 @@ else
 LYNXER_EXIT_FIXTURES := sys_exit cli_exit
 LYNXER_EXIT_THREAD_FIXTURES := sys_exit_thread sys_exit_worker
 LYNXER_WINAPI_FIXTURE :=
+LYNXER_WINAPI_PIPE_FIXTURE :=
+LYNXER_WINREG_FIXTURE :=
+LYNXER_WINPIPE_FIXTURE :=
+LYNXER_WINWATCH_FIXTURE :=
 endif
 
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
@@ -457,8 +470,9 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 	@echo "✓ Lynxer Rust backends ready ($(LYNXER_RUST_TARGET_DIR))"
 
 # The interpreter links the native-call engine, so `cargo` is a hard build
-# dependency: `-lpthread -ldl -lm` are the Rust runtime's, and `-lffi` the
-# engine's (a staticlib does not carry its dependencies' link directives).
+# dependency: `-lpthread -ldl -lm` are the Rust runtime's. Windows builds the
+# vendored libffi into the staticlib, so it needs no `-lffi`; POSIX links the
+# system libffi through `LYNXER_PLATFORM_LIBS`.
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
@@ -501,7 +515,7 @@ $(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_
 
 # Remaining C++ stdlib modules, compiled to lynxer/stdlib/<name>.so.
 $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
-	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@ $(if $(LYNXER_ON_WINDOWS),-lpsapi,)
+	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@ $(LYNXER_MODULE_LDFLAGS)
 
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
@@ -943,6 +957,38 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and lega
 	rm -f "$$run"; \
 	if [ "$$output" != "$$expected_output" ]; then \
 	echo "winAPI fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
+	@if [ -n "$(LYNXER_WINAPI_PIPE_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_WINAPI_PIPE_FIXTURE))"; \
+	expected_output="$$(cat $(LYNXER_WINAPI_PIPE_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "winAPI named-pipe fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
+	@if [ -n "$(LYNXER_WINREG_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_WINREG_FIXTURE))"; \
+	expected_output="$$(cat $(LYNXER_WINREG_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "winreg fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
+	@if [ -n "$(LYNXER_WINPIPE_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_WINPIPE_FIXTURE))"; \
+	expected_output="$$(cat $(LYNXER_WINPIPE_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "winpipe fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
+	@if [ -n "$(LYNXER_WINWATCH_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_WINWATCH_FIXTURE))"; \
+	expected_output="$$(cat $(LYNXER_WINWATCH_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "winwatch fixture output mismatch"; \
 	echo "expected:"; printf '%s\n' "$$expected_output"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi

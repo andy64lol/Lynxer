@@ -72,4 +72,20 @@ global main(){
     println(winAPI.deleteFile(root + "lynxer-winapi-flush.txt"));
     println(winAPI.queryPerformanceCounter() > 0);
     println(winAPI.queryPerformanceFrequency() > 0);
+
+    // Known Folders from shell32.
+    println(returnLength(winAPI.getKnownFolderPath("localAppData")) > 0);
+    println(returnLength(winAPI.getKnownFolderPath("documents")) > 0);
+    println(winAPI.getKnownFolderPath("notAFolder") is "");
+
+    // Shell-adjacent system information, formatting and named-pipe helpers.
+    println(returnLength(winAPI.getUserName()) > 0);
+    println(returnType(winAPI.isUserAnAdmin()) is "bool");
+    println(winAPI.getSystemMetrics(0) > 0);
+    println(winAPI.getLogicalDrives() > 0);
+    println(winAPI.getDriveType("C:\\") >= 0);
+    println(returnLength(winAPI.getOSVersion()) > 0);
+    println(returnLength(winAPI.getLocaleName()) > 0);
+    println(returnLength(winAPI.getTimeZoneName()) > 0);
+    println(returnLength(winAPI.formatMessage(2)) > 0);
 }

@@ -1,15 +1,17 @@
 ////
 Lynxer standard library: watch.
-Filesystem change events over inotify (Linux) or kqueue `EVFILT_VNODE` (macOS
-and the BSDs), backed by the Rust crate under `rust/watch` and exposed through
-the native module `stdlib/watch.so`.
+Filesystem change events over inotify (Linux), kqueue `EVFILT_VNODE` (macOS and
+the BSDs) or `ReadDirectoryChangesW` (Windows), backed by the Rust crate under
+`rust/watch` and exposed through the native module `stdlib/watch.so`.
 
-Each watch is an integer handle. `watchFd` returns the backend descriptor, so a
-program can wait on it with the interpreter's own poll set
+Each watch is an integer handle. On POSIX, `watchFd` returns the backend
+descriptor, so a program can wait on it with the interpreter's own poll set
 (`asyncPollRegister` / `asyncPollWait`); `watchWait` blocks on the same
 descriptor for you, releasing the interpreter lock while it waits so it does not
-wedge every other Lynxer thread. After either, `watchDrain` reads the pending
-events as a JSON array of `{"path", "kind"}`.
+wedge every other Lynxer thread. Windows has no pollable descriptor for a
+directory watch: `watchFd` returns `-1` there, and `watchWait` blocks on the
+backend's condition variable instead. After either, `watchDrain` reads the
+pending events as a JSON array of `{"path", "kind"}`.
 
 A failure is the scalar sentinel: `watchAdd`/`watchFd`/`watchWait` return `-1`,
 `watchDrain` returns `""` for an unknown handle, and the predicates return
@@ -24,7 +26,8 @@ global setup(){ importAs("watch.so", "nativeWatch"); }
 global watchAdd(str path, bool recursive) -> int {
     return global.nativeWatch.add(path, recursive);
 }
-// The backend descriptor for the poll set, or -1 for an unknown handle.
+// The backend descriptor for the poll set, or -1 for an unknown handle. On
+// Windows this is always -1; use `watchWait`.
 global watchFd(int handle) -> int { return global.nativeWatch.fd(handle); }
 // The pending events as a JSON array of {"path", "kind"}, or "" for an unknown
 // handle. Does not block.

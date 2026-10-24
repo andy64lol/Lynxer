@@ -1,0 +1,15 @@
+////
+Server half of winpipe.lynx. Launched by the parent; not a standalone fixture.
+////
+global setup(){ import("winpipe"); }
+
+global main(){
+    str name = "lynxer-winpipe-fixture";
+    int server = global.winpipe.create(name);
+    println("server-create=" + strOf(server > 0));
+    println("server-connect=" + strOf(global.winpipe.connect(server)));
+    println("server-read=" + global.winpipe.read(server, 16));
+    println("server-write=" + strOf(global.winpipe.write(server, "pong") is 4));
+    global.winpipe.disconnect(server);
+    global.winpipe.close(server);
+}

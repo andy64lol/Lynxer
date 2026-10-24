@@ -7,12 +7,16 @@
 
 #include "winapi.hpp"
 
+#include <cstring>
 #include <string>
+#include <thread>
 #include <vector>
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
+#include <shlobj.h>
 // `std::size_t` and `std::int64_t` appear only in the Win32 implementations.
 #include <cstddef>
 #include <cstdint>
@@ -93,6 +97,89 @@ std::string environmentVariable(const std::string& name) {
     return wideToUtf8(buffer);
 }
 
+std::string win32ErrorText(DWORD code) {
+    LPWSTR buffer = nullptr;
+    const DWORD length = ::FormatMessageW(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+            FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        reinterpret_cast<LPWSTR>(&buffer), 0, nullptr);
+    if (length == 0 || buffer == nullptr) {
+        return std::string();
+    }
+    std::wstring text(buffer, length);
+    ::LocalFree(buffer);
+    while (!text.empty() &&
+           (text.back() == L'\r' || text.back() == L'\n' || text.back() == L' ')) {
+        text.pop_back();
+    }
+    return wideToUtf8(text);
+}
+
+std::string userName() {
+    DWORD size = 0;
+    ::GetUserNameW(nullptr, &size);
+    if (size == 0) {
+        return std::string();
+    }
+    std::wstring buffer(size, L'\0');
+    if (::GetUserNameW(buffer.data(), &size) == 0) {
+        return std::string();
+    }
+    if (size > 0 && buffer[size - 1] == L'\0') {
+        buffer.resize(size - 1);
+    }
+    return wideToUtf8(buffer);
+}
+
+std::string osVersion() {
+    using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
+    const HMODULE ntdll = ::GetModuleHandleW(L"ntdll.dll");
+    const auto rtlGetVersion =
+        ntdll == nullptr
+            ? nullptr
+            : reinterpret_cast<RtlGetVersionFn>(
+                  ::GetProcAddress(ntdll, "RtlGetVersion"));
+    if (rtlGetVersion == nullptr) {
+        return std::string();
+    }
+    OSVERSIONINFOW info{};
+    info.dwOSVersionInfoSize = sizeof(info);
+    if (rtlGetVersion(&info) != 0) {
+        return std::string();
+    }
+    return std::to_string(info.dwMajorVersion) + "." +
+           std::to_string(info.dwMinorVersion) + "." +
+           std::to_string(info.dwBuildNumber);
+}
+
+std::string localeName() {
+    wchar_t buffer[LOCALE_NAME_MAX_LENGTH];
+    const int length =
+        ::GetUserDefaultLocaleName(buffer, LOCALE_NAME_MAX_LENGTH);
+    if (length <= 0) {
+        return std::string();
+    }
+    return wideToUtf8(
+        std::wstring(buffer, static_cast<std::size_t>(length - 1)));
+}
+
+std::string timeZoneName() {
+    TIME_ZONE_INFORMATION info{};
+    if (::GetTimeZoneInformation(&info) == TIME_ZONE_ID_INVALID) {
+        return std::string();
+    }
+    return wideToUtf8(info.StandardName);
+}
+
+std::wstring namedPipePath(const std::string& name) {
+    const std::wstring wide = utf8ToWide(name);
+    if (wide.rfind(L"\\\\.\\pipe\\", 0) == 0) {
+        return wide;
+    }
+    return L"\\\\.\\pipe\\" + wide;
+}
+
 #endif  // _WIN32
 
 const std::vector<std::string>& names() {
@@ -103,7 +190,17 @@ const std::vector<std::string>& names() {
         "getModuleFileName",  "getTickCount",        "getLastError",
         "getEnvironmentVariable", "setEnvironmentVariable", "expandEnvironmentStrings",
         "getDiskFreeBytes",   "sleep",               "outputDebugString",
-        "beep",
+        "beep",               "formatMessage",        "getUserName",
+        "isUserAnAdmin",      "getSystemMetrics",     "getLogicalDrives",
+        "getDriveType",       "getOSVersion",         "getLocaleName",
+        "getTimeZoneName",
+        // Shell and clipboard.
+        "shellOpen",          "shellOpenWith",        "messageBox",
+        "clipboardGet",       "clipboardSet",          "notify",
+        // Named pipes.
+        "createNamedPipe",    "connectNamedPipe",     "openNamedPipe",
+        "readNamedPipe",      "writeNamedPipe",       "disconnectNamedPipe",
+        "peekNamedPipe",
         // Files and handles.
         "createFile",         "readFile",            "writeFile",
         "closeHandle",        "fileSize",            "seekFile",
@@ -117,8 +214,8 @@ const std::vector<std::string>& names() {
         "setConsoleTitle",    "getConsoleOutputCP",  "setConsoleOutputCP",
         // Files by name, flushing and the high-resolution timer.
         "getFileAttributes",  "setFileAttributes",   "getFullPathName",
-        "flushFileBuffers",   "queryPerformanceCounter",
-        "queryPerformanceFrequency",
+        "flushFileBuffers",   "getKnownFolderPath",
+        "queryPerformanceCounter", "queryPerformanceFrequency",
     };
     return all;
 }
@@ -220,6 +317,331 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
     if (name == "getLastError") {
         if (!args.empty()) return wrong("no arguments");
         result = static_cast<std::int64_t>(::GetLastError());
+        return true;
+    }
+    if (name == "formatMessage") {
+        if (args.size() != 1) return wrong("an error code");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer error code");
+        }
+        const DWORD code = static_cast<DWORD>(integerArg(0));
+        result = win32ErrorText(code);
+        return true;
+    }
+    if (name == "getUserName") {
+        if (!args.empty()) return wrong("no arguments");
+        result = userName();
+        return true;
+    }
+    if (name == "isUserAnAdmin") {
+        if (!args.empty()) return wrong("no arguments");
+        result = ::IsUserAnAdmin() != 0;
+        return true;
+    }
+    if (name == "getSystemMetrics") {
+        if (args.size() != 1) return wrong("an index");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer index");
+        }
+        result = static_cast<std::int64_t>(
+            ::GetSystemMetrics(static_cast<int>(integerArg(0))));
+        return true;
+    }
+    if (name == "getLogicalDrives") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::GetLogicalDrives());
+        return true;
+    }
+    if (name == "getDriveType") {
+        if (args.size() != 1) return wrong("a drive root");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string drive root");
+        }
+        result = static_cast<std::int64_t>(
+            ::GetDriveTypeW(utf8ToWide(stringArg(0)).c_str()));
+        return true;
+    }
+    if (name == "getOSVersion") {
+        if (!args.empty()) return wrong("no arguments");
+        result = osVersion();
+        return true;
+    }
+    if (name == "getLocaleName") {
+        if (!args.empty()) return wrong("no arguments");
+        result = localeName();
+        return true;
+    }
+    if (name == "getTimeZoneName") {
+        if (!args.empty()) return wrong("no arguments");
+        result = timeZoneName();
+        return true;
+    }
+    if (name == "shellOpen") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        const std::wstring path = utf8ToWide(stringArg(0));
+        const HINSTANCE instance = ::ShellExecuteW(
+            nullptr, L"open", path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        result = reinterpret_cast<std::intptr_t>(instance) > 32;
+        return true;
+    }
+    if (name == "shellOpenWith") {
+        if (args.size() != 3) return wrong("a path, arguments and a verb");
+        if (std::get_if<std::string>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr ||
+            std::get_if<std::string>(&args[2]) == nullptr) {
+            return wrong("string path, arguments and verb");
+        }
+        const std::wstring path = utf8ToWide(stringArg(0));
+        const std::wstring arguments = utf8ToWide(stringArg(1));
+        const std::wstring verb =
+            stringArg(2).empty() ? L"open" : utf8ToWide(stringArg(2));
+        const HINSTANCE instance = ::ShellExecuteW(
+            nullptr, verb.c_str(), path.c_str(),
+            arguments.empty() ? nullptr : arguments.c_str(), nullptr,
+            SW_SHOWNORMAL);
+        result = reinterpret_cast<std::intptr_t>(instance) > 32;
+        return true;
+    }
+    if (name == "messageBox") {
+        if (args.size() != 2) return wrong("text and a title");
+        if (std::get_if<std::string>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr) {
+            return wrong("string text and title");
+        }
+        result = static_cast<std::int64_t>(
+            ::MessageBoxW(nullptr, utf8ToWide(stringArg(0)).c_str(),
+                          utf8ToWide(stringArg(1)).c_str(),
+                          MB_OK | MB_ICONINFORMATION));
+        return true;
+    }
+    if (name == "clipboardGet") {
+        if (!args.empty()) return wrong("no arguments");
+        if (::OpenClipboard(nullptr) == 0) {
+            result = std::string();
+            return true;
+        }
+        const HANDLE data = ::GetClipboardData(CF_UNICODETEXT);
+        if (data == nullptr) {
+            ::CloseClipboard();
+            result = std::string();
+            return true;
+        }
+        const auto* text =
+            static_cast<const wchar_t*>(::GlobalLock(data));
+        if (text == nullptr) {
+            ::CloseClipboard();
+            result = std::string();
+            return true;
+        }
+        const std::wstring value(text);
+        ::GlobalUnlock(data);
+        ::CloseClipboard();
+        result = wideToUtf8(value);
+        return true;
+    }
+    if (name == "clipboardSet") {
+        if (args.size() != 1) return wrong("text");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("string text");
+        }
+        if (::OpenClipboard(nullptr) == 0) {
+            result = false;
+            return true;
+        }
+        if (::EmptyClipboard() == 0) {
+            ::CloseClipboard();
+            result = false;
+            return true;
+        }
+        const std::wstring text = utf8ToWide(stringArg(0));
+        const std::size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+        HGLOBAL memory = ::GlobalAlloc(GMEM_MOVEABLE, bytes);
+        if (memory == nullptr) {
+            ::CloseClipboard();
+            result = false;
+            return true;
+        }
+        void* target = ::GlobalLock(memory);
+        if (target == nullptr) {
+            ::GlobalFree(memory);
+            ::CloseClipboard();
+            result = false;
+            return true;
+        }
+        std::memcpy(target, text.c_str(), bytes);
+        ::GlobalUnlock(memory);
+        if (::SetClipboardData(CF_UNICODETEXT, memory) == nullptr) {
+            ::GlobalFree(memory);
+            ::CloseClipboard();
+            result = false;
+            return true;
+        }
+        ::CloseClipboard();
+        result = true;
+        return true;
+    }
+    if (name == "notify") {
+        if (args.size() != 2) return wrong("a title and a message");
+        if (std::get_if<std::string>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr) {
+            return wrong("string title and message");
+        }
+        const HWND console = ::GetConsoleWindow();
+        if (console == nullptr) {
+            result = false;
+            return true;
+        }
+        const std::wstring title = utf8ToWide(stringArg(0));
+        const std::wstring message = utf8ToWide(stringArg(1));
+        NOTIFYICONDATAW data{};
+        data.cbSize = sizeof(data);
+        data.hWnd = console;
+        data.uID = 1;
+        data.uFlags = NIF_INFO | NIF_ICON | NIF_TIP;
+        data.hIcon = ::LoadIconW(nullptr, MAKEINTRESOURCEW(32516));
+        wcsncpy(data.szInfoTitle, title.c_str(),
+                sizeof(data.szInfoTitle) / sizeof(wchar_t) - 1);
+        wcsncpy(data.szInfo, message.c_str(),
+                sizeof(data.szInfo) / sizeof(wchar_t) - 1);
+        wcsncpy(data.szTip, L"Lynxer",
+                sizeof(data.szTip) / sizeof(wchar_t) - 1);
+        data.dwInfoFlags = NIIF_INFO;
+        if (::Shell_NotifyIconW(NIM_ADD, &data) == 0) {
+            result = false;
+            return true;
+        }
+        ::Shell_NotifyIconW(NIM_MODIFY, &data);
+        std::thread([data]() mutable {
+            ::Sleep(5000);
+            ::Shell_NotifyIconW(NIM_DELETE, &data);
+        }).detach();
+        result = true;
+        return true;
+    }
+    if (name == "createNamedPipe") {
+        if (args.size() != 1) return wrong("a pipe name");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string pipe name");
+        }
+        const std::wstring path = namedPipePath(stringArg(0));
+        const HANDLE handle = ::CreateNamedPipeW(
+            path.c_str(), PIPE_ACCESS_DUPLEX,
+            PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+            PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, nullptr);
+        if (handle == INVALID_HANDLE_VALUE) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result =
+            static_cast<std::int64_t>(reinterpret_cast<std::intptr_t>(handle));
+        return true;
+    }
+    if (name == "connectNamedPipe") {
+        if (args.size() != 1) return wrong("a pipe handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer pipe handle");
+        }
+        const HANDLE handle = handleArg(0);
+        BOOL connected = ::ConnectNamedPipe(handle, nullptr);
+        if (connected == 0 && ::GetLastError() == ERROR_PIPE_CONNECTED) {
+            connected = TRUE;
+        }
+        result = connected != 0;
+        return true;
+    }
+    if (name == "openNamedPipe") {
+        if (args.size() != 1) return wrong("a pipe name");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string pipe name");
+        }
+        const std::wstring path = namedPipePath(stringArg(0));
+        const ULONGLONG deadline = ::GetTickCount64() + 5000;
+        for (;;) {
+            const HANDLE handle = ::CreateFileW(
+                path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                OPEN_EXISTING, 0, nullptr);
+            if (handle != INVALID_HANDLE_VALUE) {
+                result = static_cast<std::int64_t>(
+                    reinterpret_cast<std::intptr_t>(handle));
+                return true;
+            }
+            const DWORD code = ::GetLastError();
+            if (code != ERROR_PIPE_BUSY && code != ERROR_FILE_NOT_FOUND) {
+                result = static_cast<std::int64_t>(-1);
+                return true;
+            }
+            if (::GetTickCount64() >= deadline) {
+                result = static_cast<std::int64_t>(-1);
+                return true;
+            }
+            ::Sleep(50);
+        }
+    }
+    if (name == "readNamedPipe") {
+        if (args.size() != 2) return wrong("a pipe handle and a length");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer pipe handle and length");
+        }
+        std::int64_t length = integerArg(1);
+        if (length <= 0) {
+            result = std::string();
+            return true;
+        }
+        if (length > 16 * 1024 * 1024) {
+            length = 16 * 1024 * 1024;
+        }
+        std::string buffer(static_cast<std::size_t>(length), '\0');
+        DWORD read = 0;
+        if (::ReadFile(handleArg(0), buffer.data(),
+                       static_cast<DWORD>(length), &read, nullptr) == 0) {
+            result = std::string();
+            return true;
+        }
+        buffer.resize(read);
+        result = buffer;
+        return true;
+    }
+    if (name == "writeNamedPipe") {
+        if (args.size() != 2) return wrong("a pipe handle and text");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr) {
+            return wrong("an integer pipe handle and string text");
+        }
+        const std::string& text = stringArg(1);
+        DWORD written = 0;
+        if (::WriteFile(handleArg(0), text.data(),
+                        static_cast<DWORD>(text.size()), &written,
+                        nullptr) == 0) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result = static_cast<std::int64_t>(written);
+        return true;
+    }
+    if (name == "disconnectNamedPipe") {
+        if (args.size() != 1) return wrong("a pipe handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer pipe handle");
+        }
+        result = ::DisconnectNamedPipe(handleArg(0)) != 0;
+        return true;
+    }
+    if (name == "peekNamedPipe") {
+        if (args.size() != 1) return wrong("a pipe handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer pipe handle");
+        }
+        DWORD available = 0;
+        if (::PeekNamedPipe(handleArg(0), nullptr, 0, nullptr, &available,
+                            nullptr) == 0) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result = static_cast<std::int64_t>(available);
         return true;
     }
     if (name == "getEnvironmentVariable") {
@@ -664,6 +1086,54 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
             return wrong("an integer handle");
         }
         result = ::FlushFileBuffers(handleArg(0)) != 0;
+        return true;
+    }
+    if (name == "getKnownFolderPath") {
+        if (args.size() != 1) return wrong("a folder name");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string folder name");
+        }
+        const std::string which = stringArg(0);
+        const KNOWNFOLDERID* folder = nullptr;
+        if (which == "desktop") {
+            folder = &FOLDERID_Desktop;
+        } else if (which == "documents") {
+            folder = &FOLDERID_Documents;
+        } else if (which == "downloads") {
+            folder = &FOLDERID_Downloads;
+        } else if (which == "music") {
+            folder = &FOLDERID_Music;
+        } else if (which == "pictures") {
+            folder = &FOLDERID_Pictures;
+        } else if (which == "videos") {
+            folder = &FOLDERID_Videos;
+        } else if (which == "localAppData") {
+            folder = &FOLDERID_LocalAppData;
+        } else if (which == "roamingAppData") {
+            folder = &FOLDERID_RoamingAppData;
+        } else if (which == "programData") {
+            folder = &FOLDERID_ProgramData;
+        } else if (which == "profile") {
+            folder = &FOLDERID_Profile;
+        } else if (which == "public") {
+            folder = &FOLDERID_Public;
+        } else if (which == "windows") {
+            folder = &FOLDERID_Windows;
+        } else if (which == "system") {
+            folder = &FOLDERID_System;
+        } else {
+            result = std::string();
+            return true;
+        }
+        PWSTR raw = nullptr;
+        if (FAILED(::SHGetKnownFolderPath(*folder, KF_FLAG_DEFAULT, nullptr,
+                                          &raw))) {
+            result = std::string();
+            return true;
+        }
+        const std::wstring path(raw);
+        ::CoTaskMemFree(raw);
+        result = wideToUtf8(path);
         return true;
     }
     if (name == "queryPerformanceCounter") {

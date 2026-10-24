@@ -116,6 +116,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winpipe.html">winpipe</a></li>
+<li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
 <li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
@@ -149,6 +151,7 @@
 <li><code>register_constant(name, value)</code> — exposed as a read-only integer field on the module namespace.</li>
 <li><code>register_type(name, layout)</code> — exposed as a string field holding a native memory layout (used with the <code>memory*</code> builtins).</li>
 </ul>
+<p>On Windows, every registered <code>symbol</code> must also be exported from the DLL, not just <code>lynxer_module_init_v1</code>. The bundled MinGW/CLANGARM64 module rule passes <code>-Wl,--export-all-symbols</code>; an MSVC/clang-cl module must put <code>LYNXER_MODULE_EXPORT</code> on each op (or use a <code>.def</code> file). The <code>examples/native_signatures.cpp</code> module does this, and its MSVC CI job checks both the entry point and an op export.</p>
 <p>Loading happens in <code>lynxer/ast.cpp</code> (<code>ImportStatement::execute</code>), where <code>dlopen</code> is called with <code>RTLD_NOW | RTLD_LOCAL</code> and the initializer is invoked with the three callbacks. Modules are kept loaded for the lifetime of their namespace so registered function pointers cannot dangle.</p>
 <h2 id="importing">Importing</h2>
 <p>Import the library from <code>setup()</code> with any of the <code>import</code> forms:</p>
@@ -318,7 +321,18 @@ global main(){
 </ol>
 <p>An additive change must not alter how existing shapes or signatures behave.</p>
 <h2 id="platform-support">Platform support</h2>
-<p>Native modules are supported on Linux, macOS, and the MinGW-w64 Windows builds. The bundled Lynxer wrappers keep their <code>.so</code> import names on Windows for source compatibility; those files contain PE DLLs and load through <code>LoadLibrary</code>. Third-party modules must be built for the host OS and toolchain.</p>
+<p>Native modules are supported on Linux, macOS, and Windows. The bundled Lynxer wrappers keep their <code>.so</code> import names on Windows for source compatibility; those files contain PE DLLs and load through <code>LoadLibrary</code>. Third-party modules must be built for the host OS and toolchain.</p>
+<p>On Windows, export the entry point explicitly when building with MSVC or clang-cl (MinGW exports it by default):</p>
+<pre><code>#include &quot;lynxer_native_abi.h&quot;
+
+extern &quot;C&quot; LYNXER_MODULE_EXPORT int lynxer_module_init_v1(
+    RegisterFunction function, RegisterConstant constant, RegisterType type) {
+    return function(&quot;sum&quot;, &quot;pair_sum&quot;, &quot;cdecl:int64(int64,int64)&quot;) ? 0 : 1;
+}</code></pre>
+<p>Build it as a DLL and load it by path, exactly like a <code>.so</code>:</p>
+<pre><code>cl /std:c++17 /LD /Ilynxer\stdlib pair.cpp /link /OUT:pair.dll
+lynxer app.lynx</code></pre>
+<p><code>LYNXER_MODULE_EXPORT</code> is <code>__declspec(dllexport)</code> on Windows and a default-visibility attribute elsewhere, so the same source works on every supported host.</p>
 <h2 id="the-reverse-direction-exporting-lynxer-functions">The reverse direction: exporting Lynxer functions</h2>
 <p>The mirror of this ABI lets a Lynxer program expose functions to C instead of calling C. A program declares <code>export &quot;cdecl:&lt;ret&gt;(&lt;args&gt;)&quot; name(...) { ... }</code> and <code>lynxer --emit-library</code> builds a host shared library (<code>.so</code> on Linux, <code>.dll</code> on MinGW Windows) whose typed <code>extern &quot;C&quot;</code> wrappers marshall through the embedding C API in <code>lynxer/lynxer.h</code> (<code>lynxer_embed_init</code> / <code>lynxer_embed_call</code> / <code>lynxer_embed_last_error</code>). It reuses the same <code>LynxerFfiArg</code>/<code>LynxerFfiResult</code> wire types and the same <code>cdecl:</code> signature grammar and aliases described above. See <a href="embedding.html">embedding</a> for the syntax, the C type mapping and the build flags.</p>
     </main>

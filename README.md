@@ -154,6 +154,7 @@ lynxer/        The interpreter and its standard library
   stdlib/        Native and pure stdlib modules
   rust/          Rust-backed native modules
 docs/          Documentation (Markdown source)
+editors/       Editor and shell integrations (VS Code, Zed, PowerShell, Clink)
 site/          Static website: home page plus docs/ rendered to HTML
 packaging/     Distribution packaging (AUR)
 syntax.lynx    Full syntax showcase
@@ -161,7 +162,8 @@ Makefile
 README.md
 ```
 
-`packaging/` supports distribution and installation.
+`packaging/` supports distribution and installation; `editors/` contains
+editor integrations, including the Zed extension in `editors/zed`.
 
 ---
 

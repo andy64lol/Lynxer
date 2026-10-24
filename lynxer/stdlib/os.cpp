@@ -309,6 +309,49 @@ extern "C" const char* os_homedir() {
 #endif
 }
 
+// Per-user configuration, data and cache roots. Windows keeps roaming and
+// local state apart through APPDATA/LOCALAPPDATA; POSIX follows the XDG base
+// directory variables and falls back to the traditional dot directories.
+extern "C" const char* os_configDir() {
+#if defined(_WIN32)
+    return stable(environmentValue("APPDATA", ""));
+#else
+    const std::string xdg = environmentValue("XDG_CONFIG_HOME", "");
+    if (!xdg.empty()) {
+        return stable(xdg);
+    }
+    const std::string home = environmentValue("HOME", "");
+    return stable(home.empty() ? std::string() : home + "/.config");
+#endif
+}
+
+extern "C" const char* os_dataDir() {
+#if defined(_WIN32)
+    return stable(environmentValue("LOCALAPPDATA", ""));
+#else
+    const std::string xdg = environmentValue("XDG_DATA_HOME", "");
+    if (!xdg.empty()) {
+        return stable(xdg);
+    }
+    const std::string home = environmentValue("HOME", "");
+    return stable(home.empty() ? std::string()
+                               : home + "/.local/share");
+#endif
+}
+
+extern "C" const char* os_cacheDir() {
+#if defined(_WIN32)
+    return stable(environmentValue("LOCALAPPDATA", ""));
+#else
+    const std::string xdg = environmentValue("XDG_CACHE_HOME", "");
+    if (!xdg.empty()) {
+        return stable(xdg);
+    }
+    const std::string home = environmentValue("HOME", "");
+    return stable(home.empty() ? std::string() : home + "/.cache");
+#endif
+}
+
 extern "C" const char* os_username() {
 #if defined(_WIN32)
     char name[UNLEN + 1]{};
@@ -568,6 +611,9 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                             "cdecl:int64(cstring,cstring)") &&
                    function("tempDir", "os_tempDir", "cdecl:cstring()") &&
                    function("homedir", "os_homedir", "cdecl:cstring()") &&
+                   function("configDir", "os_configDir", "cdecl:cstring()") &&
+                   function("dataDir", "os_dataDir", "cdecl:cstring()") &&
+                   function("cacheDir", "os_cacheDir", "cdecl:cstring()") &&
                    function("username", "os_username", "cdecl:cstring()") &&
                    function("hostname", "os_hostname", "cdecl:cstring()") &&
                    function("getpid", "os_getpid", "cdecl:int64()") &&

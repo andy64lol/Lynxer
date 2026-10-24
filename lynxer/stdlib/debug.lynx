@@ -108,6 +108,16 @@ global elapsed(str label) -> float { return global.nativeDebug.elapsed(label); }
 // Return the current high-resolution timestamp in milliseconds.
 global clock() -> float { return global.nativeDebug.clock(); }
 
+// ── Crash diagnostics ──
+// The path used for crash traces: %LOCALAPPDATA%\Lynxer\crash.log on Windows,
+// $XDG_STATE_HOME/lynxer/crash.log (or ~/.local/state/...) elsewhere. The
+// LYNXER_CRASH_LOG environment variable overrides it.
+global crashLogPath() -> str { return global.nativeDebug.crashLogPath(); }
+// Append a timestamped crash trace and return whether it was written.
+global recordCrash(str message) -> bool {
+    return global.nativeDebug.recordCrash(message) isnt 0;
+}
+
 // ── Environment ──
 // Get the value of an environment variable, or "" if not set.
 global envGet(str key) -> str { return global.nativeDebug.envGet(key); }

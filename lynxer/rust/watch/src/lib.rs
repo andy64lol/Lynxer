@@ -1,12 +1,14 @@
 //! Lynxer `watch` stdlib backend: filesystem change events.
 //!
-//! Each watch is an integer handle over a platform backend: inotify on Linux
-//! and kqueue `EVFILT_VNODE` on macOS and the BSDs. `watchFd` returns the
-//! backend descriptor, so a program can wait on it with the interpreter's own
-//! poll set (`asyncPollRegister` / `asyncPollWait`); `watchWait` blocks on the
-//! same descriptor with the interpreter lock released, so it does not wedge
-//! every other Lynxer thread. After either, `watchDrain` reads the pending
-//! events as a JSON array.
+//! Each watch is an integer handle over a platform backend: inotify on Linux,
+//! kqueue `EVFILT_VNODE` on macOS and the BSDs, and `ReadDirectoryChangesW` on
+//! Windows. On POSIX, `watchFd` returns the backend descriptor, so a program
+//! can wait on it with the interpreter's own poll set (`asyncPollRegister` /
+//! `asyncPollWait`); `watchWait` blocks on the same descriptor with the
+//! interpreter lock released, so it does not wedge every other Lynxer thread.
+//! Windows has no pollable descriptor and `watchFd` returns `-1`; `watchWait`
+//! blocks on a condition variable there. After either, `watchDrain` reads the
+//! pending events as a JSON array.
 //!
 //! Failure is a scalar sentinel: `watchAdd`/`watchFd` return `-1`,
 //! `watchDrain` returns `""` for an unknown handle, `watchWait` returns `-1`,
@@ -17,13 +19,17 @@ mod host;
 
 #[cfg(target_os = "linux")]
 mod inotify_backend;
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(not(target_os = "linux"), not(windows)))]
 mod kqueue_backend;
+#[cfg(windows)]
+mod windows_backend;
 
 #[cfg(target_os = "linux")]
 use inotify_backend as backend;
-#[cfg(not(target_os = "linux"))]
+#[cfg(all(not(target_os = "linux"), not(windows)))]
 use kqueue_backend as backend;
+#[cfg(windows)]
+use windows_backend as backend;
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
 
@@ -33,6 +39,7 @@ pub use host::lynxer_module_attach_v1;
 /// Returns 1 when readable, 0 on timeout, and -1 for an unknown handle or a
 /// poll error. The interpreter lock is released while blocked. `timeout_ms < 0`
 /// waits without a limit.
+#[cfg(not(windows))]
 fn wait_impl(handle: i64, timeout_ms: i64) -> i64 {
     let descriptor = backend::fd_of(handle);
     if descriptor < 0 {
@@ -58,6 +65,15 @@ fn wait_impl(handle: i64, timeout_ms: i64) -> i64 {
         } else {
             1
         };
+    });
+    result
+}
+
+#[cfg(windows)]
+fn wait_impl(handle: i64, timeout_ms: i64) -> i64 {
+    let mut result = -1i64;
+    host::with_lock_released(|| {
+        result = backend::wait_impl(handle, timeout_ms);
     });
     result
 }

@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <string>
 
@@ -17,8 +19,6 @@
 #include <windows.h>
 #define PSAPI_VERSION 2
 #include <psapi.h>
-#include <cstdlib>
-extern char** _environ;
 #else
 #include <sys/resource.h>
 extern char** environ;
@@ -87,6 +87,69 @@ extern "C" const char* debug_timestamp() {
 }
 
 extern "C" double debug_clock() { return nowMilliseconds(); }
+
+static std::filesystem::path crashLogPath() {
+    const char* override = std::getenv("LYNXER_CRASH_LOG");
+    if (override != nullptr && *override != '\0') {
+        return std::filesystem::path(override);
+    }
+#if defined(_WIN32)
+    const char* local = std::getenv("LOCALAPPDATA");
+    if (local != nullptr && *local != '\0') {
+        return std::filesystem::path(local) / "Lynxer" / "crash.log";
+    }
+    const char* temp = std::getenv("TEMP");
+    if (temp != nullptr && *temp != '\0') {
+        return std::filesystem::path(temp) / "lynxer-crash.log";
+    }
+    return std::filesystem::path("lynxer-crash.log");
+#else
+    const char* state = std::getenv("XDG_STATE_HOME");
+    if (state != nullptr && *state != '\0') {
+        return std::filesystem::path(state) / "lynxer" / "crash.log";
+    }
+    const char* home = std::getenv("HOME");
+    if (home != nullptr && *home != '\0') {
+        return std::filesystem::path(home) / ".local" / "state" / "lynxer" /
+               "crash.log";
+    }
+    return std::filesystem::path("/tmp/lynxer-crash.log");
+#endif
+}
+
+extern "C" const char* debug_crashLogPath() {
+    return stable(crashLogPath().string());
+}
+
+extern "C" std::int64_t debug_recordCrash(const char* message) {
+    const std::filesystem::path path = crashLogPath();
+    std::error_code error;
+    if (!path.parent_path().empty()) {
+        std::filesystem::create_directories(path.parent_path(), error);
+    }
+    std::ofstream output(path, std::ios::app);
+    if (!output) {
+        return 0;
+    }
+    std::time_t raw = std::time(nullptr);
+    std::tm local {};
+#if defined(_WIN32)
+    if (::localtime_s(&local, &raw) != 0) {
+        return 0;
+    }
+#else
+    if (::localtime_r(&raw, &local) == nullptr) {
+        return 0;
+    }
+#endif
+    char stamp[32];
+    if (std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", &local) ==
+        0) {
+        return 0;
+    }
+    output << "[" << stamp << "] " << textOrEmpty(message) << "\n";
+    return output.good() ? 1 : 0;
+}
 
 extern "C" double debug_getMemory() {
 #if defined(_WIN32)
@@ -168,7 +231,11 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                    function("stopTimer", "debug_stopTimer",
                             "cdecl:double(cstring)") &&
                    function("elapsed", "debug_elapsed",
-                            "cdecl:double(cstring)")
+                            "cdecl:double(cstring)") &&
+                   function("crashLogPath", "debug_crashLogPath",
+                            "cdecl:cstring()") &&
+                   function("recordCrash", "debug_recordCrash",
+                            "cdecl:int64(cstring)")
                ? 0
                : 1;
 }

@@ -82,6 +82,33 @@ jobs:
             "$work/libexport_basic.dll.a" -o "$work/export_test.exe"
           (cd "$work" && ./export_test.exe)
 
+      - name: Collect runtime DLLs
+        shell: msys2 {0}
+        run: |
+          mkdir -p lynxer/runtime
+          ldd lynxer/lynxer.exe | awk '/=> \// {print $3}' | while IFS= read -r dll; do
+            case "$dll" in
+              /mingw64/*|/clangarm64/*) cp "$dll" lynxer/runtime/; cp "$dll" lynxer/ ;;
+            esac
+          done
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y --no-progress
+
+      - name: Build the installer
+        shell: msys2 {0}
+        run: |
+          ./packaging/windows/stage-payload.sh
+          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" packaging/windows/lynxer.iss
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: lynxer-windows-amd64-installer
+          path: dist/*-setup.exe
+          if-no-files-found: ignore
+
       - name: Upload the Windows AMD64 binary
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,11 +116,33 @@ jobs:
           name: lynxer-windows-amd64
           path: |
             lynxer/lynxer.exe
-            lynxer/lynxer.dll
+            lynxer/*.dll
             lynxer/lynxer.dll.a
             lynxer/lynxer.h
             lynxer/ffi_abi.h
             lynxer/lynxer
             lynxer/stdlib
             lynxer/lynxer.config
+            lynxer/runtime
           if-no-files-found: ignore
+
+  native-module-msvc:
+    name: Build a native module with MSVC
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build and check the exported entry point
+        shell: cmd
+        run: |
+          if not exist build mkdir build
+          cl /nologo /std:c++17 /EHsc /LD /Ilynxer\stdlib ^
+            lynxer\examples\native_signatures.cpp ^
+            /Fe:build\native_signatures.dll
+          dumpbin /exports build\native_signatures.dll | findstr /C:"lynxer_module_init_v1"
+          dumpbin /exports build\native_signatures.dll | findstr /C:"sig_ii"

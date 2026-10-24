@@ -91,6 +91,7 @@ std::string quoteArgument(const std::string& argument) {
 
 void enableVirtualTerminal() {
 #if defined(_WIN32)
+    bool attachedToConsole = false;
     const DWORD streams[] = {STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
     for (const DWORD which : streams) {
         const HANDLE stream = ::GetStdHandle(which);
@@ -103,8 +104,18 @@ void enableVirtualTerminal() {
         if (::GetConsoleMode(stream, &mode) == 0) {
             continue;
         }
+        attachedToConsole = true;
         ::SetConsoleMode(stream, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING |
                                      DISABLE_NEWLINE_AUTO_RETURN);
+    }
+    // The narrow console entry points (ReadFile/WriteFile on the standard
+    // handles, and the CRT's stdio) use the console code page, not UTF-8.
+    // Switch both directions so `cli`/`tui` round-trip non-ASCII text under
+    // Windows Terminal and the legacy console. This is skipped when neither
+    // stream is a console, so redirected output stays byte-identical.
+    if (attachedToConsole) {
+        ::SetConsoleCP(CP_UTF8);
+        ::SetConsoleOutputCP(CP_UTF8);
     }
 #endif
 }
@@ -351,16 +362,57 @@ int spawnProcess(const std::vector<std::string>& command) {
     mutableLine.push_back('\0');
     STARTUPINFOA startup{};
     startup.cb = sizeof(startup);
+
+    // Put the child in a kill-on-close job before it runs, so descendants it
+    // spawns are torn down with it. The process is created suspended to close
+    // the window between CreateProcess and AssignProcessToJobObject. If the
+    // assignment fails (for example when the parent is already in a job that
+    // does not allow nesting), the child still runs normally.
+    HANDLE job = ::CreateJobObjectW(nullptr, nullptr);
+    if (job != nullptr) {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+        limits.BasicLimitInformation.LimitFlags =
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if (::SetInformationJobObject(job, JobObjectExtendedLimitInformation,
+                                      &limits, sizeof(limits)) == 0) {
+            ::CloseHandle(job);
+            job = nullptr;
+        }
+    }
+    const DWORD creationFlags = CREATE_SUSPENDED;
     PROCESS_INFORMATION process{};
     if (::CreateProcessA(nullptr, mutableLine.data(), nullptr, nullptr, FALSE,
-                         0, nullptr, nullptr, &startup, &process) == 0) {
+                         creationFlags, nullptr, nullptr, &startup,
+                         &process) == 0) {
+        if (job != nullptr) {
+            ::CloseHandle(job);
+        }
         return -1;
     }
-    ::WaitForSingleObject(process.hProcess, INFINITE);
+    if (job != nullptr && ::AssignProcessToJobObject(job, process.hProcess) == 0) {
+        ::CloseHandle(job);
+        job = nullptr;
+    }
+    ::ResumeThread(process.hThread);
+    const DWORD waitStatus =
+        ::WaitForSingleObject(process.hProcess, INFINITE);
     DWORD code = 1;
-    ::GetExitCodeProcess(process.hProcess, &code);
+    if (waitStatus == WAIT_FAILED) {
+        // Do not leave a stuck child behind if the wait itself fails.
+        if (job != nullptr) {
+            ::TerminateJobObject(job, 1);
+        } else {
+            ::TerminateProcess(process.hProcess, 1);
+        }
+        code = 1;
+    } else {
+        ::GetExitCodeProcess(process.hProcess, &code);
+    }
     ::CloseHandle(process.hThread);
     ::CloseHandle(process.hProcess);
+    if (job != nullptr) {
+        ::CloseHandle(job);
+    }
     return static_cast<int>(code);
 #else
     std::vector<char*> argv;

@@ -52,6 +52,9 @@ global setenv(str key, str val) -> bool {
 }
 global tempDir() -> str { return global.nativeOs.tempDir(); }
 global homedir() -> str { return global.nativeOs.homedir(); }
+global configDir() -> str { return global.nativeOs.configDir(); }
+global dataDir() -> str { return global.nativeOs.dataDir(); }
+global cacheDir() -> str { return global.nativeOs.cacheDir(); }
 global username() -> str { return global.nativeOs.username(); }
 global hostname() -> str { return global.nativeOs.hostname(); }
 global getpid() -> int { return global.nativeOs.getpid(); }

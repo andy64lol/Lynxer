@@ -11,11 +11,24 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lynxer_abi = { path = "../abi" }
-# Raw syscalls for the Linux (inotify) and macOS/BSD (kqueue) backends: the
-# non-blocking flag on the watch descriptor and the kevent calls themselves.
-libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Raw syscalls for the Linux (inotify) and macOS/BSD (kqueue) backends: the
+# non-blocking flag on the watch descriptor and the kevent calls themselves.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# `ReadDirectoryChangesW` and the overlapped-I/O handles for the Windows
+# backend. Feature-gated so the Linux/macOS builds do not compile Win32 code.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+] }
 
 # The inotify backend directly, not `notify`: the design exposes the watch
 # descriptor (watchFd) for the interpreter's poll set, which `notify` does not.

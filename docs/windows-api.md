@@ -14,7 +14,9 @@ global main(){
 }
 ```
 
-Every call is `kernel32`, so nothing extra has to be installed or linked.
+Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32` for the
+Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be
+installed.
 
 ## Selecting the target
 
@@ -67,9 +69,25 @@ Every call is `kernel32`, so nothing extra has to be installed or linked.
 | `winAPI.getTickCount()` | milliseconds since the system started |
 | `winAPI.getLastError()` | the last Win32 error code |
 | `winAPI.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
+| `winAPI.getKnownFolderPath(name)` | a Known Folder path, or `""` |
+| `winAPI.getUserName()` | the current account name |
+| `winAPI.isUserAnAdmin()` | whether the process has administrator rights |
+| `winAPI.getSystemMetrics(index)` | a `GetSystemMetrics` value, or `0` |
+| `winAPI.getLogicalDrives()` | the drive bitmask |
+| `winAPI.getDriveType(root)` | the `DRIVE_*` type, or `0` |
+| `winAPI.getOSVersion()` | `major.minor.build` from `RtlGetVersion` |
+| `winAPI.getLocaleName()` | the user's locale name, e.g. `en-US` |
+| `winAPI.getTimeZoneName()` | the current standard time-zone name |
+| `winAPI.formatMessage(code)` | the system message for a Win32 error code |
 | `winAPI.sleep(milliseconds)` | — |
 | `winAPI.beep(frequency, duration)` | whether it played |
 | `winAPI.outputDebugString(text)` | — (goes to the debugger) |
+
+`getKnownFolderPath` accepts `desktop`, `documents`, `downloads`, `music`,
+`pictures`, `videos`, `localAppData`, `roamingAppData`, `programData`, `profile`,
+`public`, `windows` and `system`; an unknown name returns `""`, as does a
+folder the shell cannot resolve. It is the Windows counterpart of the XDG
+directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 
 ## Environment
 
@@ -125,6 +143,57 @@ global main(){
 }
 ```
 
+## Shell, clipboard and dialogs
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.shellOpen(path)` | whether `ShellExecuteW` accepted the request |
+| `winAPI.shellOpenWith(path, arguments, verb)` | the same, with an explicit verb such as `"edit"` |
+| `winAPI.messageBox(text, title)` | the `MessageBoxW` result |
+| `winAPI.clipboardGet()` | the clipboard's Unicode text, or `""` |
+| `winAPI.clipboardSet(text)` | whether the clipboard was updated |
+| `winAPI.notify(title, message)` | whether a tray balloon was queued |
+
+`shellOpen`/`shellOpenWith` are fire-and-forget: they return as soon as the
+shell accepts the request. `messageBox` blocks until the user dismisses the
+dialog, so it is unsuitable for unattended programs. `notify` queues a tray
+balloon for five seconds and returns immediately; it needs an interactive
+console window. Clipboard and notification access need a window-station/desktop
+that permits it; under a service or a headless session they return the failure
+sentinel instead of raising.
+
+## Named pipes
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.createNamedPipe(name)` | a server handle, or `-1` |
+| `winAPI.connectNamedPipe(handle)` | whether a client connected |
+| `winAPI.openNamedPipe(name)` | a client handle, or `-1` after a 5 s wait |
+| `winAPI.readNamedPipe(handle, length)` | up to `length` bytes, or `""` |
+| `winAPI.writeNamedPipe(handle, text)` | bytes written, or `-1` |
+| `winAPI.disconnectNamedPipe(handle)` | whether the server disconnected |
+| `winAPI.peekNamedPipe(handle)` | bytes available, or `-1` |
+
+Names are relative to `\\.\pipe\`; a full `\\.\pipe\name` path is also
+accepted. `openNamedPipe` retries while the server is still creating the pipe,
+so a client may start before the server. Pipe handles are ordinary handles and
+are released with `winAPI.closeHandle`. Reads and writes are blocking.
+
+```lynx
+global setup(){ syscalls("winAPI", "amd64"); }
+
+global main(){
+    int server = winAPI.createNamedPipe("lynxer-demo");
+    // In another process:
+    //   int client = winAPI.openNamedPipe("lynxer-demo");
+    winAPI.connectNamedPipe(server);
+    println(winAPI.readNamedPipe(server, 64));
+    winAPI.writeNamedPipe(server, "pong");
+    winAPI.disconnectNamedPipe(server);
+    winAPI.closeHandle(server);
+}
+```
+
 ## Processes and threads
 
 | Function | Returns |
@@ -164,11 +233,11 @@ call.
 
 ## The long tail
 
-Anything not in the tables above — other DLLs, `user32`, `advapi32`, the
-`*A`/`*W` pairs, structs, `HANDLE`-typed parameters — is reachable through the
-FFI built-ins ([native-modules.md](native-modules.md)). On 64-bit Windows the
-Win32 calling convention is the one `cdecl:` describes, so a Win32 call looks
-like any other:
+Anything not in the tables above — other DLLs, the `*A`/`*W` pairs, structs,
+`HWND`/`SOCKET` values and the 32-bit `__stdcall` convention — is reachable
+through the FFI built-ins ([native-modules.md](native-modules.md)). On 64-bit
+Windows the Win32 calling convention is the one `cdecl:` describes, so a Win32
+call looks like any other:
 
 ```lynx
 global setup(){ syscalls("winAPI", "amd64"); }
