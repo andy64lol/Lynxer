@@ -600,10 +600,10 @@ export_string!(network_download, args, {
 export_string!(network_urlencode, args, { urlencode(args.string(0)) });
 
 export_int!(network_http_head, args, {
-    match agent().head(args.string(0)).call() {
+    while_interpreter_unlocked(|| match agent().head(args.string(0)).call() {
         Ok(response) => response.status().as_u16() as i64,
         Err(_) => -1,
-    }
+    })
 });
 
 export_string!(network_url_scheme, args, {
@@ -646,7 +646,9 @@ export_string!(network_get_hostname, args, {
     hostname()
 });
 
-export_string!(network_resolve_host, args, { resolve_host(args.string(0)) });
+export_string!(network_resolve_host, args, {
+    while_interpreter_unlocked(|| resolve_host(args.string(0)))
+});
 
 export_int!(network_url_is_valid, args, {
     parse_rfc3986(args.string(0)).is_some() as i64
@@ -791,10 +793,11 @@ export_string!(network_url_decode_component, args, {
 
 export_string!(network_ws_connect, args, {
     let key = args.string(0).to_string();
+    let uri = args.string(1).to_string();
     if key.is_empty() {
         return error_text("empty connection name");
     }
-    match tungstenite::connect(args.string(1)) {
+    while_interpreter_unlocked(|| match tungstenite::connect(uri) {
         Ok((socket, _response)) => {
             if let MaybeTlsStream::Plain(stream) = socket.get_ref() {
                 let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
@@ -811,26 +814,37 @@ export_string!(network_ws_connect, args, {
             "ok".to_string()
         }
         Err(error) => error_text(&error.to_string()),
-    }
+    })
 });
 
 export_string!(network_ws_send, args, {
-    ws_send(args.string(0), args.string(1))
+    let key = args.string(0).to_string();
+    let message = args.string(1).to_string();
+    while_interpreter_unlocked(|| ws_send(&key, &message))
 });
 
-export_string!(network_ws_receive, args, { ws_receive(args.string(0)) });
+export_string!(network_ws_receive, args, {
+    let key = args.string(0).to_string();
+    while_interpreter_unlocked(|| ws_receive(&key))
+});
 
 export_string!(network_ws_send_receive, args, {
-    let key = args.string(0);
-    let sent = ws_send(key, args.string(1));
-    if sent.starts_with("ERROR:") {
-        sent
-    } else {
-        ws_receive(key)
-    }
+    let key = args.string(0).to_string();
+    let message = args.string(1).to_string();
+    while_interpreter_unlocked(|| {
+        let sent = ws_send(&key, &message);
+        if sent.starts_with("ERROR:") {
+            sent
+        } else {
+            ws_receive(&key)
+        }
+    })
 });
 
-export_string!(network_ws_close, args, { ws_close(args.string(0)) });
+export_string!(network_ws_close, args, {
+    let key = args.string(0).to_string();
+    while_interpreter_unlocked(|| ws_close(&key))
+});
 
 export_int!(network_ws_connected, args, {
     CONNECTIONS.with(|connections| {
@@ -854,12 +868,19 @@ thread_local! {
 
 const TCP_TIMEOUT: Duration = Duration::from_secs(30);
 
-fn tcp_resolve(host: &str, port: i64) -> Result<std::net::SocketAddr, String> {
+fn tcp_resolve(host: &str, port: i64) -> Result<Vec<std::net::SocketAddr>, String> {
     let Ok(port) = u16::try_from(port) else {
         return Err("invalid port".to_string());
     };
     match (host, port).to_socket_addrs() {
-        Ok(mut addresses) => addresses.next().ok_or_else(|| "resolve failed".to_string()),
+        Ok(addresses) => {
+            let addresses: Vec<_> = addresses.collect();
+            if addresses.is_empty() {
+                Err("resolve failed".to_string())
+            } else {
+                Ok(addresses)
+            }
+        }
         Err(_) => Err("resolve failed".to_string()),
     }
 }
@@ -868,22 +889,30 @@ fn tcp_connect(name: &str, host: &str, port: i64) -> String {
     if name.is_empty() {
         return error_text("empty connection name");
     }
-    let address = match tcp_resolve(host, port) {
-        Ok(address) => address,
+    let addresses = match tcp_resolve(host, port) {
+        Ok(addresses) => addresses,
         Err(message) => return error_text(&message),
     };
-    match TcpStream::connect_timeout(&address, TCP_TIMEOUT) {
-        Ok(stream) => {
-            // Bound every later receive, so a quiet peer cannot wedge the
-            // interpreter thread.
-            let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
-            TCP_CONNECTIONS.with(|connections| {
-                connections.borrow_mut().insert(name.to_string(), stream);
-            });
-            "ok".to_string()
+    let mut last_error = None;
+    for address in addresses {
+        match TcpStream::connect_timeout(&address, TCP_TIMEOUT) {
+            Ok(stream) => {
+                // Bound every later receive, so a quiet peer cannot wedge the
+                // interpreter thread.
+                let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
+                TCP_CONNECTIONS.with(|connections| {
+                    connections.borrow_mut().insert(name.to_string(), stream);
+                });
+                return "ok".to_string();
+            }
+            Err(error) => last_error = Some(error),
         }
-        Err(error) => error_text(&error.to_string()),
     }
+    error_text(
+        &last_error
+            .map(|error| error.to_string())
+            .unwrap_or_else(|| "connect failed".to_string()),
+    )
 }
 
 fn tcp_send_to(stream: &mut TcpStream, data: &str) -> String {
@@ -978,46 +1007,65 @@ fn local_ip() -> String {
 }
 
 fn is_port_open(host: &str, port: i64, timeout_secs: i64) -> bool {
-    let address = match tcp_resolve(host, port) {
-        Ok(address) => address,
+    let addresses = match tcp_resolve(host, port) {
+        Ok(addresses) => addresses,
         Err(_) => return false,
     };
     // A zero timeout is an immediate error in `connect_timeout`, which is never
     // what a caller means here.
     let timeout = Duration::from_secs(timeout_secs.max(1) as u64);
-    TcpStream::connect_timeout(&address, timeout).is_ok()
+    addresses
+        .iter()
+        .any(|address| TcpStream::connect_timeout(address, timeout).is_ok())
 }
 
 export_string!(network_tcp_connect, args, {
-    tcp_connect(args.string(0), args.string(1), args.int(0))
+    let name = args.string(0).to_string();
+    let host = args.string(1).to_string();
+    let port = args.int(0);
+    while_interpreter_unlocked(|| tcp_connect(&name, &host, port))
 });
 
 export_string!(network_tcp_send, args, {
-    tcp_send(args.string(0), args.string(1))
+    let name = args.string(0).to_string();
+    let data = args.string(1).to_string();
+    while_interpreter_unlocked(|| tcp_send(&name, &data))
 });
 
 export_string!(network_tcp_receive, args, {
-    tcp_receive(args.string(0), args.int(0))
+    let name = args.string(0).to_string();
+    let size = args.int(0);
+    while_interpreter_unlocked(|| tcp_receive(&name, size))
 });
 
 export_string!(network_tcp_send_receive, args, {
-    tcp_send_receive(args.string(0), args.string(1), args.int(0))
+    let name = args.string(0).to_string();
+    let data = args.string(1).to_string();
+    let size = args.int(0);
+    while_interpreter_unlocked(|| tcp_send_receive(&name, &data, size))
 });
 
-export_string!(network_tcp_close, args, { tcp_close(args.string(0)) });
+export_string!(network_tcp_close, args, {
+    let name = args.string(0).to_string();
+    while_interpreter_unlocked(|| tcp_close(&name))
+});
 
 export_int!(network_is_port_open, args, {
-    is_port_open(args.string(0), args.int(0), args.int(1)) as i64
+    let host = args.string(0).to_string();
+    let port = args.int(0);
+    let timeout = args.int(1);
+    while_interpreter_unlocked(|| is_port_open(&host, port, timeout) as i64)
 });
 
 export_int!(network_ping, args, {
     // The original's reachability probe: TCP port 80 within three seconds.
-    is_port_open(args.string(0), 80, 3) as i64
+    let host = args.string(0).to_string();
+    while_interpreter_unlocked(|| is_port_open(&host, 80, 3) as i64)
 });
 
 export_string!(network_local_ip, args, {
     let _ = args;
-    local_ip()
+    while_interpreter_unlocked(local_ip)
 });
 
 const OPS: &[(&str, &str, &str)] = &[

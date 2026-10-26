@@ -18,14 +18,17 @@ global setup() {
 
 Built from the Rust crate `rust/network`.
 
+## Threading behavior
+
+Blocking network operations release the interpreter lock while waiting on DNS,
+HTTP, WebSocket, or TCP I/O. Server callback routes and other Lynxer threads can
+run during that wait; the caller resumes when the operation completes.
+
 ---
 
 ## HTTP Client
 
 Perform HTTP requests with support for all standard methods.
-HTTP calls release the interpreter lock while waiting on the socket. This lets
-server callback routes and other Lynxer threads run while an HTTP request is in
-flight, then resumes the caller after the response arrives.
 
 | Function | Description |
 |----------|-------------|
@@ -71,7 +74,9 @@ Plaintext TCP connections for custom protocols. Connections are managed using a 
 | **`tcpSendReceive(name, data, bufSize)`** | Sends data and waits for a response. |
 | **`tcpClose(name)`** | Closes the TCP connection. |
 
-**Timeouts**: Connections and receives time out after 30 seconds to prevent hanging.
+**Timeouts**: Each TCP connection attempt and receive is limited to 30 seconds
+to prevent hanging. `tcpConnect` tries each address returned by DNS until a
+connection succeeds or all addresses fail.
 
 ---
 
@@ -82,7 +87,7 @@ Check network reachability and retrieve local IP information.
 | Function | Description |
 |----------|-------------|
 | **`getLocalIP()`** | Returns the primary local IPv4 address. Falls back to the hostname's first non-loopback address and then `127.0.0.1`. |
-| **`isPortOpen(host, port, timeoutSecs)`** | Returns `true` if a TCP connection succeeds within the timeout. |
+| **`isPortOpen(host, port, timeoutSecs)`** | Tries each address returned by DNS with the given timeout; returns `true` when a connection succeeds. |
 | **`ping(host)`** | Checks if `host:80` is reachable within 3 seconds (original behavior). |
 
 ---

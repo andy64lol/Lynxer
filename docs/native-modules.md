@@ -62,6 +62,12 @@ type layouts become strings usable with the native-memory APIs. A module is
 initialised once per import and stays loaded for the lifetime of its namespace,
 so function pointers cannot become invalid while it is still in use.
 
+If the operating system cannot open an imported library, Lynxer includes the
+loader's reason in the import error (for example, a missing dependency or an
+incompatible library). A library that opens but lacks
+`lynxer_module_init_v1`, or whose initializer rejects registration, reports a
+native-module lifecycle failure instead.
+
 ## Explicit handle API
 
 | Function | Notes |

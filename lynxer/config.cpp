@@ -2,6 +2,7 @@
 
 #include "platform.hpp"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
@@ -86,6 +87,15 @@ bool loadConfigFile(const std::string& path,
 std::string executableDirectory() { return executableDirectoryImpl(); }
 
 std::string stdlibDirectory() {
+    if (const char* overridePath = std::getenv("LYNXER_STDLIB");
+        overridePath != nullptr && overridePath[0] != '\0') {
+        const std::filesystem::path overrideDirectory(overridePath);
+        std::error_code overrideError;
+        if (std::filesystem::is_directory(overrideDirectory, overrideError)) {
+            return overrideDirectory.string();
+        }
+    }
+
     const std::filesystem::path beside(executableDirectoryImpl());
     std::error_code error;
     const std::filesystem::path primary = beside / "stdlib";

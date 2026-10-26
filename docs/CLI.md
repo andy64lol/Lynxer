@@ -240,6 +240,7 @@ These are recognised and exit `1` with
 
 | Variable | Effect |
 |----------|--------|
+| `LYNXER_STDLIB=/path/to/stdlib` | use an existing directory for the bundled stdlib and `--list-stdlibs` |
 | `LYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
 | `LYNXER_GRAPHICS_HEADLESS=1` | run the `graphics` module without opening a window |
@@ -247,6 +248,11 @@ These are recognised and exit `1` with
 `LYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
 makes `make testLynxer` skip the display and audio fixtures. See
 [install.md](install.md#environment-variables).
+
+If `LYNXER_STDLIB` is unset, empty, or does not name an existing directory,
+Lynxer uses its normal executable-relative stdlib lookup. Imports still check
+project and local stdlib paths before this bundled-stdlib location; see
+[modules.md](modules.md#search-order).
 
 ## See also
 

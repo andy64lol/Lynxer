@@ -2365,7 +2365,10 @@ void ImportStatement::execute(Environment& environment) const {
                 : nativePath;
         void* handle = platform::openLibrary(loadPath);
         if (handle == nullptr) {
-            throw SourceError("could not load native module '" + path_ + "'",
+            const std::string reason = platform::lastLibraryError();
+            const std::string detail = reason.empty() ? "" : ": " + reason;
+            throw SourceError("could not load native module '" + path_ + "'" +
+                                  detail,
                               line_, column_);
         }
         auto initializer =

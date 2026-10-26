@@ -31,9 +31,19 @@ Both arguments must be **string literals**; an expression such as
 
 ## Search order
 
-1. The directory of the running program (for a compiled executable, the modules
-   embedded in its payload).
-2. `lynxer/stdlib/`, next to the interpreter.
+1. Embedded modules in a compiled executable.
+2. The importing source file's directory, then the current working directory.
+3. For a bare extensionless name, the nearest matching project module under
+   `modules/<name>/`.
+4. Local `stdlib/`, `lynxer/stdlib/` or `../lynxer/stdlib/` directories.
+5. The stdlib shipped beside the interpreter.
+
+Set `LYNXER_STDLIB` to an existing directory to choose the interpreter's
+bundled-stdlib location. It also selects the directory read by
+`--list-stdlibs`. For imports, this override is used at the final bundled
+fallback, after source-relative, project and local stdlib paths. If the
+variable is unset, empty, or names a missing directory, Lynxer uses its normal
+executable-relative lookup. See [install.md](install.md#environment-variables).
 
 - `import("math")` and `import("math.lynx")` are equivalent.
 - A relative path such as `import("helpers/text.lynx")` is resolved from the

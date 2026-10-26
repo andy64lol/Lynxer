@@ -125,12 +125,16 @@ from the repository root.
 
 | Variable | Used by | Effect |
 |----------|---------|--------|
+| `LYNXER_STDLIB=/path/to/stdlib` | the interpreter | use an existing directory as the bundled stdlib location and for `--list-stdlibs` |
 | `LYNXER_OPT_REPORT=1` | the interpreter | print the AST optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | the `game` module | run without opening a window |
 | `LYNXER_GRAPHICS_HEADLESS=1` | the `graphics` module | run without opening a window |
 | `LYNXER_SKIP_DISPLAY=1` | `make testLynxer` | skip the display and audio fixtures (used by CI) |
 
-The first three are described in more detail in
+`LYNXER_STDLIB` must name an existing directory; an unset, empty, or invalid
+value leaves the normal executable-relative lookup in place. For imports, the
+override is the final bundled-stdlib fallback, after project and local stdlib
+paths. The remaining variables are described in more detail in
 [CLI.md](CLI.md#environment-variables) and [limitations.md](limitations.md).
 
 ## See also
