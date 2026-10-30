@@ -192,7 +192,7 @@ void printUsage() {
 void printVersion() {
     const Config& config = Config::instance();
     std::cout << config.format("version.line", "Lynxer {0}", "{0}",
-                               config.get("version", "0.1.8.4"))
+                               config.get("version", "0.1.9b1"))
               << '\n';
 }
 

@@ -11,7 +11,7 @@
 ; entry.
 
 #define MyAppName "Lynxer"
-#define MyAppVersion "0.1.8.4"
+#define MyAppVersion "0.1.9b1"
 #define MyAppPublisher "andy64lol"
 #define MyAppURL "https://github.com/andy64lol/Lynxer"
 #define MyAppExeName "lynxer.exe"

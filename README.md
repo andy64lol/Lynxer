@@ -39,10 +39,10 @@ provide the interpreter, `--compile`, the embedding runtime, and
 
 ## Status
 
-**v0.1.8.4** — a standalone C++ implementation with:
+**v0.1.9b1** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
-- 40 standard-library modules, native (C++/Rust) backends included;
+- 46 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
 - class inheritance with `extends` and `super(...)`, first-class functions and closures, inferred generic parameters, and scoped named lambdas;
 - static analysis via `--lint`, a source debugger via `--debug`, and a language server in `lynxer/lsp.py`;
