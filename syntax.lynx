@@ -32,6 +32,7 @@ global setup(){
     import("time");
     import("random");
     import("sys");
+    import("raylib");
 
     // The empty-forever delay can only be set from setup().
     foreverDelay(0);
@@ -527,6 +528,23 @@ global main(){
             global.sys.getDefaultEncoding(), ", frozen=",
             global.sys.isFrozen());
     println("sys versionInfo: ", global.sys.versionInfo());
+
+    // --------------------------------------------------------------- raylib
+    // Window-free smoke test (no display needed).
+    println("raylib: flagWindowHidden=", global.raylib.flagWindowHidden(),
+            ", mouseButtonLeft=", global.raylib.mouseButtonLeft());
+    println("raylib: random=", global.raylib.getRandomValue(3, 3));
+    int redHandle = global.raylib.colorFromHSV(0.0, 1.0, 1.0);
+    println("raylib: color r/g/a=", global.raylib.colorGetR(redHandle), "/",
+            global.raylib.colorGetG(redHandle), "/",
+            global.raylib.colorGetA(redHandle));
+    global.raylib.colorFree(redHandle);
+    int vecHandle = global.raylib.vector2New(1.5, 2.5);
+    println("raylib: vec=", global.raylib.vector2GetX(vecHandle), ",",
+            global.raylib.vector2GetY(vecHandle));
+    global.raylib.vector2SetX(vecHandle, 9.0);
+    println("raylib: vecX=", global.raylib.vector2GetX(vecHandle));
+    global.raylib.vector2Free(vecHandle);
 
     // --------------------------------------------------------------- asserts
     assert(true, "assert passes");
