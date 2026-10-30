@@ -96,6 +96,7 @@
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/pdf.html">pdf</a></li>
@@ -155,7 +156,7 @@ make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></p
 <ul>
 <li><code>lynxer/lynxer</code> or <code>lynxer/lynxer.exe</code> — the interpreter for the build host.</li>
 <li><code>lynxer/lynxer-arm64</code> — the ARM64 interpreter, from <code>buildLynxerArm64</code>.</li>
-<li><code>lynxer/stdlib/*.so</code> — the Linux stdlib backends. The Rust-backed modules are produced by <code>cargo</code> under <code>lynxer/build/rust</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
+<li><code>lynxer/stdlib/*.so</code> — the Linux stdlib backends. The 27 Rust modules built from the <code>lynxer_stdlib</code> package land in <code>lynxer/build/rust/release/examples/</code>, <code>json</code> lands in <code>lynxer/build/rust/release/</code>, and the Makefile copies each to <code>stdlib/&lt;name&gt;.so</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
 <li>On Windows, <code>lynxer/stdlib/*.so</code> files contain MinGW PE DLLs while retaining the language-level module names used by the bundled wrappers.</li>
 </ul>
 <ul>
@@ -164,7 +165,7 @@ make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></p
 <ul>
 <li><code>lynxer/liblynxer.so</code> on Linux, or <code>lynxer/lynxer.dll</code> plus <code>lynxer/lynxer.dll.a</code> on Windows — the embedding runtime: the interpreter core (minus <code>main.cpp</code>) linked as a shared library, exporting only the <code>lynxer_embed_*</code> entry points. Libraries built by <code>lynxer --emit-library</code> link against it. <code>lynxer/lynxer.h</code> and <code>lynxer/ffi_abi.h</code> are its public headers.</li>
 </ul>
-<p>The Rust workspace has twenty-six member crates: the twenty-three stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>raylib</code>, <code>re</code>, <code>regex</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>text</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code>), the two crates they share (<code>rust/abi</code>, and <code>rust/regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
+<p>The Rust workspace has five member packages. <code>lynxer_stdlib</code> (the workspace root) owns the 27 module backend <code>cdylib</code> example targets listed in <code>LYNXER_RUST_MODULE_NAMES</code> except <code>json</code>: one <code>cargo build --examples</code> builds them all, in parallel, while each backend keeps its own crate root under <code>rust/&lt;name&gt;/src/</code>. <code>json</code> is a separate package because it is the only backend that enables <code>serde_json</code>'s <code>preserve_order</code> feature; Cargo unifies features across a package, and that feature would change the JSON key order every other module emits. The two crates the backends share are <code>rust/abi</code> (the C-ABI plumbing) and <code>rust/regex_engine</code> (the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>). <code>rust/ffi</code> is the required native-call engine: a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
 <h2 id="install">Install</h2>
 <pre><code>sudo ./lynxer/lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
 sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></pre>
@@ -187,12 +188,13 @@ sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></p
 <h2 id="environment-variables">Environment variables</h2>
 <table>
 <tr><th>Variable</th><th>Used by</th><th>Effect</th></tr>
+<tr><td><code>LYNXER_STDLIB=/path/to/stdlib</code></td><td>the interpreter</td><td>use an existing directory as the bundled stdlib location and for <code>--list-stdlibs</code></td></tr>
 <tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>the interpreter</td><td>print the AST optimizer counts to stderr after the run</td></tr>
 <tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>the <code>game</code> module</td><td>run without opening a window</td></tr>
 <tr><td><code>LYNXER_GRAPHICS_HEADLESS=1</code></td><td>the <code>graphics</code> module</td><td>run without opening a window</td></tr>
 <tr><td><code>LYNXER_SKIP_DISPLAY=1</code></td><td><code>make testLynxer</code></td><td>skip the display and audio fixtures (used by CI)</td></tr>
 </table>
-<p>The first three are described in more detail in <a href="CLI.html#environment-variables">CLI</a> and <a href="limitations.html">limitations</a>.</p>
+<p><code>LYNXER_STDLIB</code> must name an existing directory; an unset, empty, or invalid value leaves the normal executable-relative lookup in place. For imports, the override is the final bundled-stdlib fallback, after project and local stdlib paths. The remaining variables are described in more detail in <a href="CLI.html#environment-variables">CLI</a> and <a href="limitations.html">limitations</a>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="index.html">README</a> — the documentation index and what <code>make testLynxer</code> runs.</li>

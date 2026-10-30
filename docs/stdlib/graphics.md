@@ -300,11 +300,12 @@ read them after its `uiWindowEnd`/`uiGroupEnd`.
 
 ## Rust / C ABI
 
-The crate is `lynxer_graphics` under `rust/graphics`, a `cdylib` exporting
-`lynxer_module_init_v1` and `lynxer_module_attach_v1`. Every op is registered
-with the packed signature (`cdecl:int64(...)`, `cdecl:float64(...)` or
-`cdecl:cstring(...)`) because several take more than the four arguments the
-fixed grammar allows. See [native-module-abi.md](../native-module-abi.md).
+The backend is the `lynxer_graphics` `cdylib` example target in `rust/Cargo.toml`
+(source under `rust/graphics`), exporting `lynxer_module_init_v1` and
+`lynxer_module_attach_v1`. Every op is registered with the packed signature
+(`cdecl:int64(...)`, `cdecl:float64(...)` or `cdecl:cstring(...)`) because
+several take more than the four arguments the fixed grammar allows. See
+[native-module-abi.md](../native-module-abi.md).
 
 ## See also
 

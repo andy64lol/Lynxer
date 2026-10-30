@@ -26,7 +26,7 @@ conventions your module has to follow, and
 
 | | C++ (`stdlib/<name>.cpp`) | Rust (`rust/<name>/`) |
 | --- | --- | --- |
-| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `LYNXER_RUST_MODULE_NAMES` |
+| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add a `cdylib` example target and dependencies to `rust/Cargo.toml`, **and** its name to `LYNXER_RUST_MODULE_NAMES` |
 | Dependencies | Standard library only | Any crate, but it must build offline after `Cargo.lock` is committed |
 | Best for | POSIX calls, `<filesystem>`, `<chrono>`, small hand-written parsers | Anything with a real third-party crate: formats, protocols, GUI, audio, databases |
 | Signature | Fixed shape, packed `...`, or typed v2 value | Packed `...`, or direct typed v2 value |
@@ -82,8 +82,23 @@ around the Rust Unicode backend as well as a home for its string helpers.
 
 ### 3a. In Rust
 
-Add `rust/<name>/Cargo.toml` with `crate-type = ["cdylib"]`, depend on
-`lynxer_abi` by path, and write `rust/<name>/src/lib.rs`:
+Write `rust/<name>/src/lib.rs`, and declare it in `rust/Cargo.toml` as an
+example target:
+
+```toml
+[[example]]
+name = "lynxer_<name>"
+path = "<name>/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+```
+
+Cargo adds the `lib` prefix, so the target becomes the
+`liblynxer_<name>.so` artifact the Makefile copies to `stdlib/<name>.so`. Add
+the backend's dependencies to `[dependencies]` in the same manifest; they are
+shared with every other backend in the package. `json` is the exception: it is
+a separate package because its `serde_json/preserve_order` feature cannot be
+scoped to one target (see `rust/json/Cargo.toml`).
 
 ```rust
 //! `example` stdlib backend: double a number, join two words.
@@ -189,7 +204,7 @@ crate instead.
 
 **Rust** needs these edits:
 
-1. add the crate to the workspace members in `rust/Cargo.toml`;
+1. add the `cdylib` example target and its dependencies to `rust/Cargo.toml`;
 2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`;
 3. add its name to `LYNXER_LIST_STDLIB_MODULES` in the root `Makefile`, so the
    `--list-stdlibs` gate asserts the module is listed;
@@ -208,12 +223,14 @@ needs the toolchain, so a missing `cargo` or a failed build fails `make` rather
 than dropping the module. Keep `rust/Cargo.lock` committed: the module must
 build offline.
 
-`rust/ffi` is the one workspace member that is **not** a stdlib module: it is a
-`staticlib` native-call engine linked into the interpreter, built by its own
-Makefile rule and never added to `LYNXER_RUST_MODULE_NAMES` or installed into
-`stdlib/`. A C++ module that needs POSIX is
-gated with `LYNXER_POSIX_BUILTINS`, as the managed
-`filesystem*`/`process*`/`networking*` families are, and falls back to
+`rust/abi` and `rust/regex_engine` are shared library crates, not modules.
+`rust/json` is a module kept in its own package so its
+`serde_json/preserve_order` feature stays isolated. `rust/ffi` is the one
+workspace member that is **not** a stdlib module at all: it is a `staticlib`
+native-call engine linked into the interpreter, built by its own Makefile rule
+and never added to `LYNXER_RUST_MODULE_NAMES` or installed into `stdlib/`. A
+C++ module that needs POSIX is gated with `LYNXER_POSIX_BUILTINS`, as the
+managed `filesystem*`/`process*`/`networking*` families are, and falls back to
 `unsupportedTable()` otherwise.
 
 ---

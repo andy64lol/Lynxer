@@ -103,9 +103,16 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := email encoding crypto compress game graphics html image ini json lua markdown network pdf raylib re regex server sound sqldb text toml tui uuid watch xml yaml
+LYNXER_RUST_MODULE_NAMES := email encoding crypto compress game graphics html image ini json lua markdown network numutils pdf raylib re regex server sound sqldb text toml tui uuid watch xml yaml
 
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
+
+# One cargo invocation builds the 27 backends that share the lynxer_stdlib
+# package. `json` is a second invocation because it is the only module that
+# enables serde_json/preserve_order, and Cargo unifies dependency features
+# across every target in a package (see rust/Cargo.toml). The stamp is the
+# single prerequisite of the per-module copy rules below.
+LYNXER_RUST_STDLIB_STAMP := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_stdlib.stamp
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
 # directly into the interpreter, and cargo is required to build it.
@@ -288,10 +295,10 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug email encoding fileIO game graphics html image js json lua markdown math \
-	multiprocessing network os path pdf random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
+	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
- stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
+ stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch stdlib_numutils \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	foo_example range_for
@@ -519,18 +526,30 @@ $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
 
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
-# Cargo is required for each of them; a failure stops the whole build.
-$(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_%$(LYNXER_CDYLIB_SUFFIX): $(LYNXER_RUST_SOURCES)
-	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the Rust backend lynxer_$*"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_$* --release \
+# Cargo is required; a failure stops the whole build. The 27 modules that share
+# the lynxer_stdlib package are built by one `--examples` invocation, and json
+# by a second one so its serde_json features stay isolated (see rust/Cargo.toml).
+$(LYNXER_RUST_STDLIB_STAMP): $(LYNXER_RUST_SOURCES)
+	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the Rust backends"; exit 1; }
+	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_stdlib --examples --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
+	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_json --release \
+	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
+	@mkdir -p $(dir $@)
+	@touch $@
 
+# Cargo puts the example cdylibs in release/examples/; the json package is a
+# normal cdylib, so its artifact is in release/.
 define LYNXER_RUST_MODULE_RULE
-$(LYNXER_DIR)/stdlib/$(1).so: $(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_$(1)$(LYNXER_CDYLIB_SUFFIX)
-	@test -f $$< || { echo "lynxer: cargo did not produce $$<"; ls $(LYNXER_RUST_TARGET_DIR)/release/ | grep -i 'lynxer_$(1)' || true; exit 1; }
-	cp $$< $$@
+$(LYNXER_DIR)/stdlib/$(1).so: $(LYNXER_RUST_STDLIB_STAMP)
+	@test -f $(LYNXER_RUST_TARGET_DIR)/release/examples/$(LYNXER_CDYLIB_PREFIX)lynxer_$(1)$(LYNXER_CDYLIB_SUFFIX) || { echo "lynxer: cargo did not produce $(LYNXER_RUST_TARGET_DIR)/release/examples/$(LYNXER_CDYLIB_PREFIX)lynxer_$(1)$(LYNXER_CDYLIB_SUFFIX)"; ls $(LYNXER_RUST_TARGET_DIR)/release/examples/ | grep -i 'lynxer_$(1)' || true; exit 1; }
+	cp $(LYNXER_RUST_TARGET_DIR)/release/examples/$(LYNXER_CDYLIB_PREFIX)lynxer_$(1)$(LYNXER_CDYLIB_SUFFIX) $$@
 endef
-$(foreach name,$(LYNXER_RUST_MODULE_NAMES),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))
+$(foreach name,$(filter-out json,$(LYNXER_RUST_MODULE_NAMES)),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))
+
+$(LYNXER_DIR)/stdlib/json.so: $(LYNXER_RUST_STDLIB_STAMP)
+	@test -f $(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_json$(LYNXER_CDYLIB_SUFFIX) || { echo "lynxer: cargo did not produce $(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_json$(LYNXER_CDYLIB_SUFFIX)"; ls $(LYNXER_RUST_TARGET_DIR)/release/ | grep -i 'lynxer_json' || true; exit 1; }
+	cp $(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_json$(LYNXER_CDYLIB_SUFFIX) $@
 
 # The native-call engine: a Rust staticlib linked into the interpreter, not a
 # stdlib module. It is required, so a missing cargo is a hard error. `cargo

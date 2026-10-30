@@ -96,6 +96,7 @@
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/pdf.html">pdf</a></li>
@@ -149,9 +150,13 @@ global main(){}</code></pre>
 <p>Both arguments must be <strong>string literals</strong>; an expression such as <code>importAs(path, &quot;m&quot;)</code> is rejected with <code>expected module path string</code>. See <a href="importAs.html">importAs</a> for the alias rules.</p>
 <h2 id="search-order">Search order</h2>
 <ol>
-<li>The directory of the running program (for a compiled executable, the modules embedded in its payload).</li>
-<li><code>lynxer/stdlib/</code>, next to the interpreter.</li>
+<li>Embedded modules in a compiled executable.</li>
+<li>The importing source file's directory, then the current working directory.</li>
+<li>For a bare extensionless name, the nearest matching project module under <code>modules/&lt;name&gt;/</code>.</li>
+<li>Local <code>stdlib/</code>, <code>lynxer/stdlib/</code> or <code>../lynxer/stdlib/</code> directories.</li>
+<li>The stdlib shipped beside the interpreter.</li>
 </ol>
+<p>Set <code>LYNXER_STDLIB</code> to an existing directory to choose the interpreter's bundled-stdlib location. It also selects the directory read by <code>--list-stdlibs</code>. For imports, this override is used at the final bundled fallback, after source-relative, project and local stdlib paths. If the variable is unset, empty, or names a missing directory, Lynxer uses its normal executable-relative lookup. See <a href="install.html#environment-variables">install</a>.</p>
 <ul>
 <li><code>import(&quot;math&quot;)</code> and <code>import(&quot;math.lynx&quot;)</code> are equivalent.</li>
 <li>A relative path such as <code>import(&quot;helpers/text.lynx&quot;)</code> is resolved from the importing source file's directory. Imports inside that module are resolved from the module's own directory, so modules and their dependencies may live in separate directories.</li>

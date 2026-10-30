@@ -96,6 +96,7 @@
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/pdf.html">pdf</a></li>
@@ -175,7 +176,7 @@
 <p>There is no error channel across the ABI, so failures are in-band. Each module picks one family and applies it consistently:</p>
 <table>
 <tr><th>Family</th><th>Shape</th><th>Modules</th></tr>
-<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>crypto</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code>, <code>toml</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code></td></tr>
+<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>crypto</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>numutils</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code>, <code>toml</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code></td></tr>
 <tr><td>Process exit code</td><td>the command's exit status; a negative value when it did not run</td><td><code>shell</code></td></tr>
 <tr><td>Status string</td><td><code>&quot;ok&quot;</code> on success; <code>&quot;ERROR: &lt;message&gt;&quot;</code> on failure</td><td><code>compress</code>, <code>csv</code>, <code>network</code>, <code>server</code></td></tr>
 <tr><td>Error string</td><td><code>&quot;Error: &lt;message&gt;&quot;</code></td><td><code>js</code>, <code>lua</code>, <code>tui</code></td></tr>
@@ -225,6 +226,7 @@
 <tr><td><code>math</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>multiprocessing</code></td><td>C++</td><td><strong>integer handles</strong> for result sets</td><td>wrapper releases automatically</td></tr>
 <tr><td><code>network</code></td><td>Rust</td><td>WebSocket connections keyed by <strong>name</strong>; HTTP is stateless</td><td>caller: <code>wsClose(name)</code></td></tr>
+<tr><td><code>numutils</code></td><td>Rust</td><td>none — decimals and fractions are canonical strings</td><td>none</td></tr>
 <tr><td><code>os</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>path</code></td><td>C++</td><td>none — paths are strings</td><td>none</td></tr>
 <tr><td><code>random</code></td><td>C++</td><td>none — seeded generator lives in the backend</td><td>none</td></tr>

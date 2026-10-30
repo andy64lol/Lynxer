@@ -1,6 +1,342 @@
+[package]
+name = "lynxer_stdlib"
+version = "0.1.0"
+edition = "2021"
+description = "Rust standard-library backends for the Lynxer interpreter"
+publish = false
+
+# Every backend keeps its own crate root at `<module>/src/lib.rs`, so its `mod`
+# tree and `crate::` paths are unchanged. Declaring each one as an example
+# target with `crate-type = ["cdylib"]` still produces one shared library per
+# module -- the interpreter keeps dlopening `stdlib/<name>.so`, one module at a
+# time -- but a single `cargo build --examples` now builds all of them, and
+# Cargo compiles the independent crate roots in parallel.
+#
+# `json` is deliberately not in this list. It is the only backend that needs
+# `serde_json`'s `preserve_order` feature, and Cargo unifies features across
+# every target in a package. Enabling it here would switch every other
+# backend's `serde_json::Map` from a sorted map to an insertion-ordered one and
+# change the JSON key order those modules emit (the XML/YAML/TOML fixtures pin
+# it). It therefore stays a separate package, built by its own cargo
+# invocation; see `json/Cargo.toml`.
+[[example]]
+name = "lynxer_compress"
+path = "compress/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_crypto"
+path = "crypto/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_email"
+path = "email/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_encoding"
+path = "encoding/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_game"
+path = "game/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_graphics"
+path = "graphics/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_html"
+path = "html/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_image"
+path = "image/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_ini"
+path = "ini/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_lua"
+path = "lua/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_markdown"
+path = "markdown/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_network"
+path = "network/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_pdf"
+path = "pdf/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_raylib"
+path = "raylib/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_re"
+path = "re/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_regex"
+path = "regex/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_server"
+path = "server/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_sound"
+path = "sound/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_sqldb"
+path = "sqldb/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_text"
+path = "text/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_toml"
+path = "toml/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_tui"
+path = "tui/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_uuid"
+path = "uuid/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_watch"
+path = "watch/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_xml"
+path = "xml/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_yaml"
+path = "yaml/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[[example]]
+name = "lynxer_numutils"
+path = "numutils/src/lib.rs"
+crate-type = ["cdylib"]
+test = true
+
+[dependencies]
+# Shared FFI plumbing and the `fancy-regex` engine behind `re`/`regex`.
+lynxer_abi = { path = "abi" }
+lynxer_regex_engine = { path = "regex_engine" }
+
+# compress: one crate per codec family. `flate2` is pure Rust (miniz_oxide);
+# `zstd` vendors the zstd C sources, which `cc` builds; `bzip2` is optional but
+# adds a widely-used archive/stream format without affecting the other codecs.
+flate2 = "1.1.10"
+zstd = "0.13"
+bzip2 = "0.4"
+brotli = "7"
+lz4_flex = "0.11"
+zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "aes-crypto"] }
+tar = "0.4"
+
+# crypto: hash families, keyed hashing, constant-time comparison, OS entropy
+# and Ed25519 signatures.
+sha2 = "0.10"
+sha1 = "0.10"
+md-5 = "0.10"
+sha3 = "0.10"
+blake3 = "1"
+digest = "0.10"
+hmac = "0.12"
+subtle = "2"
+getrandom = "0.2"
+ed25519-dalek = "2"
+
+# email.
+mailparse = "0.15"
+
+# encoding: one crate per codec family, all pure Rust and small.
+data-encoding = "2"
+bs58 = "0.5"
+ascii85 = "0.2"
+percent-encoding = "2"
+quoted_printable = "0.5"
+
+# game / graphics / sound: macroquad draws, fontdue rasterizes headless text,
+# and rodio/cpal/symphonia cover audio playback and decoding.
+macroquad = "0.4"
+fontdue = "0.9"
+rodio = "0.17"
+cpal = "0.15"
+symphonia = { version = "0.5", features = ["mp3"] }
+
+# html parsing and querying.
+scraper = "0.24"
+
+# image codecs and SVG rasterization.
+image = { version = "0.25", default-features = false, features = [
+    "bmp",
+    "exr",
+    "ff",
+    "gif",
+    "hdr",
+    "ico",
+    "jpeg",
+    "png",
+    "pnm",
+    "qoi",
+    "tga",
+    "tiff",
+    "webp",
+] }
+resvg = "0.48"
+
+# ini.
+rust-ini = "0.21"
+
+# lua: `vendored` compiles Lua 5.4 from source, so no system Lua is required.
+mlua = { version = "0.12", features = ["lua54", "vendored"] }
+
+# markdown/tui: CommonMark rendering, terminal UI and syntax highlighting.
+pulldown-cmark = "0.13"
+ratatui = "0.24"
+crossterm = "0.27"
+unicode-width = "0.1"
+syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+
+# network/server: rustls instead of OpenSSL, so no system TLS dependency.
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
+tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
+url = "2"
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt", "net", "sync"] }
+form_urlencoded = "1"
+axum-server = { version = "0.8", default-features = false, features = ["tls-rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2"
+rcgen = "0.14"
+
+# pdf.
+printpdf = "0.7"
+lopdf = "0.34"
+
+# raylib 6.0 bindings.
+raylib-sys = { version = "6.0.0", features = ["WITH_PIC"] }
+
+# sqldb: `bundled` compiles SQLite from source, so the module has no system
+# sqlite3 dependency (the Windows toolchain ships none).
+rusqlite = { version = "0.29", features = ["blob", "bundled"] }
+
+# toml.
+toml = "0.8"
+
+# numutils: exact decimal and rational arithmetic.
+rust_decimal = "1"
+num-rational = "0.4"
+num-bigint = "0.4"
+num-traits = "0.2"
+
+# uuid: v3/v5 hash, v4 random, v7 time-ordered.
+uuid = { version = "1", features = ["v3", "v4", "v5", "v7"] }
+
+# xml/yaml.
+quick-xml = "0.42"
+serde_yml = "0.0"
+
+# Payloads and documents that cross the ABI. `serde_json` intentionally keeps
+# its default (sorted) map: `json` is the one module that needs insertion order
+# and lives in its own package.
+base64 = "0.22"
+hex = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# network: gethostname(2) for `getHostname`; watch: inotify/kqueue flags.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+# watch: `ReadDirectoryChangesW` and overlapped-I/O handles for the Windows
+# backend. Feature-gated so POSIX builds do not compile Win32 code.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Threading",
+] }
+
+# watch: the inotify backend directly, not `notify`: the design exposes the
+# watch descriptor (watchFd) for the interpreter's poll set, which `notify`
+# does not.
+[target.'cfg(target_os = "linux")'.dependencies]
+inotify = "0.10"
+
 [workspace]
 resolver = "2"
-members = ["abi", "compress", "crypto", "email", "encoding", "game", "graphics", "html", "image", "ini", "json", "lua", "markdown", "network", "pdf", "raylib", "re", "regex", "regex_engine", "server", "sound", "sqldb", "text", "toml", "tui", "uuid", "watch", "xml", "yaml", "ffi"]
+# The root package is the implicit first member. `abi` and `regex_engine` are
+# shared libraries; `json` is a module kept out of the root package so its
+# `serde_json/preserve_order` feature cannot leak into the others; `ffi` is the
+# native-call engine linked into the interpreter, not a stdlib module.
+members = ["abi", "json", "regex_engine", "ffi"]
 
 # Every module is built by the lynxer Makefile with an explicit --target-dir
 # (lynxer/build/rust), so this profile applies to the whole workspace.

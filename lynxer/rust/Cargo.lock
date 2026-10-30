@@ -258,12 +258,6 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.21.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
-
-[[package]]
-name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
@@ -380,6 +374,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
 dependencies = [
  "hybrid-array",
+]
+
+[[package]]
+name = "borsh"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "553c5d846a6ba5150c65e3b1b8ec073bcf1abc20f9b7220de384a4443ea4e20a"
+dependencies = [
+ "borsh-derive",
+ "bytes",
+ "cfg_aliases",
+]
+
+[[package]]
+name = "borsh-derive"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12cdfe656708a01f89b451a7d36466e6fe6c414de0aa18fc54f864f6f9ca9f56"
+dependencies = [
+ "once_cell",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
 ]
 
 [[package]]
@@ -534,6 +552,12 @@ name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
+
+[[package]]
+name = "cfg_aliases"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
 name = "chacha20"
@@ -2145,121 +2169,10 @@ name = "lynxer_abi"
 version = "0.1.0"
 
 [[package]]
-name = "lynxer_compress"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "brotli",
- "bzip2 0.4.4",
- "flate2",
- "lynxer_abi",
- "lz4_flex",
- "serde",
- "serde_json",
- "tar",
- "zip",
- "zstd",
-]
-
-[[package]]
-name = "lynxer_crypto"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "blake3",
- "digest 0.10.7",
- "ed25519-dalek",
- "getrandom 0.2.17",
- "hex",
- "hmac",
- "lynxer_abi",
- "md-5",
- "serde",
- "serde_json",
- "sha1 0.10.7",
- "sha2",
- "sha3",
- "subtle",
-]
-
-[[package]]
-name = "lynxer_email"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "lynxer_abi",
- "mailparse",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_encoding"
-version = "0.1.0"
-dependencies = [
- "ascii85",
- "base64 0.22.1",
- "bs58",
- "data-encoding",
- "hex",
- "lynxer_abi",
- "percent-encoding",
- "quoted_printable",
-]
-
-[[package]]
 name = "lynxer_ffi"
 version = "0.1.0"
 dependencies = [
  "libffi",
-]
-
-[[package]]
-name = "lynxer_game"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "flate2",
- "lynxer_abi",
- "macroquad",
- "rodio",
-]
-
-[[package]]
-name = "lynxer_graphics"
-version = "0.1.0"
-dependencies = [
- "fontdue",
- "lynxer_abi",
- "macroquad",
-]
-
-[[package]]
-name = "lynxer_html"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "scraper",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_image"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "fontdue",
- "image 0.25.10",
- "lynxer_abi",
- "resvg",
-]
-
-[[package]]
-name = "lynxer_ini"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "rust-ini",
- "serde_json",
 ]
 
 [[package]]
@@ -2272,70 +2185,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lynxer_lua"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "mlua",
-]
-
-[[package]]
-name = "lynxer_markdown"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "pulldown-cmark 0.13.4",
-]
-
-[[package]]
-name = "lynxer_network"
-version = "0.1.0"
-dependencies = [
- "libc",
- "lynxer_abi",
- "percent-encoding",
- "serde",
- "serde_json",
- "tungstenite 0.30.0",
- "ureq",
- "url",
-]
-
-[[package]]
-name = "lynxer_pdf"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "lopdf 0.34.0",
- "lynxer_abi",
- "printpdf",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_raylib"
-version = "0.1.0"
-dependencies = [
- "raylib-sys",
-]
-
-[[package]]
-name = "lynxer_re"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "lynxer_regex_engine",
-]
-
-[[package]]
-name = "lynxer_regex"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "lynxer_regex_engine",
-]
-
-[[package]]
 name = "lynxer_regex_engine"
 version = "0.1.0"
 dependencies = [
@@ -2343,108 +2192,78 @@ dependencies = [
 ]
 
 [[package]]
-name = "lynxer_server"
+name = "lynxer_stdlib"
 version = "0.1.0"
 dependencies = [
+ "ascii85",
  "axum",
  "axum-server",
- "form_urlencoded",
- "lynxer_abi",
- "percent-encoding",
- "rcgen",
- "rustls",
- "rustls-pemfile",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "lynxer_sound"
-version = "0.1.0"
-dependencies = [
+ "base64 0.22.1",
+ "blake3",
+ "brotli",
+ "bs58",
+ "bzip2 0.4.4",
  "cpal",
- "lynxer_abi",
- "rodio",
- "symphonia",
-]
-
-[[package]]
-name = "lynxer_sqldb"
-version = "0.1.0"
-dependencies = [
- "base64 0.21.7",
- "lynxer_abi",
- "rusqlite",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_text"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
-]
-
-[[package]]
-name = "lynxer_toml"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "serde_json",
- "toml",
-]
-
-[[package]]
-name = "lynxer_tui"
-version = "0.1.0"
-dependencies = [
  "crossterm",
+ "data-encoding",
+ "digest 0.10.7",
+ "ed25519-dalek",
+ "flate2",
+ "fontdue",
+ "form_urlencoded",
+ "getrandom 0.2.17",
+ "hex",
+ "hmac",
  "image 0.25.10",
- "lynxer_abi",
- "pulldown-cmark 0.12.2",
- "ratatui",
- "serde_json",
- "syntect",
- "unicode-width 0.1.14",
-]
-
-[[package]]
-name = "lynxer_uuid"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "uuid",
-]
-
-[[package]]
-name = "lynxer_watch"
-version = "0.1.0"
-dependencies = [
  "inotify",
  "libc",
+ "lopdf 0.34.0",
  "lynxer_abi",
- "serde",
- "serde_json",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "lynxer_xml"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
+ "lynxer_regex_engine",
+ "lz4_flex",
+ "macroquad",
+ "mailparse",
+ "md-5",
+ "mlua",
+ "num-bigint",
+ "num-rational",
+ "num-traits",
+ "percent-encoding",
+ "printpdf",
+ "pulldown-cmark",
  "quick-xml",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_yaml"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
+ "quoted_printable",
+ "ratatui",
+ "raylib-sys",
+ "rcgen",
+ "resvg",
+ "rodio",
+ "rusqlite",
+ "rust-ini",
+ "rust_decimal",
+ "rustls",
+ "rustls-pemfile",
+ "scraper",
  "serde",
  "serde_json",
  "serde_yml",
+ "sha1 0.10.7",
+ "sha2",
+ "sha3",
+ "subtle",
+ "symphonia",
+ "syntect",
+ "tar",
+ "tokio",
+ "toml",
+ "tungstenite 0.30.0",
+ "unicode-width 0.1.14",
+ "ureq",
+ "url",
+ "uuid",
+ "windows-sys 0.61.2",
+ "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -2810,6 +2629,17 @@ version = "0.1.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ce2d95d4b3734dc35aa2f45e1aa22cd416814592a4f9d9205e11affd5b8e10b"
 dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
+dependencies = [
+ "num-bigint",
+ "num-integer",
  "num-traits",
 ]
 
@@ -3189,19 +3019,6 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags 2.13.2",
- "getopts",
- "memchr",
- "pulldown-cmark-escape",
- "unicase",
-]
-
-[[package]]
-name = "pulldown-cmark"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
@@ -3311,6 +3128,8 @@ version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e058c7de0b26af77780c769414d6257830bb240f3c38477dbc2c16e5f54d6d4c"
 dependencies = [
+ "libc",
+ "rand_chacha 0.3.1",
  "rand_core 0.6.4",
 ]
 
@@ -3320,7 +3139,7 @@ version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9ef1d0d795eb7d84685bca4f72f3649f064e6641543d3a8c415898726a57b41"
 dependencies = [
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_core 0.9.5",
 ]
 
@@ -3333,6 +3152,16 @@ dependencies = [
  "chacha20",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -3593,6 +3422,23 @@ checksum = "796e8d2b6696392a43bea58116b667fb4c29727dc5abd27d6acf338bb4f688c7"
 dependencies = [
  "cfg-if",
  "ordered-multimap",
+]
+
+[[package]]
+name = "rust_decimal"
+version = "1.43.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7653272e75dcac41dc199fbea6f5797633994fafd339943c06c9af16bf29cd3a"
+dependencies = [
+ "arrayvec",
+ "borsh",
+ "bytes",
+ "num-traits",
+ "rand 0.8.8",
+ "rand 0.9.5",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4956,6 +4802,7 @@ dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
+ "serde",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
 ]

@@ -1,0 +1,168 @@
+////
+Lynxer standard library: numutils.
+Exact decimal and rational (fraction) arithmetic, backed by Rust crates
+(`rust_decimal`, `num-rational`) and exposed through the native module
+`stdlib/numutils.so`.
+
+Floating point makes `0.1 + 0.2` print as `0.30000000000000004`. This module
+keeps values as canonical strings and does the arithmetic exactly, so results
+round-trip cleanly. Use the `*ToFloat` helpers (or `int()`) to get a native
+number back when needed.
+
+Requires a Rust toolchain to build (see `rust/numutils`).
+////
+global setup(){ importAs("numutils.so", "nativeNumutils"); }
+
+// --- decimal ---------------------------------------------------------------
+
+// Constructs a canonical decimal string from any value (int, float, or str).
+global decimal(any value) -> str {
+    if (returnType(value) is "int") { return global.nativeNumutils.decimalFromInt(value); }
+    if (returnType(value) is "float") { return global.nativeNumutils.decimalFromFloat(value); }
+    return global.nativeNumutils.decimalFromStr(strOf(value));
+}
+
+// Exact decimal arithmetic. Operands may be int, float, str, or decimal strings.
+global decimalAdd(any a, any b) -> str {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalAdd(da, db);
+}
+global decimalSub(any a, any b) -> str {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalSub(da, db);
+}
+global decimalMul(any a, any b) -> str {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalMul(da, db);
+}
+global decimalDiv(any a, any b) -> str {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalDiv(da, db);
+}
+// Division rounded to `places` decimal places.
+global decimalDivScale(any a, any b, int places) -> str {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalDivScale(da, db, places);
+}
+global decimalNeg(any value) -> str {
+    return global.nativeNumutils.decimalNeg(decimal(value));
+}
+global decimalAbs(any value) -> str {
+    return global.nativeNumutils.decimalAbs(decimal(value));
+}
+global decimalRound(any value, int places) -> str {
+    return global.nativeNumutils.decimalRound(decimal(value), places);
+}
+// Returns -1 / 0 / 1.
+global decimalCmp(any a, any b) -> int {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalCmp(da, db);
+}
+global decimalEq(any a, any b) -> bool {
+    str da = decimal(a);
+    str db = decimal(b);
+    return global.nativeNumutils.decimalEq(da, db) isnt 0;
+}
+global decimalPow(any value, int exponent) -> str {
+    return global.nativeNumutils.decimalPow(decimal(value), exponent);
+}
+global decimalToFloat(str value) -> float {
+    return global.nativeNumutils.decimalToFloat(value);
+}
+global decimalToInt(str value) -> int {
+    return global.nativeNumutils.decimalToInt(value);
+}
+
+// --- fraction --------------------------------------------------------------
+
+// Builds a canonical (reduced) fraction string from a numerator and denominator.
+global fraction(any num, any den) -> str {
+    if (returnType(num) is "int" and returnType(den) is "int") {
+        return global.nativeNumutils.fractionFromInts(num, den);
+    }
+    str n = decimal(num);
+    str d = decimal(den);
+    str fracN = global.nativeNumutils.fractionFromDecimal(n);
+    str fracD = global.nativeNumutils.fractionFromDecimal(d);
+    // divide the two fractions
+    return global.nativeNumutils.fractionDiv(fracN, fracD);
+}
+// Parses a fraction string ("a/b" or an integer).
+global fractionParse(str value) -> str {
+    return global.nativeNumutils.fractionFromStr(value);
+}
+
+global fractionAdd(any a, any b) -> str {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionAdd(fa, fb);
+}
+global fractionSub(any a, any b) -> str {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionSub(fa, fb);
+}
+global fractionMul(any a, any b) -> str {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionMul(fa, fb);
+}
+global fractionDiv(any a, any b) -> str {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionDiv(fa, fb);
+}
+global fractionNeg(any value) -> str {
+    return global.nativeNumutils.fractionNeg(fractionToFraction(value));
+}
+global fractionAbs(any value) -> str {
+    return global.nativeNumutils.fractionAbs(fractionToFraction(value));
+}
+global fractionCmp(any a, any b) -> int {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionCmp(fa, fb);
+}
+global fractionEq(any a, any b) -> bool {
+    str fa = fractionToFraction(a);
+    str fb = fractionToFraction(b);
+    return global.nativeNumutils.fractionEq(fa, fb) isnt 0;
+}
+global fractionToFloat(str value) -> float {
+    return global.nativeNumutils.fractionToFloat(value);
+}
+global fractionToDecimal(str value, int places) -> str {
+    return global.nativeNumutils.fractionToDecimal(value, places);
+}
+global fractionNumerator(str value) -> str {
+    return global.nativeNumutils.fractionNumerator(value);
+}
+global fractionDenominator(str value) -> str {
+    return global.nativeNumutils.fractionDenominator(value);
+}
+
+// helper: normalize any value into a fraction string
+global fractionToFraction(any value) -> str {
+    if (returnType(value) is "str") {
+        str s = value;
+        return global.nativeNumutils.fractionFromStr(s);
+    }
+    if (returnType(value) is "int") {
+        return global.nativeNumutils.fractionFromInts(value, 1);
+    }
+    str d = decimal(value);
+    return global.nativeNumutils.fractionFromDecimal(d);
+}
+
+// --- misc ------------------------------------------------------------------
+
+// Returns the shortest round-tripping decimal text for a float.
+global cleanFloat(float value) -> str {
+    return global.nativeNumutils.cleanFloat(value);
+}

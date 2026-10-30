@@ -46,9 +46,10 @@ The Makefile lives at the repository root; there is no separate
 
 - `lynxer/lynxer` or `lynxer/lynxer.exe` — the interpreter for the build host.
 - `lynxer/lynxer-arm64` — the ARM64 interpreter, from `buildLynxerArm64`.
-- `lynxer/stdlib/*.so` — the Linux stdlib backends. The Rust-backed modules are
-  produced by `cargo` under `lynxer/build/rust`; the C++ ones are compiled
-  from `stdlib/*.cpp`.
+- `lynxer/stdlib/*.so` — the Linux stdlib backends. The 27 Rust modules built
+  from the `lynxer_stdlib` package land in `lynxer/build/rust/release/examples/`,
+  `json` lands in `lynxer/build/rust/release/`, and the Makefile copies each to
+  `stdlib/<name>.so`; the C++ ones are compiled from `stdlib/*.cpp`.
 - On Windows, `lynxer/stdlib/*.so` files contain MinGW PE DLLs while retaining
   the language-level module names used by the bundled wrappers.
 
@@ -62,13 +63,19 @@ The Makefile lives at the repository root; there is no separate
   entry points. Libraries built by `lynxer --emit-library` link against it.
   `lynxer/lynxer.h` and `lynxer/ffi_abi.h` are its public headers.
 
-The Rust workspace has twenty-six member crates: the twenty-three stdlib module
-backends listed in `LYNXER_RUST_MODULE_NAMES` (`compress`, `crypto`, `encoding`,
-`game`, `graphics`, `image`, `ini`, `json`, `lua`, `network`, `raylib`, `re`,
-`regex`, `server`, `sound`, `sqldb`, `text`, `toml`, `tui`, `uuid`, `watch`,
-`xml`, `yaml`), the two crates they share (`rust/abi`, and `rust/regex_engine`,
-the `fancy-regex` engine behind `re`/`regex`), and `rust/ffi`, the required
-native-call engine described in
+The Rust workspace has five member packages. `lynxer_stdlib` (the workspace
+root) owns the 27 module backend `cdylib` example targets listed in
+`LYNXER_RUST_MODULE_NAMES` except `json`: one `cargo build --examples` builds
+them all, in parallel, while each backend keeps its own crate root under
+`rust/<name>/src/`. `json` is a separate package because it is the only backend
+that enables `serde_json`'s `preserve_order` feature; Cargo unifies features
+across a package, and that feature would change the JSON key order every other
+module emits. The two crates the backends share are `rust/abi` (the C-ABI
+plumbing) and `rust/regex_engine` (the `fancy-regex` engine behind
+`re`/`regex`). `rust/ffi` is the required native-call engine: a `staticlib`
+linked into the interpreter through `lynxer/ffi_abi.h`, not a stdlib module. It
+is built on the `libffi` crate, so `cargo` and `libffi` headers are required to
+build the interpreter; see
 [native-module-abi.md](native-module-abi.md#the-native-call-engine).
 
 ## Install

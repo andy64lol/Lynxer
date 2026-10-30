@@ -96,6 +96,7 @@
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/pdf.html">pdf</a></li>
@@ -134,7 +135,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone Linux and Windows executables, 40 natively backed modules, an AST optimizer, a frozen native-module ABI, a source debugger, a language server and performance benchmarks. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone Linux and Windows executables, 41 natively backed modules, an AST optimizer, a frozen native-module ABI, a source debugger, a language server and performance benchmarks. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -201,7 +202,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-linux-amd64.yml</code> and <code>build-lynxer-linux-arm64.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 43 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 46 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from the <code>lynxer_stdlib</code> package under <code>rust/</code> (<code>json</code> is its own package in the same workspace); <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
@@ -222,6 +223,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/math.html">math</a></td><td>native</td><td><code>&lt;cmath&gt;</code> plus statistics and vector helpers</td></tr>
 <tr><td><a href="stdlib/multiprocessing.html">multiprocessing</a></td><td>native + pure</td><td><code>std::thread</code> and shell subprocesses</td></tr>
 <tr><td><a href="stdlib/network.html">network</a></td><td>Rust</td><td><code>ureq</code> + <code>tungstenite</code> over <code>rustls</code></td></tr>
+<tr><td><a href="stdlib/numutils.html">numutils</a></td><td>Rust</td><td>exact decimal (<code>rust_decimal</code>) and rational (<code>num-rational</code>) arithmetic (<code>rust/numutils</code>)</td></tr>
 <tr><td><a href="stdlib/os.html">os</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX</td></tr>
 <tr><td><a href="stdlib/path.html">path</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX <code>stat</code></td></tr>
 <tr><td><a href="stdlib/random.html">random</a></td><td>native</td><td>seeded linear congruential generator in C++</td></tr>
@@ -243,7 +245,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/xml.html">xml</a></td><td>Rust</td><td><code>quick-xml</code> (<code>rust/xml</code>)</td></tr>
 <tr><td><a href="stdlib/yaml.html">yaml</a></td><td>Rust</td><td><code>serde_yml</code> (<code>rust/yaml</code>)</td></tr>
 </table>
-<p>The Rust workspace has twenty-six member crates: the twenty-three module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the two crates they share (<code>abi</code>, and <code>regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p>The Rust workspace has five member packages. <code>lynxer_stdlib</code> (the workspace root) owns the 27 module <code>cdylib</code> example targets other than <code>json</code>; one <code>cargo build --examples</code> builds them all in parallel, and each backend keeps its own crate root under <code>rust/&lt;name&gt;/src/</code>. <code>json</code> is a separate package because it is the only backend that enables <code>serde_json</code>'s <code>preserve_order</code> feature: Cargo unifies features across a package, and that feature would change the JSON key order every other module emits. The shared library crates are <code>abi</code> and <code>regex_engine</code> (the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>). <code>ffi</code> is the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
 <p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>
 <h2 id="compiling-a-program">Compiling a program</h2>
 <p><code>--compile</code> produces one self-contained executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>
@@ -252,7 +254,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>The first <code>.lynx</code> file is the program; further <code>.lynx</code>/<code>.so</code> inputs are embedded and importable by name. A non-<code>.lynx</code>/<code>.so</code> include is embedded as data and read with <code>bundledFile(name)</code> / <code>bundledFiles()</code>. See <a href="CLI.html#compile-to-an-executable">CLI</a>.</p>
 <h2 id="adding-a-stdlib-module">Adding a stdlib module</h2>
 <ol>
-<li>Write the backend. A C++ module is <code>stdlib/&lt;name&gt;.cpp</code> exporting <code>lynxer_module_init_v1</code> and one <code>extern &quot;C&quot;</code> function per entry; it is picked up automatically by the <code>stdlib/*.cpp</code> wildcard. A Rust module is a crate under <code>rust/</code> exporting the same entry point plus one <code>#[no_mangle] extern &quot;C&quot;</code> op per entry (the <code>lynxer_abi</code> crate provides the packing, panic guards, and registration helper); add it to the workspace and to <code>LYNXER_RUST_MODULE_NAMES</code> in the root Makefile. See <a href="native-module-abi.html">native-module-abi</a>.</li>
+<li>Write the backend. A C++ module is <code>stdlib/&lt;name&gt;.cpp</code> exporting <code>lynxer_module_init_v1</code> and one <code>extern &quot;C&quot;</code> function per entry; it is picked up automatically by the <code>stdlib/*.cpp</code> wildcard. A Rust module is a crate root at <code>rust/&lt;name&gt;/src/lib.rs</code>, declared as a <code>cdylib</code> example target in <code>rust/Cargo.toml</code>, exporting the same entry point plus one <code>#[no_mangle] extern &quot;C&quot;</code> op per entry (the <code>lynxer_abi</code> crate provides the packing, panic guards, and registration helper); add it there and to <code>LYNXER_RUST_MODULE_NAMES</code> in the root Makefile. See <a href="native-module-abi.html">native-module-abi</a>.</li>
 </ol>
 <p><strong>An op generated by a Rust <code>export_*!</code> macro must use a packed signature</strong> — <code>cdecl:int64(...)</code>, <code>cdecl:float64(...)</code>, or <code>cdecl:cstring(...)</code> — never a fixed shape such as <code>cdecl:int64(int64)</code>. The <code>export_*!</code> macros generate a four-scalar packed prototype, so a fixed-shape declaration calls the symbol through the wrong C prototype and <strong>segfaults on the first call</strong>, with no build-time warning. A hand-written Rust op can use <code>cdecl:v2:value(value)</code> for typed aggregates; see <a href="native-module-abi.html#versioned-typed-aggregate-values">native-module-abi</a>.</p>
 <ol>

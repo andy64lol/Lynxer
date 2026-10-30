@@ -96,6 +96,7 @@
 <li><a href="math.html">math</a></li>
 <li><a href="multiprocessing.html">multiprocessing</a></li>
 <li><a href="network.html" class="active">network</a></li>
+<li><a href="numutils.html">numutils</a></li>
 <li><a href="os.html">os</a></li>
 <li><a href="path.html">path</a></li>
 <li><a href="pdf.html">pdf</a></li>
@@ -146,9 +147,11 @@
 <li><strong>URL Parsing</strong>: Extract and manipulate URL components.</li>
 </ul>
 <p>Built from the Rust crate <code>rust/network</code>.</p>
+<h2 id="threading-behavior">Threading behavior</h2>
+<p>Blocking network operations release the interpreter lock while waiting on DNS, HTTP, WebSocket, or TCP I/O. Server callback routes and other Lynxer threads can run during that wait; the caller resumes when the operation completes.</p>
 <hr>
 <h2 id="http-client">HTTP Client</h2>
-<p>Perform HTTP requests with support for all standard methods. HTTP calls release the interpreter lock while waiting on the socket. This lets server callback routes and other Lynxer threads run while an HTTP request is in flight, then resumes the caller after the response arrives.</p>
+<p>Perform HTTP requests with support for all standard methods.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
 <tr><td><strong><code>get(url)</code></strong></td><td>Fetches the response body or returns an error.</td></tr>
@@ -187,14 +190,14 @@
 <tr><td><strong><code>tcpSendReceive(name, data, bufSize)</code></strong></td><td>Sends data and waits for a response.</td></tr>
 <tr><td><strong><code>tcpClose(name)</code></strong></td><td>Closes the TCP connection.</td></tr>
 </table>
-<p><strong>Timeouts</strong>: Connections and receives time out after 30 seconds to prevent hanging.</p>
+<p><strong>Timeouts</strong>: Each TCP connection attempt and receive is limited to 30 seconds to prevent hanging. <code>tcpConnect</code> tries each address returned by DNS until a connection succeeds or all addresses fail.</p>
 <hr>
 <h2 id="host-and-reachability-helpers">Host and Reachability Helpers</h2>
 <p>Check network reachability and retrieve local IP information.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
 <tr><td><strong><code>getLocalIP()</code></strong></td><td>Returns the primary local IPv4 address. Falls back to the hostname's first non-loopback address and then <code>127.0.0.1</code>.</td></tr>
-<tr><td><strong><code>isPortOpen(host, port, timeoutSecs)</code></strong></td><td>Returns <code>true</code> if a TCP connection succeeds within the timeout.</td></tr>
+<tr><td><strong><code>isPortOpen(host, port, timeoutSecs)</code></strong></td><td>Tries each address returned by DNS with the given timeout; returns <code>true</code> when a connection succeeds.</td></tr>
 <tr><td><strong><code>ping(host)</code></strong></td><td>Checks if <code>host:80</code> is reachable within 3 seconds (original behavior).</td></tr>
 </table>
 <hr>

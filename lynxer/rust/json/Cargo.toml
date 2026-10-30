@@ -5,6 +5,11 @@ edition = "2021"
 description = "serde_json backend for the Lynxer `json` stdlib module"
 publish = false
 
+# This package is deliberately separate from the workspace's root
+# `lynxer_stdlib` package. Its `serde_json/preserve_order` feature would
+# otherwise be unified into every other module built from that package,
+# changing the JSON key order those backends emit. The Makefile builds it with
+# its own `cargo build -p lynxer_json` invocation.
 [lib]
 name = "lynxer_json"
 crate-type = ["cdylib"]

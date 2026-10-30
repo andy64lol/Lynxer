@@ -79,7 +79,7 @@ picks one family and applies it consistently:
 
 | Family | Shape | Modules |
 | --- | --- | --- |
-| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `crypto`, `debug`, `encoding`, `fileIO`, `game`, `image`, `ini`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `toml`, `uuid`, `watch`, `xml`, `yaml` |
+| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `crypto`, `debug`, `encoding`, `fileIO`, `game`, `image`, `ini`, `json`, `math`, `multiprocessing`, `numutils`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `toml`, `uuid`, `watch`, `xml`, `yaml` |
 | Process exit code | the command's exit status; a negative value when it did not run | `shell` |
 | Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `compress`, `csv`, `network`, `server` |
 | Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
@@ -169,6 +169,7 @@ Any future callback must be declared here before the module ships.
 | `math` | C++ | none | none |
 | `multiprocessing` | C++ | **integer handles** for result sets | wrapper releases automatically |
 | `network` | Rust | WebSocket connections keyed by **name**; HTTP is stateless | caller: `wsClose(name)` |
+| `numutils` | Rust | none — decimals and fractions are canonical strings | none |
 | `os` | C++ | none | none |
 | `path` | C++ | none — paths are strings | none |
 | `random` | C++ | none — seeded generator lives in the backend | none |

@@ -6,18 +6,21 @@ module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
 
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
-backends — `compress`, `crypto`, `encoding`, `game`, `graphics`, `image`, `ini`,
-`json`, `lua`, `network`, `raylib`, `server`, `sound`, `sqldb`, `toml`, `tui`,
-`uuid`, `watch`, `xml` and `yaml` — live under `rust/` and are all `cdylib`s that
-export `lynxer_module_init_v1`, their ops, and (for `game`)
-`lynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
-crate provides the shared FFI plumbing (packed-argument view, panic guards,
-string result buffer, host API, and the registration helper). The generated
-`raylib` backend registers its ops by hand instead of through `lynxer_abi`.
+backends live under `rust/` and are all `cdylib`s that export
+`lynxer_module_init_v1`, their ops, and (for `game`, `graphics` and `watch`)
+`lynxer_module_attach_v1` — or `lynxer_module_attach_v2` for `network` and
+`server` — directly; there is no C++ shim. They are the `cdylib` example
+targets of the workspace's `lynxer_stdlib` package, except `json`, which is a
+separate package because Cargo cannot scope `serde_json`'s `preserve_order`
+feature to a single target. The `lynxer_abi` crate provides the shared FFI
+plumbing (packed-argument view, panic guards, string result buffer, host API,
+and the registration helper). The generated `raylib` backend registers its ops
+by hand instead of through `lynxer_abi`.
 
-The workspace has one more member, `rust/ffi`, which is different in kind: a
-`staticlib` that is **linked into the interpreter**, not a `cdylib` module. It
-implements the shared native-call engine (see
+The workspace also contains `rust/abi` and `rust/regex_engine`, shared library
+crates, and `rust/ffi`, which is different in kind: a `staticlib` that is
+**linked into the interpreter**, not a `cdylib` module. It implements the
+shared native-call engine (see
 [The native call engine](#the-native-call-engine)) and is never installed into
 `stdlib/`; because the interpreter links it, `cargo` is a required build tool.
 

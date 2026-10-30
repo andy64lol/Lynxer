@@ -96,6 +96,7 @@
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/pdf.html">pdf</a></li>
@@ -172,6 +173,7 @@ global main() {
     println(global.mylib.add(2, 3)); // a registered function
 }</code></pre>
 <p>Registered functions are callable, constants become integers, and registered type layouts become strings usable with the native-memory APIs. A module is initialised once per import and stays loaded for the lifetime of its namespace, so function pointers cannot become invalid while it is still in use.</p>
+<p>If the operating system cannot open an imported library, Lynxer includes the loader's reason in the import error (for example, a missing dependency or an incompatible library). A library that opens but lacks <code>lynxer_module_init_v1</code>, or whose initializer rejects registration, reports a native-module lifecycle failure instead.</p>
 <h2 id="explicit-handle-api">Explicit handle API</h2>
 <table>
 <tr><th>Function</th><th>Notes</th></tr>
