@@ -7110,7 +7110,9 @@ void joinNativeThreadsAtExitInternal() {
 const std::unordered_map<std::string, Handler>& handlerTable() {
     static const std::unordered_map<std::string, Handler> handlers = {
         {"print", builtinPrint},
+        {"printf", builtinPrint},
         {"println", builtinPrintln},
+        {"printlnf", builtinPrintln},
         {"input", builtinInput},
         {"inputln", builtinInputln},
         {"strOf", builtinStrOf},

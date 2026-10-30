@@ -8,6 +8,9 @@ namespace lynxer {
 
 std::vector<Token> Lexer::scan() {
     std::vector<Token> tokens;
+    int parenDepth = 0;
+    bool interpCall = false;
+    bool pendingInterpCall = false;
     while (!atEnd()) {
         skipWhitespaceAndComments();
         if (atEnd()) {
@@ -18,6 +21,25 @@ std::vector<Token> Lexer::scan() {
         const int column = column_;
         const std::size_t tokenStart = index_;
         const char current = advance();
+        // Track parenthesised calls to printf()/printlnf() so that string
+        // literals inside them are treated as interpolated strings.
+        if (current == '(') {
+            if (pendingInterpCall) {
+                interpCall = true;
+                pendingInterpCall = false;
+                parenDepth = 1;
+            } else if (interpCall) {
+                ++parenDepth;
+            }
+        } else if (current == ')') {
+            if (interpCall) {
+                --parenDepth;
+                if (parenDepth <= 0) {
+                    interpCall = false;
+                    parenDepth = 0;
+                }
+            }
+        }
         // Records the token with its byte range. The trailing line/column
         // arguments mirror the old call shape and are ignored in favour of the
         // captured ones.
@@ -39,6 +61,19 @@ std::vector<Token> Lexer::scan() {
                      line, column);
             } else {
                 emit(TokenKind::Identifier, text, line, column);
+                if ((text == "printf" || text == "printlnf")) {
+                    // Peek ahead (skipping whitespace) for the opening '(' so
+                    // string literals inside the call are interpolated.
+                    std::size_t j = index_;
+                    while (j < source_.size() &&
+                           (source_[j] == ' ' || source_[j] == '\t' ||
+                            source_[j] == '\n' || source_[j] == '\r')) {
+                        ++j;
+                    }
+                    if (j < source_.size() && source_[j] == '(') {
+                        pendingInterpCall = true;
+                    }
+                }
             }
         } else if (std::isdigit(static_cast<unsigned char>(current)) ||
                    (current == '.' &&
@@ -58,7 +93,12 @@ std::vector<Token> Lexer::scan() {
             }
             emit(TokenKind::Number, text, line, column);
         } else if (current == '"') {
-            emit(TokenKind::String, readString(line, column), line, column);
+            if (interpCall) {
+                emit(TokenKind::InterpString,
+                     readRawString(line, column), line, column);
+            } else {
+                emit(TokenKind::String, readString(line, column), line, column);
+            }
         } else if (current == '\'') {
             emit(TokenKind::Char, readChar(line, column), line, column);
         } else {

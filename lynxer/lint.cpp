@@ -209,7 +209,8 @@ std::string infer(Context& context, const Expression& expression) {
             const std::string name = stripFunctionPrefix(call->name());
             if (name == "toString" || name == "str") return "str";
             if (name == "len" || name == "count" || name == "size") return "int";
-            if (name == "println" || name == "print" || name == "write") return "none";
+            if (name == "println" || name == "printlnf" || name == "print" ||
+                name == "printf" || name == "write") return "none";
             return "";
         }
         std::size_t required = 0;
