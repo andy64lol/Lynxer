@@ -852,9 +852,11 @@ void Parser::parseEnumDefinition() {
 }
 
 std::unordered_map<std::string, Function> Parser::parseProgram(
-    bool requireEntryPoints) {
+    bool requireEntryPoints, bool resetTypeRegistry) {
     expandMacros();
-    TypeRegistry::reset();
+    if (resetTypeRegistry) {
+        TypeRegistry::reset();
+    }
     std::unordered_map<std::string, Function> functions;
     bool sawSetup = false;
     bool sawMain = false;

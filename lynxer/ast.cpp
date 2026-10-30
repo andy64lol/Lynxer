@@ -2486,7 +2486,7 @@ void ImportStatement::execute(Environment& environment) const {
         Parser parser(lexer.scan(), resolved);
         functions =
             std::make_shared<std::unordered_map<std::string, Function>>(
-                parser.parseProgram());
+                parser.parseProgram(true, false));
     } catch (const SourceError& error) {
         throw withModuleSource(error, resolved);
     }

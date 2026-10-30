@@ -17,7 +17,7 @@ public:
         : tokens_(std::move(tokens)), sourcePath_(std::move(sourcePath)) {}
 
     std::unordered_map<std::string, Function> parseProgram(
-        bool requireEntryPoints = true);
+        bool requireEntryPoints = true, bool resetTypeRegistry = true);
 
     // Every import declared while parsing, in source order.
     const std::vector<ImportRecord>& imports() const { return imports_; }

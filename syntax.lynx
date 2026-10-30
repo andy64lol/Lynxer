@@ -1,165 +1,534 @@
-//// syntax.lynx — Lynxer language syntax showcase ////
+////
+syntax.lynx — Lynxer language syntax showcase.
+
+A single runnable tour of the language: declarations, operators, strings,
+bytes, lists and tuples, control flow, functions, ownership, aggregates,
+codeblocks, async and the essential standard-library modules.
+
+Run it with:
+
+    lynxer syntax.lynx
+////
 
 // Comments:
-// single-line comments start with //
-///
-   multiline comments use, well, you see, i didn't place the triple / here because that ends the block of multiline comments
-///
+//   //  a single-line comment
+//   /// opened and closed by the same triple slash run ///
+//   //// a file docstring (the opening line above) ////
+//
+// Macros expand tokens before parsing; *args forwards every argument.
+macro show!(*args){println("macro: ", *args)}
 
-// setup() must be the first global declaration.
-// importAs() binds a module to the alias supplied as its second argument.
 
+// setup() must be the first global declaration. Imports are statements, so
+// they run here and bind the modules under `global.<name>` (or the alias).
 global setup(){
     importAs("math", "m");
     importAs("typing", "types");
+    import("text");
+    import("json");
+    import("os");
+    import("path");
+    import("fileIO");
+    import("time");
+    import("random");
+    import("sys");
+
+    // The empty-forever delay can only be set from setup().
+    foreverDelay(0);
 }
 
-// Global functions are declared before main().
-global add(int a, int b){
+// Named aggregate types are declared between setup() and main().
+struct Point {
+    int x;
+    int y;
+}
+
+class Counter {
+    int value = 0;
+    const int step = 1;
+
+    local init(int initial) {
+        this.value = initial;
+    }
+
+    local increment() {
+        this.value += this.step;
+    }
+
+    local get() {
+        return this.value;
+    }
+}
+
+class Animal {
+    str name;
+
+    local init(str name) {
+        this.name = name;
+    }
+
+    local speak() {
+        return "...";
+    }
+}
+
+class Dog extends Animal {
+    local init(str name) {
+        super(name);
+    }
+
+    local speak() {
+        return "woof";
+    }
+}
+
+enum status = [
+    Ready,
+    Failed(str reason)
+]{}
+
+// Global functions are exported; `func` is file-scoped.
+global add(int a, int b = 1) -> int {
     return a + b;
 }
 
-global identity(any value){
+func doubleIt(int value) -> int {
+    return value * 2;
+}
+
+// `type T of value` infers a generic type per call.
+global firstOf(type T of value) -> T {
     return value;
+}
+
+global apply(function operation, int value) -> int {
+    return operation(value);
+}
+
+global makeAdder(int base) -> function {
+    local addBase(int value) -> int {
+        return base + value;
+    }
+    return addBase;
+}
+
+// A caller-supplied codeblock parameter, invoked with exec().
+global runBlock(){body}{
+    exec(){{body}}
+}
+
+global describeStatus(status value) -> str {
+    switch (value) {
+        case(status.Ready){ return "ready"; }
+        case(status.Failed(reason)){ return "failed: " + reason; }
+    }
+    return "unknown";
 }
 
 
 global main(){
     println("=== Lynxer syntax showcase ===");
 
-    // Primitive types and constants.
+    // ---------------------------------------------------------------- macros
+    show!("macros expand before parsing");
+
+    // ------------------------------------------------- primitive types / const
     int number = 42;
     float decimal = 3.14;
     str greeting = "hello";
     bool enabled = true;
+    char letter = 'A';
+    byte mask = 255;
+    int8 tiny = -8;
+    uint16 port = 8080;
+    float32 ratio = 0.25;
+    num measure = 7;
+    bit flag = 1;
+    numBool yes = 1;
     any anything = none;
     const int MAX = 100;
     println("types: ", number, ", ", decimal, ", ", greeting, ", ",
             enabled, ", ", anything, ", const=", MAX);
+    println("scalars: ", letter, ", ", mask, ", ", tiny, ", ", port, ", ",
+            ratio, ", ", measure, ", ", flag, ", ", yes);
 
-    // Functions and multiple arguments.
-    println("add(10, 3) = ", global.add(10, 3));
-    println("identity(\"Lynxer\") = ", global.identity("Lynxer"));
-    println("math alias m.sqrt(144) = ", global.m.sqrt(144));
+    // -------------------------------------- string interpolation and builtins
+    str message = inter"number={number}, greeting={greeting}";
+    println("inter: ", message);
+    println("strings: ", trim("  padded  "), ", ", upper(greeting), ", ",
+            lower("LOUD"), ", ", replace(greeting, "l", "L"));
+    println("substring: ", substring(greeting, 1, 4), ", charAt: ",
+            charAt(greeting, 1), ", charCode: ", charCode("A"), ", charOf: ",
+            charOf(66));
+    list words = splitStr("alpha,beta,gamma", ",");
+    println("splitStr: ", words, ", length: ", returnLength(greeting));
 
-    // Arithmetic, comparisons, logic, and bitwise operators.
+    // ----------------------------------------------------------------- bytes
+    bytes data = bytesOf("AB");
+    println("bytes: ", data, ", length=", bytesLength(data), ", at=",
+            bytesAt(data, 0), ", hex=", bytesToHex(data), ", back=",
+            bytesToStr(bytesFromHex("4142")));
+
+    // ------------------------------------------------------------- operators
     int x = 5;
     x += 3;
     x -= 2;
-    println("arithmetic: x=", x, ", 10%3=", 10 % 3, ", 2^10=", global.m.pow(2, 10));
-    println("comparisons: ", 5 > 3, ", ", 5 is 5, ", ", 5 isnt 4);
-    println("logic: ", true and false, ", ", true nand false, ", ",
-            true and false, ", ", true nor false, ", ", not true);
-    println("bitwise: ", 6 bitand 3, ", ", 6 bitnand 3, ", ", 6 bitxor 3, ", ",
-            6 bitxnor 3, ", ", 6 bitor 3, ", ", 6 bitnor 3, ", ",
-            1 bitleft 4, ", ", 32 bitright 2);
+    x *= 2;
+    x %= 5;
+    x **= 2;
+    println("arithmetic: x=", x, ", 10/4=", 10 / 4, ", 10/%4=", 10 /% 4,
+            ", 10%4=", 10 % 4, ", 2**10=", 2 ** 10);
+    println("comparisons: ", 5 > 3, ", ", 5 is 5, ", ", 5 isnt 4, ", ",
+            "a" < "b");
+    println("logic: ", true and false, ", ", true or false, ", ",
+            true nand false, ", ", false nor false, ", ", true xor false, ", ",
+            not true);
+    println("bitwise: ", 6 bitand 3, ", ", 6 bitor 3, ", ", 6 bitxor 3, ", ",
+            6 bitnand 3, ", ", 6 bitxnor 3, ", ", 6 bitnor 3, ", ",
+            1 bitleft 4, ", ", 32 bitright 2, ", ", bitnot 6);
+    println("floor division: ", -7 /% 3, ", unary minus: ", -number);
 
-    // Lists.
+    // ----------------------------------------------------------------- lists
     list numbers = [int 1, int 2, int 3, int 4, int 5];
-    println("list: ", numbers);
-    println("list length: ", returnLength(numbers));
-    println("list get first: ", listGet(numbers, 0));
+    println("list: ", numbers, ", length: ", returnLength(numbers));
+    println("listGet: ", listGet(numbers, 0), " / ", listGet(numbers, -1));
     numbers = listPush(numbers, 6);
-    println("after listPush: ", numbers);
-    println("list slice: ", listSlice(numbers, 1, 4));
-    println("list index of 4: ", listIndex(numbers, 4));
-    println("list contains 4: ", listContains(numbers, 4));
-    println("common contains(list, 5): ", contains(numbers, 5));
+    println("after listPush: ", numbers, ", listPop: ", listPop(numbers));
+    println("listSet: ", listSet(numbers, 0, 10), ", listSlice: ",
+            listSlice(numbers, 1, 4));
+    println("listIndex: ", listIndex(numbers, 4), ", listContains: ",
+            listContains(numbers, 4), ", listJoin: ", listJoin(numbers, "-"));
+    println("listRemove: ", listRemove(numbers, 2), ", listHead: ",
+            listHead(numbers, 2), ", listTail: ", listTail(numbers, 2));
+    println("listCount: ", listCount(numbers, 2), ", listExtend: ",
+            listExtend(numbers, [int 7, int 8]));
+    println("listInsert: ", listInsert(numbers, 0, 0), ", listClear: ",
+            listClear(numbers), ", listRepeat: ", listRepeat("x", 3));
+    println("listAvg: ", listAvg([int 2, int 4, int 6]), ", listZip: ",
+            listZip([str "a", str "b"], [int 1, int 2]));
+    println("sortList: ", sortList([int 3, int 1, int 2]), ", reverseList: ",
+            reverseList(numbers), ", listMin/Max: ", listMin(numbers), " / ",
+            listMax(numbers));
+    println("listFirst/Last: ", listFirst(numbers), " / ", listLast(numbers),
+            ", sumOf: ", sumOf(numbers), ", anyOf/allOf: ", anyOf(numbers),
+            " / ", allOf(numbers));
+    list nested = listPush(listPush([], [int 1, int 2]), [int 3]);
+    println("listFlatten: ", listFlatten(nested), ", listUnique: ",
+            listUnique([int 1, int 1, int 2, int 3, int 3]));
+    println("range: ", range(5), ", seqFromTo: ", seqFromTo(0, 10, 2));
 
-    // Tuples are declared with the tuple type and are immutable sequences.
-    // A list literal on the right side is converted to a tuple.
+    // ---------------------------------------------------------------- tuples
     tuple point = (int 10, int 20, int 30);
     tuple other = tupleCreate(40, 50);
-    tuple combined = tupleConcat(point, other);
-    tuple middle = tupleSlice(combined, 1, 4);
-    println("tuple: ", point);
-    println("tuple type: ", returnType(point));
-    println("tuple length: ", tupleLen(point));
-    println("tuple get index 1: ", tupleGet(point, 1));
-    println("tuple first/last: ", tupleFirst(point), " / ", tupleLast(point));
-    println("tuple contains 20: ", contains(point, 20));
-    println("tuple index of 30: ", tupleIndex(point, 30));
-    println("tuple count of 20: ", tupleCount(tupleCreate(20, 20, 30), 20));
-    println("tuple slice: ", middle);
-    println("tuple concat: ", combined);
-    println("tuple as list: ", tupleToList(point));
-    println("tuple as JSON: ", tupleJsonArray(point));
-    println("list to tuple: ", listToTuple(numbers));
+    println("tuple: ", point, ", type: ", returnType(point), ", length: ",
+            tupleLen(point));
+    println("tupleGet: ", tupleGet(point, 1), ", first/last: ",
+            tupleFirst(point), " / ", tupleLast(point), ", contains: ",
+            contains(point, 20), ", index: ", tupleIndex(point, 30));
+    println("tupleSlice: ", tupleSlice(point, 1, 3), ", tupleConcat: ",
+            tupleConcat(point, other), ", tupleCount: ",
+            tupleCount(tupleCreate(20, 20, 30), 20));
+    println("tupleSortDesc: ", tupleSortDesc(tupleCreate(3, 1, 2)),
+            ", tupleMin/Max: ", tupleMin(point), " / ", tupleMax(point),
+            ", tupleMean: ", tupleMean(point));
+    println("tupleJoin: ", tupleJoin(point, "-"), ", tupleJsonArray: ",
+            tupleJsonArray(point), ", tupleToList: ", tupleToList(point));
 
-    // Typing module functions
-    tuple reversed = global.types.tupleReverse(point);
-    tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
-    tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
-    println("typing tupleReverse: ", reversed);
-    println("typing tupleSort: ", sorted);
-    println("typing tupleUnique: ", unique);
-    println("typing tupleSum: ", global.types.tupleSum(point));
-    println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
-    list pointList = global.types.toList(point);
-    tuple pointTuple = global.types.toTuple(pointList);
-    println("typing toList(tuple): ", pointList);
-    println("typing toTuple(list): ", pointTuple);
-    println("typing isSequence(point): ", global.types.isSequence(point));
-    println("typing lenSequence(point): ", global.types.lenSequence(point));
-    println("typing toStr(point): ", global.types.toStr(point));
-    println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
-
-    // Built-ins are available without importing a module.
-    println("returnType(point): ", returnType(point));
-    println("returnLength(point): ", returnLength(point));
-    println("contains(list, value): ", contains(numbers, 3));
-    println("contains(tuple, value): ", contains(point, 30));
-
-    // Control flow.
-    if(enabled){
+    // ----------------------------------------------------------- control flow
+    if (enabled) {
         println("if: enabled");
+    } elif (number > 100) {
+        println("elif: unreachable");
     } else {
-        println("if: disabled");
+        println("else: unreachable");
     }
 
-    int i = 0;
-    while(i < 3){
-        println("while iteration ", i);
-        i += 1;
+    int selected = 2;
+    switch (selected) {
+        case(1){ println("switch: one"); }
+        case(2){ println("switch: two"); }
+        default(){ println("switch: other"); }
     }
 
-    for(int j = 0; j < 3; j = j + 1){
-        println("for iteration ", j);
+    any pattern = [1, 2];
+    switch (pattern) {
+        case([1, item]){ println("switch pattern: ", item); }
+        default(){ println("switch pattern: none"); }
     }
 
-    // Sum a list with a portable loop so the file runs on every backend
-    // (rawPy is a Python-only built-in).
-    int total = 0;
-    for(int k = 0; k < returnLength(numbers); k = k + 1){
-        total = total + listGet(numbers, k);
+    int whileValue = 0;
+    while (whileValue < 4) {
+        whileValue += 1;
+        if (whileValue is 2) { continue; }
+        println("while: ", whileValue);
     }
-    println("list sum: ", total);
 
-    // Multiple arguments replace chains of print("label"); print(value); print("\n").
-    println("one call, ", "multiple arguments, ", number, ", ", point);
+    int cfor = 0;
+    for (int i = 0; i < 4; i = i + 1) {
+        cfor += i;
+    }
+    println("for: sum=", cfor);
 
-    // Sentinels compare by identity.
+    int implicit = 0;
+    for (int k = 0; k < 3) {
+        implicit += k;
+    }
+    println("for implicit update: sum=", implicit);
+
+    list rangeValues = [];
+    for (int r = 0..=6..2) {
+        rangeValues = listPush(rangeValues, r);
+    }
+    println("range for: ", listJoin(rangeValues, ","));
+
+    int doValue = 0;
+    int doRestarts = 0;
+    doWhile (doValue < 3) {
+        doValue += 1;
+        if (doValue is 2 and doRestarts is 0) {
+            doRestarts += 1;
+            restart;
+        }
+        println("doWhile: ", doValue);
+    }
+
+    iterate (2) {
+        println("iterate: tick");
+    }
+
+    int foreverValue = 0;
+    forever(){
+        foreverValue += 1;
+        if (foreverValue is 2) { break; }
+        println("forever: ", foreverValue);
+    }
+
+    // ---------------------------------------------------------- try / catch
+    try {
+        int bad = 1 /% 0;
+        println("unreachable");
+    } catch (str error) {
+        println("try/catch: caught ", error, ", traceback>0=",
+                returnLength(exceptionInfo()) > 0);
+    }
+
+    try {
+        raise("custom failure");
+    } catch {
+        println("try/catch: raised error handled");
+    }
+
+    // -------------------------------------------------------------- functions
+    println("add: ", global.add(10, 3), ", ", add(10, 3));
+    println("func: ", doubleIt(21));
+    println("generic: ", firstOf(1), ", ", firstOf("one"));
+
+    local square(int value) -> int {
+        return value * value;
+    }
+    println("local: ", square(6), ", ", local.square(7));
+
+    lambda greet(str who) -> str {
+        return inter"Hello, {who}!";
+    }
+    println("lambda: ", greet("Lynxer"));
+
+    function doubler = doubleIt;
+    println("function value: ", doubler(6), ", apply: ",
+            apply(doubler, 5));
+    function addTen = makeAdder(10);
+    println("closure: ", addTen(3));
+
+    // ------------------------------------------------- ownership / borrowing
+    int source = 42;
+    int destination = 0;
+    varTransfer(source, destination);
+    println("ownership: transfer=", destination);
+    source = 7;
+    println("ownership: reinitialised source=", source);
+
+    int reader = 10;
+    int readAlias = 0;
+    varBorrow(reader, readAlias);
+    println("ownership: borrow=", borrowing(readAlias), ", beingBorrowed=",
+            beingBorrowed(reader), ", value=", readAlias);
+    varEndBorrow(readAlias);
+
+    int mutableBase = 5;
+    int mutableAlias = 0;
+    varBorrowMutate(mutableBase, mutableAlias);
+    mutableAlias = 55;
+    println("ownership: mutable borrow=", mutableBase, ", ", mutableAlias);
+    varEndBorrow(mutableAlias);
+
+    int swapLeft = 1;
+    int swapRight = 2;
+    varSwapVal(swapLeft, swapRight);
+    println("ownership: swapVal=", swapLeft, ", ", swapRight);
+    varSwapAll(swapLeft, swapRight);
+    println("ownership: swapAll=", swapLeft, ", ", swapRight);
+
+    int sharedBase = 42;
+    shared int sharedAlias = sharedBase;
+    sharedAlias = 100;
+    println("ownership: shared=", sharedBase, ", ", sharedAlias);
+    unshare(sharedAlias);
+    sharedAlias = 200;
+    println("ownership: unshared=", sharedBase, ", ", sharedAlias);
+
+    // -------------------------------------------------- sentinel / object
     sentinel missing = sentinel("MISSING");
-    println("sentinel type: ", returnType(missing));
-    println("sentinel identity: ", missing is missing);
+    println("sentinel: ", returnType(missing), ", identity=",
+            missing is missing);
+    any emptyObject = object();
+    println("object: type=", returnType(emptyObject));
 
-    // Codeblocks can be stored and executed later.
-    codeblock helloWorld = {
-        println("Hello world!");
+    // ------------------------------------------------------ aggregate types
+    Point p = new Point(3, 4);
+    p.x = 10;
+    println("struct: ", p.x, ", ", p.y);
+
+    Counter counter = new Counter(5);
+    counter.increment();
+    println("class: ", counter.get(), ", field=", counter.value);
+
+    Animal pet = new Dog("Rex");
+    println("inheritance: ", pet.name, " says ", pet.speak());
+
+    println("enum: ", status.Ready, ", ", describeStatus(status.Ready), ", ",
+            describeStatus(status.Failed("disk")));
+
+    vargroup profile = {
+        str title = "Engineer",
+        int years = 5
     };
-    exec(){{helloWorld}}
-    codeblock example = {
-        println("provided codeblock value: ", text);
+    int profile.years = 6;
+    println("vargroup: ", profile.title, ", ", profile.years);
+
+    vargroup nestedGroup = {
+        int n = 1,
+        vargroup sub = { str k = "x" }
     };
-    exec("Hello!"){{example}}
-    codeblock typedExample = {
-        println("typed codeblock value: ", name, " ", age);
+    println("vargroup nested: ", nestedGroup.sub.k);
+
+    // ------------------------------------------------------------ codeblocks
+    codeblock savedBlock = {
+        println("codeblock: stored and executed");
+    };
+    runBlock(){{savedBlock}};
+
+    runBlock(){
+        println("codeblock: caller-supplied inline block");
+    };
+
+    str inlineText = "inline";
+    exec(inlineText) {
+        println("codeblock: inline exec ", inlineText);
+    }
+
+    codeblock typedBlock = {
+        println("codeblock: typed ", name, " ", age);
     }[str name, int age];
-    exec("Alice", 30){{typedExample}}
-    codeblock showText = {
-        println("exec argument: ", text);
-    }[str text];
-    exec("hi"){{showText}}
+    exec("Alice", 30){{typedBlock}};
 
+    codeblock inferredBlock = {
+        println("codeblock: inferred ", inferredValue);
+    };
+    exec("value"){{inferredBlock}};
+
+    // ---------------------------------------------------------------- async
+    int task = asyncRun(global.add, [40, 2]);
+    println("async: await=", await task);
+    any gathered = asyncGather(asyncRun(global.add, [1, 2]),
+                               asyncRun(global.add, [3, 4]));
+    println("async: gather=", gathered);
+
+    // ------------------------------------------------------ essential stdlib
+    // math
+    println("math: pi>0=", global.m.pi() > 0, ", sqrt=", global.m.sqrt(144),
+            ", gcd=", global.m.gcd(12, 18), ", prime97=",
+            global.m.isPrime(97));
+    println("math: factorial=", global.m.factorial(5), ", clamp=",
+            global.m.clamp(15, 0, 10), ", roundTo=",
+            global.m.roundTo(3.14159, 2));
+    println("math: mean=", global.m.mean([int 1, int 2, int 3, int 4]),
+            ", median=", global.m.median([int 1, int 2, int 3]),
+            ", linspace=", global.m.linspace(0.0, 1.0, 5));
+
+    // typing
+    println("typing: isInt=", global.types.isInt(1), ", toInt=",
+            global.types.toInt("42"), ", toStr=", global.types.toStr(3.5));
+    println("typing: zfill=", global.types.zfill("42", 5), ", splitFirst=",
+            global.types.splitFirst("a=b", "="), ", listChunk=",
+            global.types.listChunk(range(6), 2));
+
+    // text
+    println("text: reverse=", global.text.reverse("abc"), ", title=",
+            global.text.title("hello world"), ", count=",
+            global.text.count("banana", "na"));
+    println("text: split=", global.text.split("a,b,c", ","), ", zfill=",
+            global.text.zfill("-42", 6));
+
+    // json
+    str doc = "{\"name\": \"Ada\", \"age\": 36}";
+    println("json: valid=", global.json.jsonValid(doc), ", name=",
+            global.json.jsonGet(doc, "name"), ", age=",
+            global.json.jsonGetInt(doc, "age"));
+    println("json: keys=", global.json.jsonKeys(doc), ", updated=",
+            global.json.jsonSetInt(doc, "age", 37));
+    println("json: object=", global.json.jsonObject([str "a", int 1]),
+            ", array=", global.json.jsonArray([int 1, int 2]));
+
+    // os
+    println("os: cwd>0=", returnLength(global.os.getcwd()) > 0, ", temp>0=",
+            returnLength(global.os.tempDir()) > 0);
+    println("os: joinPath=", global.os.joinPath("parent", "child"),
+            ", basename=", global.os.basename("/a/b.txt"), ", dirname=",
+            global.os.dirname("/a/b.txt"));
+    println("os: host=", global.os.getSystemName(), ", cpus>0=",
+            global.os.cpuCount() > 0);
+
+    // path
+    println("path: name=", global.path.name("/tmp/report.tar.gz"),
+            ", stem=", global.path.stem("report.tar.gz"), ", suffix=",
+            global.path.suffix("report.tar.gz"));
+    println("path: suffixes=", global.path.suffixes("archive.tar.gz"),
+            ", parts=", global.path.parts("/a/b"), ", absolute=",
+            global.path.isAbsolute("/a/b"));
+    println("path: join=", global.path.join("a", "b"), ", normalize=",
+            global.path.normalize("a/./b/../c"));
+
+    // fileIO
+    str tempPath = global.fileIO.tempFile(".txt");
+    bool wrote = global.fileIO.writeFile(tempPath, "alpha\nbeta\n");
+    println("fileIO: wrote=", wrote, ", lines=",
+            global.fileIO.readLines(tempPath), ", size=",
+            global.fileIO.fileSize(tempPath));
+    println("fileIO: delete=", global.fileIO.deleteFile(tempPath),
+            ", exists=", global.fileIO.fileExists(tempPath));
+
+    // time
+    println("time: now>0=", returnLength(global.time.now()) > 0, ", leap=",
+            global.time.isLeapYear(2024), ", feb2024=",
+            global.time.daysInMonth(2024, 2));
+    println("time: addDays=", global.time.addDays("2026-02-27", 2),
+            ", diffDays=", global.time.diffDays("2026-01-01", "2026-01-03"));
+
+    // random (seeded, so the sequence is reproducible)
+    global.random.seed(7);
+    println("random: randint=", global.random.randint(1, 6), ", randrange=",
+            global.random.randrange(0, 10), ", coin=",
+            global.random.coinflip());
+
+    // sys
+    println("sys: ", global.sys.platform(), " ", global.sys.architecture(),
+            " ", global.sys.version());
+    println("sys: byteOrder=", global.sys.getByteOrder(), ", encoding=",
+            global.sys.getDefaultEncoding(), ", frozen=",
+            global.sys.isFrozen());
+    println("sys versionInfo: ", global.sys.versionInfo());
+
+    // --------------------------------------------------------------- asserts
+    assert(true, "assert passes");
     println("=== done ===");
 }
