@@ -78,6 +78,18 @@ installed.
 | `winAPI.getOSVersion()` | `major.minor.build` from `RtlGetVersion` |
 | `winAPI.getLocaleName()` | the user's locale name, e.g. `en-US` |
 | `winAPI.getTimeZoneName()` | the current standard time-zone name |
+| `winAPI.getSystemTime()` | milliseconds since the Unix epoch (UTC) |
+| `winAPI.getSystemInfo()` | JSON `{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}` |
+| `winAPI.getMemoryStatus()` | JSON `{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}` in bytes / percent |
+| `winAPI.getPowerStatus()` | JSON `{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}` |
+| `winAPI.getVolumeInfo(path)` | JSON `{label, filesystem, serial, maxComponentLength, flags}`, or `""` |
+| `winAPI.getDiskSpace(path)` | JSON `{free, total, totalFree}` in bytes, or `""` |
+| `winAPI.getACP()` | the ANSI code page |
+| `winAPI.getOEMCP()` | the OEM code page |
+| `winAPI.getCommandLine()` | the full command line |
+| `winAPI.getCurrentProcess()` | a closable duplicate handle to this process, or `-1` |
+| `winAPI.getModuleHandle(name)` | a module handle (`""` for the running image), or `-1` |
+| `winAPI.getActiveProcessorCount(group)` | active processors in a group, or `-1` |
 | `winAPI.formatMessage(code)` | the system message for a Win32 error code |
 | `winAPI.sleep(milliseconds)` | — |
 | `winAPI.beep(frequency, duration)` | whether it played |
@@ -116,6 +128,10 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 | `winAPI.setFileAttributes(path, attributes)` | whether they were set |
 | `winAPI.getFullPathName(path)` | the absolute path, or `""` |
 | `winAPI.flushFileBuffers(handle)` | whether the buffers were flushed |
+| `winAPI.getTempFileName(prefix)` | a new unique temp file path, or `""` |
+| `winAPI.setCurrentDirectory(path)` | whether the working directory changed |
+| `winAPI.getFileType(handle)` | the `FILE_TYPE_*` value, or `-1` |
+| `winAPI.getFileTime(path)` | JSON `{creation, access, write}` in Unix milliseconds, or `""` |
 
 `mode` is `"read"` (`OPEN_EXISTING`), `"write"` (`CREATE_ALWAYS`, truncated),
 `"append"` (`OPEN_ALWAYS`, seek to end) or `"readwrite"` (`OPEN_ALWAYS`).
@@ -204,6 +220,8 @@ global main(){
 | `winAPI.getExitCodeProcess(handle)` | the exit code, or `-1` (`259` while still alive) |
 | `winAPI.createProcess(commandLine)` | the new process's handle, or `-1` |
 | `winAPI.waitForSingleObject(handle, milliseconds)` | `0` when signalled, `258` on timeout, `-1` on failure |
+| `winAPI.getPriorityClass(handle)` | the `*_PRIORITY_CLASS` value, or `-1` |
+| `winAPI.setPriorityClass(handle, class)` | whether it was set |
 
 `createProcess` starts `commandLine` through `CreateProcessW` with the inherited
 environment and no redirection; the thread handle is closed for you, so only the
@@ -223,6 +241,8 @@ call.
 | `winAPI.setConsoleTitle(text)` | whether the title was set |
 | `winAPI.getConsoleOutputCP()` | the console output code page |
 | `winAPI.setConsoleOutputCP(codePage)` | whether it was set |
+| `winAPI.getConsoleWindow()` | the console window handle, or `-1` |
+| `winAPI.getConsoleScreenBufferInfo()` | JSON `{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}`, or `""` |
 
 ## Timing
 

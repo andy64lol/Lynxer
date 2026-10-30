@@ -88,4 +88,34 @@ global main(){
     println(returnLength(winAPI.getLocaleName()) > 0);
     println(returnLength(winAPI.getTimeZoneName()) > 0);
     println(returnLength(winAPI.formatMessage(2)) > 0);
+
+    // Additional system information.
+    println(winAPI.getSystemTime() > 0);
+    println(returnLength(winAPI.getSystemInfo()) > 0);
+    println(returnLength(winAPI.getMemoryStatus()) > 0);
+    println(returnLength(winAPI.getPowerStatus()) > 0 or winAPI.getPowerStatus() is "");
+    println(returnLength(winAPI.getVolumeInfo(winAPI.getTempPath())) > 0);
+    println(returnLength(winAPI.getDiskSpace(winAPI.getTempPath())) > 0);
+    println(winAPI.getACP() > 0);
+    println(winAPI.getOEMCP() > 0);
+    println(returnLength(winAPI.getCommandLine()) > 0);
+    int current = winAPI.getCurrentProcess();
+    println(current > 0);
+    println(winAPI.getPriorityClass(current) > 0);
+    println(winAPI.setPriorityClass(current, winAPI.getPriorityClass(current)));
+    println(winAPI.closeHandle(current));
+    println(winAPI.getModuleHandle("kernel32.dll") > 0);
+    println(winAPI.getActiveProcessorCount(0) > 0);
+
+    // Directory, temporary files and handle/file metadata.
+    str cwd = winAPI.getCurrentDirectory();
+    println(winAPI.setCurrentDirectory(cwd));
+    str temp = winAPI.getTempFileName("lyn");
+    println(returnLength(temp) > 0);
+    println(winAPI.getFileTime(temp) isnt "");
+    println(winAPI.deleteFile(temp));
+    int out = winAPI.getStdHandle("output");
+    println(winAPI.getFileType(out) > 0);
+    println(winAPI.getConsoleWindow() >= -1);
+    println(returnType(winAPI.getConsoleScreenBufferInfo()) is "str");
 }

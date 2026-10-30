@@ -17,6 +17,11 @@
 #define MyAppExeName "lynxer.exe"
 #define PayloadDir "..\..\build\windows-payload"
 
+; Target architecture: pass /DMyArch=arm64 for the ARM64 installer.
+#ifndef MyArch
+  #define MyArch "amd64"
+#endif
+
 [Setup]
 AppId={{6E2E5E1B-6D9A-4C0B-9B7E-6C5A6B0A9F11}
 AppName={#MyAppName}
@@ -30,14 +35,19 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\..\dist
-OutputBaseFilename=lynxer-{#MyAppVersion}-windows-amd64-setup
+OutputBaseFilename=lynxer-{#MyAppVersion}-windows-{#MyArch}-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=yes
 UninstallDisplayIcon={app}\bin\{#MyAppExeName}
+#if MyArch == "arm64"
+ArchitecturesAllowed=arm64
+ArchitecturesInstallIn64BitMode=arm64
+#else
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+#endif
 
 [Files]
 Source: "{#PayloadDir}\*"; DestDir: "{app}\lib\lynxer"; Flags: ignoreversion recursesubdirs createallsubdirs

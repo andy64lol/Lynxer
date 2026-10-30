@@ -101,11 +101,17 @@ rest of the stdlib, with `getLastError()` for the reason:
 
 Beyond files, the surface also covers **process control** (`getCurrentThreadId`,
 `openProcess`, `terminateProcess`, `getExitCodeProcess`, `createProcess`,
-`waitForSingleObject`), the **console session** (`getStdHandle`, `getConsoleMode`,
-`setConsoleMode`, `setConsoleTitle`, `getConsoleOutputCP`, `setConsoleOutputCP`),
-file attributes and paths (`getFileAttributes`, `setFileAttributes`,
-`getFullPathName`, `flushFileBuffers`) and the **high-resolution timer**
-(`queryPerformanceCounter`, `queryPerformanceFrequency`). The full reference is
+`waitForSingleObject`, `getPriorityClass`, `setPriorityClass`), the **console
+session** (`getStdHandle`, `getConsoleMode`, `setConsoleMode`, `setConsoleTitle`,
+`getConsoleOutputCP`, `setConsoleOutputCP`, `getConsoleWindow`,
+`getConsoleScreenBufferInfo`), file attributes and paths (`getFileAttributes`,
+`setFileAttributes`, `getFullPathName`, `flushFileBuffers`, `getTempFileName`,
+`setCurrentDirectory`, `getFileType`, `getFileTime`) and the **high-resolution
+timer** (`queryPerformanceCounter`, `queryPerformanceFrequency`). System
+information includes `getSystemTime`, `getSystemInfo`, `getMemoryStatus`,
+`getPowerStatus`, `getVolumeInfo`, `getDiskSpace`, `getACP`, `getOEMCP`,
+`getCommandLine`, `getCurrentProcess`, `getModuleHandle` and
+`getActiveProcessorCount`. The full reference is
 [windows-api.md](windows-api.md).
 
 Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32`. The long

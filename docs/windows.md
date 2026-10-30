@@ -58,10 +58,14 @@ and file/handle access (`createFile`, `readFile`, `writeFile`, `closeHandle`,
 `waitForSingleObject`), the console session (`getStdHandle`, `getConsoleMode`,
 `setConsoleMode`, `setConsoleTitle`, `getConsoleOutputCP`,
 `setConsoleOutputCP`), file attributes and paths (`getFileAttributes`,
-`setFileAttributes`, `getFullPathName`, `flushFileBuffers`), the
-high-resolution timer (`queryPerformanceCounter`, `queryPerformanceFrequency`),
-Known Folders (`getKnownFolderPath`), and `sleep`,
-`beep` and `outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
+`setFileAttributes`, `getFullPathName`, `flushFileBuffers`, `getTempFileName`,
+`setCurrentDirectory`, `getFileType`, `getFileTime`), the high-resolution timer
+(`queryPerformanceCounter`, `queryPerformanceFrequency`), Known Folders
+(`getKnownFolderPath`), system information beyond identity
+(`getSystemTime`, `getSystemInfo`, `getMemoryStatus`, `getPowerStatus`,
+`getVolumeInfo`, `getDiskSpace`, `getACP`, `getOEMCP`, `getCommandLine`,
+`getCurrentProcess`, `getModuleHandle`, `getActiveProcessorCount`), and
+`sleep`, `beep` and `outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
 Win32 calls live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`.
 See [syscalls.md](syscalls.md#windows-api-calls).
 
@@ -220,10 +224,10 @@ install, update and tool the way Windows users expect.
 
 | Piece | State | Plan |
 | --- | --- | --- |
-| Prebuilt binaries | **done** | `lynxer-windows-amd64.zip` / `lynxer-windows-arm64.zip` on every release (CI) |
+| Prebuilt binaries | **done** | `lynxer-windows-amd64.zip` / `lynxer-windows-arm64.zip` on every release (CI); each zip contains both the portable program and its installer |
 | `--install` / `--uninstall` | **partial** | lays out `<prefix>/lib/lynxer` and a `bin` launcher (a copy), but does not touch `PATH` or register an uninstaller |
 | Package managers | **partial** | `render-package-manifests.py` renders `winget`, `Scoop` and `Chocolatey` manifests; registry submission remains |
-| Installer | **partial** | `packaging/windows/lynxer.iss` builds an Inno Setup installer on the `--install` layout, adds `bin` and `lib/lynxer` to the user `PATH`, and registers an uninstall entry; CI compiles it on the AMD64 job; signing remains |
+| Installer | **partial** | `packaging/windows/lynxer.iss` builds an AMD64 or ARM64 Inno Setup installer on the `--install` layout, adds `bin` and `lib/lynxer` to the user `PATH`, and registers an uninstall entry; CI compiles it on both Windows jobs and bundles it into the release zip; signing remains |
 | Editor and shell | **done** | `editors/vscode` (syntax highlighting, `--lint`/`--format`) plus PowerShell and Clink completion |
 | Background tasks | **partial** | `packaging/windows/lynxer-task.ps1` registers a program with Task Scheduler; a SCM service host is not shipped |
 | Code signing | todo | Authenticode signatures so a download does not trip SmartScreen |

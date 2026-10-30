@@ -27,6 +27,8 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
@@ -35,6 +37,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
@@ -67,6 +70,9 @@
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
+<li><a href="windows-api.html" class="active">windows-api</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -76,21 +82,27 @@
 <li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -106,6 +118,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winpipe.html">winpipe</a></li>
+<li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
 <li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
@@ -130,7 +144,7 @@ global main(){
     println(winAPI.getComputerName());
     println(winAPI.getCurrentDirectory());
 }</code></pre>
-<p>Every call is <code>kernel32</code>, so nothing extra has to be installed or linked.</p>
+<p>Most calls are <code>kernel32</code>; <code>getKnownFolderPath</code> uses <code>shell32</code>/<code>ole32</code> for the Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be installed.</p>
 <h2 id="selecting-the-target">Selecting the target</h2>
 <p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any <code>winAPI.*</code> call.</p>
 <table>
@@ -165,10 +179,33 @@ global main(){
 <tr><td><code>winAPI.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
 <tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
 <tr><td><code>winAPI.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getKnownFolderPath(name)</code></td><td>a Known Folder path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.getUserName()</code></td><td>the current account name</td></tr>
+<tr><td><code>winAPI.isUserAnAdmin()</code></td><td>whether the process has administrator rights</td></tr>
+<tr><td><code>winAPI.getSystemMetrics(index)</code></td><td>a <code>GetSystemMetrics</code> value, or <code>0</code></td></tr>
+<tr><td><code>winAPI.getLogicalDrives()</code></td><td>the drive bitmask</td></tr>
+<tr><td><code>winAPI.getDriveType(root)</code></td><td>the <code>DRIVE_*</code> type, or <code>0</code></td></tr>
+<tr><td><code>winAPI.getOSVersion()</code></td><td><code>major.minor.build</code> from <code>RtlGetVersion</code></td></tr>
+<tr><td><code>winAPI.getLocaleName()</code></td><td>the user's locale name, e.g. <code>en-US</code></td></tr>
+<tr><td><code>winAPI.getTimeZoneName()</code></td><td>the current standard time-zone name</td></tr>
+<tr><td><code>winAPI.getSystemTime()</code></td><td>milliseconds since the Unix epoch (UTC)</td></tr>
+<tr><td><code>winAPI.getSystemInfo()</code></td><td>JSON <code>{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}</code></td></tr>
+<tr><td><code>winAPI.getMemoryStatus()</code></td><td>JSON <code>{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}</code> in bytes / percent</td></tr>
+<tr><td><code>winAPI.getPowerStatus()</code></td><td>JSON <code>{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}</code></td></tr>
+<tr><td><code>winAPI.getVolumeInfo(path)</code></td><td>JSON <code>{label, filesystem, serial, maxComponentLength, flags}</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.getDiskSpace(path)</code></td><td>JSON <code>{free, total, totalFree}</code> in bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.getACP()</code></td><td>the ANSI code page</td></tr>
+<tr><td><code>winAPI.getOEMCP()</code></td><td>the OEM code page</td></tr>
+<tr><td><code>winAPI.getCommandLine()</code></td><td>the full command line</td></tr>
+<tr><td><code>winAPI.getCurrentProcess()</code></td><td>a closable duplicate handle to this process, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getModuleHandle(name)</code></td><td>a module handle (<code>&quot;&quot;</code> for the running image), or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getActiveProcessorCount(group)</code></td><td>active processors in a group, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.formatMessage(code)</code></td><td>the system message for a Win32 error code</td></tr>
 <tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
 <tr><td><code>winAPI.beep(frequency, duration)</code></td><td>whether it played</td></tr>
 <tr><td><code>winAPI.outputDebugString(text)</code></td><td>— (goes to the debugger)</td></tr>
 </table>
+<p><code>getKnownFolderPath</code> accepts <code>desktop</code>, <code>documents</code>, <code>downloads</code>, <code>music</code>, <code>pictures</code>, <code>videos</code>, <code>localAppData</code>, <code>roamingAppData</code>, <code>programData</code>, <code>profile</code>, <code>public</code>, <code>windows</code> and <code>system</code>; an unknown name returns <code>&quot;&quot;</code>, as does a folder the shell cannot resolve. It is the Windows counterpart of the XDG directories exposed by <code>os.configDir</code>/<code>os.dataDir</code>/<code>os.cacheDir</code>.</p>
 <h2 id="environment">Environment</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
@@ -194,6 +231,10 @@ global main(){
 <tr><td><code>winAPI.setFileAttributes(path, attributes)</code></td><td>whether they were set</td></tr>
 <tr><td><code>winAPI.getFullPathName(path)</code></td><td>the absolute path, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>winAPI.flushFileBuffers(handle)</code></td><td>whether the buffers were flushed</td></tr>
+<tr><td><code>winAPI.getTempFileName(prefix)</code></td><td>a new unique temp file path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.setCurrentDirectory(path)</code></td><td>whether the working directory changed</td></tr>
+<tr><td><code>winAPI.getFileType(handle)</code></td><td>the <code>FILE_TYPE_*</code> value, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getFileTime(path)</code></td><td>JSON <code>{creation, access, write}</code> in Unix milliseconds, or <code>&quot;&quot;</code></td></tr>
 </table>
 <p><code>mode</code> is <code>&quot;read&quot;</code> (<code>OPEN_EXISTING</code>), <code>&quot;write&quot;</code> (<code>CREATE_ALWAYS</code>, truncated), <code>&quot;append&quot;</code> (<code>OPEN_ALWAYS</code>, seek to end) or <code>&quot;readwrite&quot;</code> (<code>OPEN_ALWAYS</code>). <code>seekFile</code> positions absolutely from the start of the file.</p>
 <pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
@@ -215,6 +256,41 @@ global main(){
     winAPI.closeHandle(reader);
     winAPI.deleteFile(path);
 }</code></pre>
+<h2 id="shell-clipboard-and-dialogs">Shell, clipboard and dialogs</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.shellOpen(path)</code></td><td>whether <code>ShellExecuteW</code> accepted the request</td></tr>
+<tr><td><code>winAPI.shellOpenWith(path, arguments, verb)</code></td><td>the same, with an explicit verb such as <code>&quot;edit&quot;</code></td></tr>
+<tr><td><code>winAPI.messageBox(text, title)</code></td><td>the <code>MessageBoxW</code> result</td></tr>
+<tr><td><code>winAPI.clipboardGet()</code></td><td>the clipboard's Unicode text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.clipboardSet(text)</code></td><td>whether the clipboard was updated</td></tr>
+<tr><td><code>winAPI.notify(title, message)</code></td><td>whether a tray balloon was queued</td></tr>
+</table>
+<p><code>shellOpen</code>/<code>shellOpenWith</code> are fire-and-forget: they return as soon as the shell accepts the request. <code>messageBox</code> blocks until the user dismisses the dialog, so it is unsuitable for unattended programs. <code>notify</code> queues a tray balloon for five seconds and returns immediately; it needs an interactive console window. Clipboard and notification access need a window-station/desktop that permits it; under a service or a headless session they return the failure sentinel instead of raising.</p>
+<h2 id="named-pipes">Named pipes</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.createNamedPipe(name)</code></td><td>a server handle, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.connectNamedPipe(handle)</code></td><td>whether a client connected</td></tr>
+<tr><td><code>winAPI.openNamedPipe(name)</code></td><td>a client handle, or <code>-1</code> after a 5 s wait</td></tr>
+<tr><td><code>winAPI.readNamedPipe(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.writeNamedPipe(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.disconnectNamedPipe(handle)</code></td><td>whether the server disconnected</td></tr>
+<tr><td><code>winAPI.peekNamedPipe(handle)</code></td><td>bytes available, or <code>-1</code></td></tr>
+</table>
+<p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is also accepted. <code>openNamedPipe</code> retries while the server is still creating the pipe, so a client may start before the server. Pipe handles are ordinary handles and are released with <code>winAPI.closeHandle</code>. Reads and writes are blocking.</p>
+<pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
+
+global main(){
+    int server = winAPI.createNamedPipe(&quot;lynxer-demo&quot;);
+    // In another process:
+    //   int client = winAPI.openNamedPipe(&quot;lynxer-demo&quot;);
+    winAPI.connectNamedPipe(server);
+    println(winAPI.readNamedPipe(server, 64));
+    winAPI.writeNamedPipe(server, &quot;pong&quot;);
+    winAPI.disconnectNamedPipe(server);
+    winAPI.closeHandle(server);
+}</code></pre>
 <h2 id="processes-and-threads">Processes and threads</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
@@ -224,6 +300,8 @@ global main(){
 <tr><td><code>winAPI.getExitCodeProcess(handle)</code></td><td>the exit code, or <code>-1</code> (<code>259</code> while still alive)</td></tr>
 <tr><td><code>winAPI.createProcess(commandLine)</code></td><td>the new process's handle, or <code>-1</code></td></tr>
 <tr><td><code>winAPI.waitForSingleObject(handle, milliseconds)</code></td><td><code>0</code> when signalled, <code>258</code> on timeout, <code>-1</code> on failure</td></tr>
+<tr><td><code>winAPI.getPriorityClass(handle)</code></td><td>the <code>*_PRIORITY_CLASS</code> value, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.setPriorityClass(handle, class)</code></td><td>whether it was set</td></tr>
 </table>
 <p><code>createProcess</code> starts <code>commandLine</code> through <code>CreateProcessW</code> with the inherited environment and no redirection; the thread handle is closed for you, so only the returned process handle needs <code>closeHandle</code>.</p>
 <h2 id="console">Console</h2>
@@ -236,6 +314,8 @@ global main(){
 <tr><td><code>winAPI.setConsoleTitle(text)</code></td><td>whether the title was set</td></tr>
 <tr><td><code>winAPI.getConsoleOutputCP()</code></td><td>the console output code page</td></tr>
 <tr><td><code>winAPI.setConsoleOutputCP(codePage)</code></td><td>whether it was set</td></tr>
+<tr><td><code>winAPI.getConsoleWindow()</code></td><td>the console window handle, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getConsoleScreenBufferInfo()</code></td><td>JSON <code>{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}</code>, or <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="timing">Timing</h2>
 <table>
@@ -244,7 +324,7 @@ global main(){
 <tr><td><code>winAPI.queryPerformanceFrequency()</code></td><td>ticks per second, or <code>-1</code></td></tr>
 </table>
 <h2 id="the-long-tail">The long tail</h2>
-<p>Anything not in the tables above — other DLLs, <code>user32</code>, <code>advapi32</code>, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HANDLE</code>-typed parameters — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
+<p>Anything not in the tables above — other DLLs, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HWND</code>/<code>SOCKET</code> values and the 32-bit <code>__stdcall</code> convention — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
 <pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
 
 global main(){

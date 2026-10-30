@@ -12,8 +12,13 @@
 #include <thread>
 #include <vector>
 
+#include "stdlib/native_json.hpp"
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -180,6 +185,44 @@ std::wstring namedPipePath(const std::string& name) {
     return L"\\\\.\\pipe\\" + wide;
 }
 
+// FILETIME counts 100 ns intervals since 1601-01-01 UTC; Unix time starts
+// 11644473600 seconds later.
+std::int64_t fileTimeToUnixMilliseconds(const FILETIME& time) {
+    ULARGE_INTEGER ticks{};
+    ticks.LowPart = time.dwLowDateTime;
+    ticks.HighPart = time.dwHighDateTime;
+    constexpr std::uint64_t unixEpoch = 116444736000000000ULL;
+    if (ticks.QuadPart <= unixEpoch) {
+        return 0;
+    }
+    return static_cast<std::int64_t>((ticks.QuadPart - unixEpoch) / 10000ULL);
+}
+
+std::string jsonDump(const native_json::Value& value) {
+    return native_json::dump(value, false);
+}
+
+std::string diskSpaceJson(const std::string& path) {
+    ULARGE_INTEGER freeBytes{};
+    ULARGE_INTEGER totalBytes{};
+    ULARGE_INTEGER totalFree{};
+    if (::GetDiskFreeSpaceExW(utf8ToWide(path).c_str(), &freeBytes,
+                              &totalBytes, &totalFree) == 0) {
+        return std::string();
+    }
+    native_json::Value object = native_json::makeObject();
+    native_json::setField(object, "free",
+                          native_json::makeInteger(static_cast<std::int64_t>(
+                              freeBytes.QuadPart)));
+    native_json::setField(object, "total",
+                          native_json::makeInteger(static_cast<std::int64_t>(
+                              totalBytes.QuadPart)));
+    native_json::setField(object, "totalFree",
+                          native_json::makeInteger(static_cast<std::int64_t>(
+                              totalFree.QuadPart)));
+    return jsonDump(object);
+}
+
 #endif  // _WIN32
 
 const std::vector<std::string>& names() {
@@ -193,7 +236,11 @@ const std::vector<std::string>& names() {
         "beep",               "formatMessage",        "getUserName",
         "isUserAnAdmin",      "getSystemMetrics",     "getLogicalDrives",
         "getDriveType",       "getOSVersion",         "getLocaleName",
-        "getTimeZoneName",
+        "getTimeZoneName",    "getSystemTime",        "getSystemInfo",
+        "getMemoryStatus",    "getPowerStatus",       "getVolumeInfo",
+        "getDiskSpace",       "getACP",               "getOEMCP",
+        "getCommandLine",     "getCurrentProcess",    "getModuleHandle",
+        "getActiveProcessorCount",
         // Shell and clipboard.
         "shellOpen",          "shellOpenWith",        "messageBox",
         "clipboardGet",       "clipboardSet",          "notify",
@@ -205,13 +252,16 @@ const std::vector<std::string>& names() {
         "createFile",         "readFile",            "writeFile",
         "closeHandle",        "fileSize",            "seekFile",
         "deleteFile",         "copyFile",            "moveFile",
-        "createDirectory",    "removeDirectory",
+        "createDirectory",    "removeDirectory",     "getTempFileName",
+        "setCurrentDirectory", "getFileType",        "getFileTime",
         // Process control and the current thread.
         "getCurrentThreadId", "openProcess",         "terminateProcess",
         "getExitCodeProcess", "createProcess",       "waitForSingleObject",
+        "getPriorityClass",   "setPriorityClass",
         // Console session.
         "getStdHandle",       "getConsoleMode",      "setConsoleMode",
         "setConsoleTitle",    "getConsoleOutputCP",  "setConsoleOutputCP",
+        "getConsoleWindow",   "getConsoleScreenBufferInfo",
         // Files by name, flushing and the high-resolution timer.
         "getFileAttributes",  "setFileAttributes",   "getFullPathName",
         "flushFileBuffers",   "getKnownFolderPath",
@@ -374,6 +424,198 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
     if (name == "getTimeZoneName") {
         if (!args.empty()) return wrong("no arguments");
         result = timeZoneName();
+        return true;
+    }
+    if (name == "getSystemTime") {
+        if (!args.empty()) return wrong("no arguments");
+        FILETIME now{};
+        ::GetSystemTimeAsFileTime(&now);
+        result = fileTimeToUnixMilliseconds(now);
+        return true;
+    }
+    if (name == "getSystemInfo") {
+        if (!args.empty()) return wrong("no arguments");
+        SYSTEM_INFO info{};
+        ::GetSystemInfo(&info);
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(
+            object, "processorArchitecture",
+            native_json::makeInteger(info.wProcessorArchitecture));
+        native_json::setField(object, "pageSize",
+                              native_json::makeInteger(info.dwPageSize));
+        native_json::setField(
+            object, "processorCount",
+            native_json::makeInteger(info.dwNumberOfProcessors));
+        native_json::setField(
+            object, "allocationGranularity",
+            native_json::makeInteger(info.dwAllocationGranularity));
+        native_json::setField(object, "processorLevel",
+                              native_json::makeInteger(info.wProcessorLevel));
+        native_json::setField(
+            object, "processorRevision",
+            native_json::makeInteger(info.wProcessorRevision));
+        native_json::setField(
+            object, "activeProcessorMask",
+            native_json::makeInteger(static_cast<std::int64_t>(
+                static_cast<std::uint64_t>(info.dwActiveProcessorMask))));
+        result = jsonDump(object);
+        return true;
+    }
+    if (name == "getMemoryStatus") {
+        if (!args.empty()) return wrong("no arguments");
+        MEMORYSTATUSEX status{};
+        status.dwLength = sizeof(status);
+        if (::GlobalMemoryStatusEx(&status) == 0) {
+            result = std::string();
+            return true;
+        }
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(object, "load",
+                              native_json::makeInteger(status.dwMemoryLoad));
+        native_json::setField(
+            object, "total",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullTotalPhys)));
+        native_json::setField(
+            object, "available",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullAvailPhys)));
+        native_json::setField(
+            object, "totalPageFile",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullTotalPageFile)));
+        native_json::setField(
+            object, "availablePageFile",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullAvailPageFile)));
+        native_json::setField(
+            object, "totalVirtual",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullTotalVirtual)));
+        native_json::setField(
+            object, "availableVirtual",
+            native_json::makeInteger(
+                static_cast<std::int64_t>(status.ullAvailVirtual)));
+        result = jsonDump(object);
+        return true;
+    }
+    if (name == "getPowerStatus") {
+        if (!args.empty()) return wrong("no arguments");
+        SYSTEM_POWER_STATUS status{};
+        if (::GetSystemPowerStatus(&status) == 0) {
+            result = std::string();
+            return true;
+        }
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(
+            object, "acLineStatus",
+            native_json::makeInteger(status.ACLineStatus));
+        native_json::setField(object, "batteryFlag",
+                              native_json::makeInteger(status.BatteryFlag));
+        native_json::setField(
+            object, "batteryLifePercent",
+            native_json::makeInteger(status.BatteryLifePercent));
+        native_json::setField(
+            object, "batteryLifeSeconds",
+            native_json::makeInteger(status.BatteryLifeTime));
+        native_json::setField(
+            object, "batteryFullLifeSeconds",
+            native_json::makeInteger(status.BatteryFullLifeTime));
+        result = jsonDump(object);
+        return true;
+    }
+    if (name == "getVolumeInfo") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        wchar_t label[MAX_PATH + 1]{};
+        wchar_t filesystem[MAX_PATH + 1]{};
+        DWORD serial = 0;
+        DWORD maxComponent = 0;
+        DWORD flags = 0;
+        if (::GetVolumeInformationW(utf8ToWide(stringArg(0)).c_str(), label,
+                                    MAX_PATH + 1, &serial, &maxComponent,
+                                    &flags, filesystem, MAX_PATH + 1) == 0) {
+            result = std::string();
+            return true;
+        }
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(object, "label",
+                              native_json::makeString(wideToUtf8(label)));
+        native_json::setField(object, "filesystem",
+                              native_json::makeString(wideToUtf8(filesystem)));
+        native_json::setField(object, "serial",
+                              native_json::makeInteger(serial));
+        native_json::setField(
+            object, "maxComponentLength",
+            native_json::makeInteger(maxComponent));
+        native_json::setField(object, "flags",
+                              native_json::makeInteger(flags));
+        result = jsonDump(object);
+        return true;
+    }
+    if (name == "getDiskSpace") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        result = diskSpaceJson(stringArg(0));
+        return true;
+    }
+    if (name == "getACP") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::GetACP());
+        return true;
+    }
+    if (name == "getOEMCP") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::GetOEMCP());
+        return true;
+    }
+    if (name == "getCommandLine") {
+        if (!args.empty()) return wrong("no arguments");
+        result = wideToUtf8(::GetCommandLineW());
+        return true;
+    }
+    if (name == "getCurrentProcess") {
+        if (!args.empty()) return wrong("no arguments");
+        // Return a real, closable duplicate: the GetCurrentProcess pseudo-handle
+        // is -1, which is also the failure sentinel used by this surface.
+        HANDLE duplicate = nullptr;
+        if (::DuplicateHandle(::GetCurrentProcess(), ::GetCurrentProcess(),
+                              ::GetCurrentProcess(), &duplicate, 0, FALSE,
+                              DUPLICATE_SAME_ACCESS) == 0) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result = static_cast<std::int64_t>(
+            reinterpret_cast<std::intptr_t>(duplicate));
+        return true;
+    }
+    if (name == "getModuleHandle") {
+        if (args.size() != 1) return wrong("a module name");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string module name");
+        }
+        const std::wstring module = utf8ToWide(stringArg(0));
+        const HMODULE handle =
+            ::GetModuleHandleW(module.empty() ? nullptr : module.c_str());
+        result = handle == nullptr
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(
+                           reinterpret_cast<std::intptr_t>(handle));
+        return true;
+    }
+    if (name == "getActiveProcessorCount") {
+        if (args.size() != 1) return wrong("a processor group");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer processor group");
+        }
+        const DWORD count = ::GetActiveProcessorCount(
+            static_cast<WORD>(integerArg(0)));
+        result = count == 0 ? static_cast<std::int64_t>(-1)
+                            : static_cast<std::int64_t>(count);
         return true;
     }
     if (name == "shellOpen") {
@@ -871,6 +1113,90 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
         }
         return true;
     }
+    if (name == "getTempFileName") {
+        if (args.size() != 1) return wrong("a prefix");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string prefix");
+        }
+        std::wstring prefix = utf8ToWide(stringArg(0));
+        // GetTempFileNameW uses at most the first three characters.
+        if (prefix.size() > 3) {
+            prefix.resize(3);
+        }
+        const DWORD needed = ::GetTempPathW(0, nullptr);
+        if (needed == 0) {
+            result = std::string();
+            return true;
+        }
+        std::wstring directory(needed, L'\0');
+        if (::GetTempPathW(needed, directory.data()) == 0) {
+            result = std::string();
+            return true;
+        }
+        std::wstring file(MAX_PATH + 1, L'\0');
+        if (::GetTempFileNameW(directory.c_str(), prefix.c_str(), 0,
+                               file.data()) == 0) {
+            result = std::string();
+            return true;
+        }
+        result = wideToUtf8(file.c_str());
+        return true;
+    }
+    if (name == "setCurrentDirectory") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        result = ::SetCurrentDirectoryW(utf8ToWide(stringArg(0)).c_str()) != 0;
+        return true;
+    }
+    if (name == "getFileType") {
+        if (args.size() != 1) return wrong("a handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer handle");
+        }
+        ::SetLastError(ERROR_SUCCESS);
+        const DWORD type = ::GetFileType(handleArg(0));
+        result = (type == FILE_TYPE_UNKNOWN && ::GetLastError() != ERROR_SUCCESS)
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(type);
+        return true;
+    }
+    if (name == "getFileTime") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        const HANDLE handle = ::CreateFileW(
+            utf8ToWide(stringArg(0)).c_str(), FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+            OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (handle == INVALID_HANDLE_VALUE) {
+            result = std::string();
+            return true;
+        }
+        FILETIME creation{};
+        FILETIME access{};
+        FILETIME write{};
+        const BOOL ok = ::GetFileTime(handle, &creation, &access, &write);
+        ::CloseHandle(handle);
+        if (ok == 0) {
+            result = std::string();
+            return true;
+        }
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(
+            object, "creation",
+            native_json::makeInteger(fileTimeToUnixMilliseconds(creation)));
+        native_json::setField(
+            object, "access",
+            native_json::makeInteger(fileTimeToUnixMilliseconds(access)));
+        native_json::setField(
+            object, "write",
+            native_json::makeInteger(fileTimeToUnixMilliseconds(write)));
+        result = jsonDump(object);
+        return true;
+    }
     if (name == "copyFile") {
         if (args.size() != 3) return wrong("a source, a destination and a flag");
         if (std::get_if<std::string>(&args[0]) == nullptr ||
@@ -970,6 +1296,26 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
                                        : static_cast<std::int64_t>(status);
         return true;
     }
+    if (name == "getPriorityClass") {
+        if (args.size() != 1) return wrong("a process handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer process handle");
+        }
+        const DWORD priority = ::GetPriorityClass(handleArg(0));
+        result = priority == 0 ? static_cast<std::int64_t>(-1)
+                               : static_cast<std::int64_t>(priority);
+        return true;
+    }
+    if (name == "setPriorityClass") {
+        if (args.size() != 2) return wrong("a process handle and a class");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer process handle and priority class");
+        }
+        result = ::SetPriorityClass(handleArg(0),
+                                    static_cast<DWORD>(integerArg(1))) != 0;
+        return true;
+    }
     if (name == "getStdHandle") {
         if (args.size() != 1) return wrong("a stream name");
         if (std::get_if<std::string>(&args[0]) == nullptr) {
@@ -1033,6 +1379,49 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
             return wrong("an integer code page");
         }
         result = ::SetConsoleOutputCP(static_cast<UINT>(integerArg(0))) != 0;
+        return true;
+    }
+    if (name == "getConsoleWindow") {
+        if (!args.empty()) return wrong("no arguments");
+        const HWND window = ::GetConsoleWindow();
+        result = window == nullptr
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(
+                           reinterpret_cast<std::intptr_t>(window));
+        return true;
+    }
+    if (name == "getConsoleScreenBufferInfo") {
+        if (!args.empty()) return wrong("no arguments");
+        const HANDLE output = ::GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_SCREEN_BUFFER_INFO info{};
+        if (output == nullptr || output == INVALID_HANDLE_VALUE ||
+            ::GetConsoleScreenBufferInfo(output, &info) == 0) {
+            result = std::string();
+            return true;
+        }
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(
+            object, "width",
+            native_json::makeInteger(info.srWindow.Right -
+                                     info.srWindow.Left + 1));
+        native_json::setField(
+            object, "height",
+            native_json::makeInteger(info.srWindow.Bottom -
+                                     info.srWindow.Top + 1));
+        native_json::setField(
+            object, "bufferWidth",
+            native_json::makeInteger(info.dwSize.X));
+        native_json::setField(
+            object, "bufferHeight",
+            native_json::makeInteger(info.dwSize.Y));
+        native_json::setField(object, "cursorX",
+                              native_json::makeInteger(info.dwCursorPosition.X));
+        native_json::setField(object, "cursorY",
+                              native_json::makeInteger(info.dwCursorPosition.Y));
+        native_json::setField(
+            object, "attributes",
+            native_json::makeInteger(info.wAttributes));
+        result = jsonDump(object);
         return true;
     }
     if (name == "getFileAttributes") {

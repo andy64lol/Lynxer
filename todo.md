@@ -235,12 +235,13 @@ surface stays a documented boundary in
   example is marked too; the MinGW build was verified locally, and the
   `native-module-msvc` CI job checks both the entry point and an op export.~~
 - [ ] **Release binaries, installer and signing.** The release already ships
-  prebuilt `lynxer-windows-amd64/arm64.zip`. `packaging/windows/lynxer.iss`
-  now builds an Inno Setup installer on the `--install` layout, adds `bin` to
-  the user `PATH` and registers an uninstall entry; `stage-payload.sh` prepares
-  its input; the AMD64 CI job installs Inno Setup, compiles the installer and
-  uploads it as an artifact. Still to do: Authenticode-sign the installer and
-  binaries so a download does not trip SmartScreen.
+  prebuilt `lynxer-windows-amd64/arm64.zip`, each containing both the portable
+  program and its installer. `packaging/windows/lynxer.iss` builds an AMD64 or
+  ARM64 Inno Setup installer on the `--install` layout, adds `bin` to the user
+  `PATH` and registers an uninstall entry; `stage-payload.sh` prepares its
+  input; both Windows CI jobs install Inno Setup, compile their architecture's
+  installer and upload the combined zip. Still to do: Authenticode-sign the
+  installer and binaries so a download does not trip SmartScreen.
 - [ ] **Test parity.** The Windows-only fixtures now include `winreg_basic`,
   `winwatch`, `winapi`, `winapi_pipe`, `winpipe_basic` (the pipe fixtures have
   server/client helpers), plus the portable `stdlib_os_dirs`,

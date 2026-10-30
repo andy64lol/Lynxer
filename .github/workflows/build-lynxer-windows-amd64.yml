@@ -100,31 +100,23 @@ jobs:
         shell: msys2 {0}
         run: |
           ./packaging/windows/stage-payload.sh
-          "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" packaging/windows/lynxer.iss
+          MSYS2_ARG_CONV_EXCL="/D" "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+            /DMyArch=amd64 packaging/windows/lynxer.iss
 
-      - name: Upload the installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: lynxer-windows-amd64-installer
-          path: dist/*-setup.exe
-          if-no-files-found: ignore
+      - name: Bundle the installer and portable program
+        shell: msys2 {0}
+        run: |
+          python packaging/windows/make-release-zip.py \
+            --arch amd64 \
+            --installer dist/lynxer-*-windows-amd64-setup.exe \
+            --output dist/lynxer-windows-amd64.zip
 
-      - name: Upload the Windows AMD64 binary
-        if: always()
+      - name: Upload the Windows AMD64 release zip
         uses: actions/upload-artifact@v4
         with:
           name: lynxer-windows-amd64
-          path: |
-            lynxer/lynxer.exe
-            lynxer/*.dll
-            lynxer/lynxer.dll.a
-            lynxer/lynxer.h
-            lynxer/ffi_abi.h
-            lynxer/lynxer
-            lynxer/stdlib
-            lynxer/lynxer.config
-            lynxer/runtime
-          if-no-files-found: ignore
+          path: dist/lynxer-windows-amd64.zip
+          if-no-files-found: error
 
   native-module-msvc:
     name: Build a native module with MSVC
