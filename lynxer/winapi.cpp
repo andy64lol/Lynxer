@@ -531,12 +531,18 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
         }
         wchar_t label[MAX_PATH + 1]{};
         wchar_t filesystem[MAX_PATH + 1]{};
+        wchar_t volume[MAX_PATH + 1]{};
         DWORD serial = 0;
         DWORD maxComponent = 0;
         DWORD flags = 0;
-        if (::GetVolumeInformationW(utf8ToWide(stringArg(0)).c_str(), label,
-                                    MAX_PATH + 1, &serial, &maxComponent,
-                                    &flags, filesystem, MAX_PATH + 1) == 0) {
+        const std::wstring path = utf8ToWide(stringArg(0));
+        if (::GetVolumePathNameW(path.c_str(), volume, MAX_PATH + 1) == 0) {
+            result = std::string();
+            return true;
+        }
+        if (::GetVolumeInformationW(volume, label, MAX_PATH + 1, &serial,
+                                    &maxComponent, &flags, filesystem,
+                                    MAX_PATH + 1) == 0) {
             result = std::string();
             return true;
         }
