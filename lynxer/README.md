@@ -11,7 +11,8 @@ The first slice intentionally stays small:
   integers, floats, booleans, and arithmetic
 - required `global setup(){...}` and `global main(){...}` entry points
 - typed declarations for `int`, `float`, `str`, `bool`, and `any`
-- assignment and `print(...)` / `println(...)`
+- assignment and `print(...)` / `println(...)`, plus interpolating
+  `printf(...)` / `printlnf(...)`
 - arithmetic, comparison, equality, and boolean expressions
 - `while`, `for`, `doWhile`, `iterate`, and `forever` loops
 - `break`, `continue`, and `restart` loop controls

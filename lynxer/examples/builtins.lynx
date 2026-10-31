@@ -102,6 +102,13 @@ global main(){
     println(inter"{name} is {age}");
     print(inter"{age + 4}\n");
     println("no {name} interpolation here");
+    printf("printf: {name} is {age}\n");
+    printlnf("printlnf: {age + 4}");
+    printf("printf escapes: \{name\} and {name}\n");
+    printf("printf mixed: ", age, " and ", name, "\n");
+    str held = "held {name}";
+    printlnf(held);
+    printf(strOf("nested {name}\n"));
 
     // forever loop with break (warning suppressed in setup)
     int count = 0;

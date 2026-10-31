@@ -24,7 +24,9 @@ dispatcher rather than to a per-name handler.
 | Builtin | Notes |
 | --- | --- |
 | `print(value...)` | Writes each argument with no separator |
+| `printf(value...)` | Like `print`, but `{expr}` in string literals written directly as arguments is interpolated |
 | `println(value...)` | Like `print` plus a trailing newline |
+| `printlnf(value...)` | Like `println`, but `{expr}` in string literals written directly as arguments is interpolated |
 | `input([prompt])` | Prints the prompt, reads one line from stdin |
 | `inputln([prompt])` | As `input`, but keeps the newline |
 | `strOf(value)` | Value rendered as text |

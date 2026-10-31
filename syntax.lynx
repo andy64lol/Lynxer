@@ -156,6 +156,8 @@ global main(){
     // -------------------------------------- string interpolation and builtins
     str message = inter"number={number}, greeting={greeting}";
     println("inter: ", message);
+    printf("printf: number={number}, greeting={greeting}\n");
+    printlnf("printlnf: next number is {number + 1}");
     println("strings: ", trim("  padded  "), ", ", upper(greeting), ", ",
             lower("LOUD"), ", ", replace(greeting, "l", "L"));
     println("substring: ", substring(greeting, 1, 4), ", charAt: ",

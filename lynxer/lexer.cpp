@@ -93,7 +93,10 @@ std::vector<Token> Lexer::scan() {
             }
             emit(TokenKind::Number, text, line, column);
         } else if (current == '"') {
-            if (interpCall) {
+            // Only literals written directly as arguments to printf()/
+            // printlnf() are interpolated. Strings inside nested calls keep
+            // their normal, non-interpolating meaning.
+            if (interpCall && parenDepth == 1) {
                 emit(TokenKind::InterpString,
                      readRawString(line, column), line, column);
             } else {

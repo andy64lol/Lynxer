@@ -379,6 +379,34 @@ global describe(int n) -> str {
 The embedded expressions run when the string is evaluated. Each result is
 converted to text and inserted between the literal parts.
 
+### Interpolating output calls
+
+`printf(...)` and `printlnf(...)` are the interpolating counterparts of
+`print(...)` and `println(...)`. A double-quoted string literal written directly
+as an argument is treated as if it had an `inter` prefix, so `{expr}` is
+evaluated without constructing an explicit `inter"..."` value:
+
+```lynx
+global main() {
+    int n = 3;
+    str name = "Ada";
+    printf("n is {n} and name is {name}\n");
+    printlnf("next year: {n + 1}"); // next year: 4
+}
+```
+
+`printf` writes the result without a trailing newline; `printlnf` adds one.
+The escape rules match `inter"..."`: `\{` and `\}` insert literal braces and
+`\\` inserts a backslash.
+
+Only string literals written directly in the call are interpolated. A string
+held in a variable is printed unchanged:
+
+```lynx
+str template = "n is {n}";
+printlnf(template); // n is {n}
+```
+
 ## Modules
 
 `import("name")` and `importAs("name", "alias")` load `.lynx` source modules or
