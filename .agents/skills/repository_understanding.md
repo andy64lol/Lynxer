@@ -1,3 +1,8 @@
+---
+name: repository-understanding
+description: Checklist for understanding the Lynxer repository structure, architecture, conventions, tests and build system before making changes.
+---
+
 # Repository Understanding
 
 ## Purpose

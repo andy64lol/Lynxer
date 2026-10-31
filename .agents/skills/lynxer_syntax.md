@@ -1,8 +1,13 @@
+---
+name: lynxer-syntax
+description: Concise Lynxer language syntax reference for writing and reviewing .lynx programs, examples and fixtures.
+---
+
 # Lynxer syntax guide
 
 A summarized syntax guide for the Lynxer language as the C++ interpreter in
 `lynxer/` parses and runs it. For the full reference see
-[`docs/language.md`](../../../docs/language.md).
+[`docs/language.md`](../../docs/language.md).
 
 ---
 
@@ -33,6 +38,18 @@ const int frozen = 1;      // cannot be reassigned
 list nums = [int 1, int 2, int 3];
 tuple point = (10, 20);
 ```
+
+## Strings and interpolation
+
+```lynx
+str message = inter"n is {n}";
+printf("n is {n}\n");        // no trailing newline of its own
+printlnf("next is {n + 1}"); // adds a newline
+```
+
+`inter"..."` interpolates `{expr}` with `\{`, `\}`, and `\\` escapes.
+`printf`/`printlnf` do the same for string literals written directly as
+arguments, without requiring the `inter` prefix.
 
 ## Functions
 
@@ -108,6 +125,6 @@ exec(){{greet}}
 
 ## Deliberate constraints
 
-See [`docs/limitations.md`](../../../docs/limitations.md) for the behaviour that
+See [`docs/limitations.md`](../../docs/limitations.md) for the behaviour that
 is intentionally constrained or not implemented (no bytecode, no `rawPy`, no
 Python module interop, module self-call rules, and so on).
