@@ -14,6 +14,11 @@ features are in [docs/removed-features.md](docs/removed-features.md).
   arguments. Support caller-supplied code blocks on `func` declarations too.
   Cover macro expansion, `pub` visibility across imports, and code-block
   arguments with fixtures.~~
+- [ ] **Wildcard module imports.** Add `importAll("moduleName")` so the
+  imported module's public functions can be called unqualified, e.g.
+  `sqrt(4)` instead of `math.sqrt(4)`, like Python's `from module import *`.
+  Specify and test visibility, name collisions, and interaction with ordinary
+  imports.
 
 ## `graphics` and `game`
 
@@ -76,6 +81,10 @@ features are in [docs/removed-features.md](docs/removed-features.md).
   case conversion and alpha/numeric/digit predicates; the existing ASCII
   helpers remain (`upperAscii`, `isAlphaAscii`, …). The `stdlib_text` fixture
   covers multi-byte and combining characters.~~
+- [ ] **Move syscall APIs into standard-library modules.** Replace special
+  language-level syscall built-ins with standard-library module functions;
+  preserve platform/architecture gating and document the supported syscall
+  surface.
 - [x] ~~**Path encoding and platform information.** `path` reads and writes the
   UTF-8 default plus Latin-1 and common Windows code pages (including
   UTF-16LE), and exposes portable `platform` / `separator` / `listSeparator`
@@ -109,6 +118,13 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 - [x] ~~**Lua error classification.** `lua` exposes stable structured error kinds
   while retaining the engine diagnostic and traceback, with syntax and runtime
   failure tests.~~
+
+## Implementation
+
+- [ ] **Migrate most implementation code to Rust.** Plan an incremental
+  migration of the interpreter and supporting implementation from C++ to Rust,
+  defining component boundaries and preserving the language behavior, native
+  module ABI, embedding interfaces, and platform support through tests.
 
 ## Windows support
 
