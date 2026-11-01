@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
@@ -138,27 +139,17 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="windows-api-access">Windows API access</h1>
-<p>On Windows, Lynxer calls the Win32 API through the built-in <code>winAPI.*</code> surface. It is <strong>not a module</strong> — there is no <code>import</code> — and it is gated by the same <code>syscalls(...)</code> target selector the named Linux syscalls use:</p>
-<pre><code>fn setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
-
-fn main(){
+<p>On Windows, Lynxer calls the Win32 API through the built-in <code>winAPI.*</code> surface. It is <strong>not a module</strong> — there is no <code>import</code> — and is available only on a Windows host:</p>
+<pre><code>fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getComputerName());
     println(winAPI.getCurrentDirectory());
 }</code></pre>
 <p>Most calls are <code>kernel32</code>; <code>getKnownFolderPath</code> uses <code>shell32</code>/<code>ole32</code> for the Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be installed.</p>
-<h2 id="selecting-the-target">Selecting the target</h2>
-<p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any <code>winAPI.*</code> call.</p>
-<table>
-<tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
-<tr><td><code>winAPI</code>, <code>windows</code>, <code>win32</code></td><td>operating system</td><td>the Win32 surface</td></tr>
-<tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
-<tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
-</table>
+<h2 id="host-availability">Host availability</h2>
 <ul>
-<li>Both keywords must name the <strong>host</strong>. On Linux, <code>syscalls(&quot;winAPI&quot;, &quot;amd64&quot;)</code> fails with <code>syscalls(&quot;winAPI&quot;) selects Windows, but this machine is Linux</code>; on a host that is neither Linux nor Windows the selector reports that it is unavailable.</li>
-<li>Matching is case-insensitive, so <code>syscalls(sys.platform(), sys.architecture())</code> asserts the host — <code>platform()</code> returns <code>win32</code> on Windows.</li>
-<li>Calling <code>winAPI.*</code> before the selection is an error: <code>winAPI calls are not available yet; call syscalls(&quot;winAPI&quot;, &quot;&lt;arch&gt;&quot;) first</code>. A call after selecting a different target is an error too.</li>
+<li>Calls are gated by the current runtime host; no target selector is needed.</li>
+<li>On non-Windows hosts, calling the namespace reports that the Win32 API requires a Windows runtime.</li>
 <li>The namespace prefix is matched case-insensitively, so <code>winAPI.getProcessId()</code> and <code>winapi.getProcessId()</code> are the same call. A misspelled function reports the closest match, e.g. <code>unknown winAPI function &#x27;getProcesId&#x27;. You meant: getProcessId?</code>.</li>
 </ul>
 <h2 id="conventions">Conventions</h2>
@@ -239,9 +230,7 @@ fn main(){
 <tr><td><code>winAPI.getFileTime(path)</code></td><td>JSON <code>{creation, access, write}</code> in Unix milliseconds, or <code>&quot;&quot;</code></td></tr>
 </table>
 <p><code>mode</code> is <code>&quot;read&quot;</code> (<code>OPEN_EXISTING</code>), <code>&quot;write&quot;</code> (<code>CREATE_ALWAYS</code>, truncated), <code>&quot;append&quot;</code> (<code>OPEN_ALWAYS</code>, seek to end) or <code>&quot;readwrite&quot;</code> (<code>OPEN_ALWAYS</code>). <code>seekFile</code> positions absolutely from the start of the file.</p>
-<pre><code>fn setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
-
-fn main(){
+<pre><code>fn main(){
     str path = winAPI.getTempPath() + &quot;demo.txt&quot;;
 
     int file = winAPI.createFile(path, &quot;write&quot;);
@@ -281,9 +270,7 @@ fn main(){
 <tr><td><code>winAPI.peekNamedPipe(handle)</code></td><td>bytes available, or <code>-1</code></td></tr>
 </table>
 <p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is also accepted. <code>openNamedPipe</code> retries while the server is still creating the pipe, so a client may start before the server. Pipe handles are ordinary handles and are released with <code>winAPI.closeHandle</code>. Reads and writes are blocking.</p>
-<pre><code>fn setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
-
-fn main(){
+<pre><code>fn main(){
     int server = winAPI.createNamedPipe(&quot;lynxer-demo&quot;);
     // In another process:
     //   int client = winAPI.openNamedPipe(&quot;lynxer-demo&quot;);
@@ -327,9 +314,7 @@ fn main(){
 </table>
 <h2 id="the-long-tail">The long tail</h2>
 <p>Anything not in the tables above — other DLLs, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HWND</code>/<code>SOCKET</code> values and the 32-bit <code>__stdcall</code> convention — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
-<pre><code>fn setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
-
-fn main(){
+<pre><code>fn main(){
     int user32 = ffiLoadLibrary(&quot;user32.dll&quot;);
     functionAddress box = ffiLookup(user32, &quot;MessageBoxA&quot;);
     ffiCall(box, &quot;cdecl:int32(int64,cstring,cstring,int32)&quot;,
@@ -339,7 +324,7 @@ fn main(){
 <p>A curated wrapper over that — more DLLs and first-class <code>HANDLE</code> values — is tracked in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="syscalls.html">syscalls</a> — the target selector and the named Linux syscalls</li>
+<li><a href="syscalls.html">syscalls</a> — the Linux named-syscall standard-library module</li>
 <li><a href="windows.html">windows</a> — the Windows port status and what it excludes</li>
 <li><a href="native-modules.html">native-modules</a> — <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code></li>
 </ul>

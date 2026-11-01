@@ -8,7 +8,7 @@ Runtime, process and platform information.
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `platform` | `() -> str` | Host operating system: `linux`, `darwin`, `freebsd`, `netbsd`, `openbsd`, `dragonfly` or `win32`; otherwise `unknown` |
-| `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64`; `""` otherwise. Pass with `platform()` to `syscalls(...)` |
+| `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64`; `""` otherwise. Pass with `platform()` to `syscalls.select(...)` |
 | `cpuCount` | `() -> int` | Online processors (`0` when unknown) |
 | `pageSize` | `() -> int` | Memory page size in bytes (`0` when unknown) |
 | `memoryTotal` | `() -> int` | Total physical memory in bytes (`0` when unavailable) |

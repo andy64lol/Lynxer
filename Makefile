@@ -194,6 +194,7 @@ LYNXER_MILESTONE5_CODEBLOCK_FIXTURE := $(LYNXER_DIR)/examples/milestone5_codeblo
 LYNXER_SUPER_FIXTURE := $(LYNXER_DIR)/examples/super_constructors.lynx
 LYNXER_TEMPLATE_FIXTURE := $(LYNXER_DIR)/examples/templates.lynx
 LYNXER_FUNCTION_VALUE_FIXTURE := $(LYNXER_DIR)/examples/function_values.lynx
+LYNXER_TRY_FINALLY_FIXTURE := $(LYNXER_DIR)/examples/try_finally.lynx
 LYNXER_LINT_FIXTURE := $(LYNXER_DIR)/examples/lint_static.lynx
 LYNXER_DEBUGGER_FIXTURE := $(LYNXER_DIR)/examples/debugger.lynx
 LYNXER_DEBUGGER_TEST := $(LYNXER_DIR)/scripts/test_debugger.py
@@ -296,9 +297,9 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug email encoding fileIO game graphics html image js json lua markdown math \
-	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
+	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys syscalls text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
-LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport functions_fn macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
+LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport importAll importAll_collision importAll_local_collision functions_fn macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
  stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch stdlib_numutils \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
@@ -365,10 +366,9 @@ CLYX_TMP := $(LYNXER_DIR)/.lynxer
 # to touch the real /usr here, so the whole flow runs without root.
 LYNXER_INSTALL_PREFIX := $(CLYX_TMP)_install_prefix
 LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/$(notdir $(LYNXER_TARGET))
-# Canonical syscall target of this host. The portable syscall fixtures carry
-# __OS__/__ARCH__ tokens (syscalls("__OS__", "__ARCH__") plus __ARCH__.syscall*);
-# they are replaced with these words before the fixtures run, so one source
-# serves every CI job. Named syscalls are Linux-only, so the OS word is fixed.
+# Canonical syscall target of this host. Portable syscall fixtures carry
+# __OS__/__ARCH__ tokens (syscalls.select("__OS__", "__ARCH__") and
+# syscalls.__ARCH__.syscall*); they are replaced before each fixture run.
 #
 # The architecture comes from the C++ compiler's target triple rather than
 # `uname -m`: in MSYS2's CLANGARM64 environment the MSYS2 runtime is x86_64, so
@@ -707,7 +707,7 @@ expected="program must define fn main()"; \
 	output="$$($(CLYX) $(LYNXER_ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
+expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: [variableUnknown] unknown variable 'missing'"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected source-located error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
@@ -721,7 +721,7 @@ expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	output="$$($(CLYX) $(LYNXER_MODULE_ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:19: charAt() index is out of range"; \
+expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:19: [charAtIndexIsOutOfRange] charAt() index is out of range"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected module-located error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
@@ -869,7 +869,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:19: charAt() index is out of rang
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_errors.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_DIR)/examples/m3_errors.lynx:4:5: value 200 is out of range for type 'int8'"; \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_errors.lynx:4:5: [valueIsOutOfRangeForType] value 200 is out of range for type 'int8'"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected out-of-range error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
@@ -883,7 +883,7 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_errors.lynx:4:5: value 200 is out of
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_const.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_DIR)/examples/m3_const.lynx:5:5: variable 'frozen' is constant and cannot be reassigned"; \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_const.lynx:5:5: [variableIsConstantAndCannotBeReassigned] variable 'frozen' is constant and cannot be reassigned"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected const reassignment error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
@@ -897,7 +897,7 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_const.lynx:5:5: variable 'frozen' is
 	output="$$($(CLYX) $(LYNXER_DIR)/examples/m3_vargroup.lynx 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and legacy class-field assignment requires an explicit type"; \
+expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: [vargroupAndLegacyClassFieldAssignmentRequiresAnExplicitType] Vargroup and legacy class-field assignment requires an explicit type"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected vargroup explicit-type error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
@@ -917,7 +917,7 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and lega
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
-	@for fixture in $(LYNXER_SUPER_FIXTURE) $(LYNXER_TEMPLATE_FIXTURE) $(LYNXER_FUNCTION_VALUE_FIXTURE); do \
+	@for fixture in $(LYNXER_SUPER_FIXTURE) $(LYNXER_TEMPLATE_FIXTURE) $(LYNXER_FUNCTION_VALUE_FIXTURE) $(LYNXER_TRY_FINALLY_FIXTURE); do \
 	$(CLYX) "$$fixture" > $(CLYX_TMP)_feature.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "feature fixture failed: $$fixture"; cat $(CLYX_TMP)_feature.out; \

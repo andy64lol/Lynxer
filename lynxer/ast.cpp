@@ -1514,9 +1514,12 @@ Value UnaryExpression::evaluate(Environment& environment) const {
     if (!warned_ && !environment.deprecationWarningSuppressed()) {
         if (const char* replacement = deprecatedUnaryReplacement(operation_)) {
             warned_ = true;
+            const std::string message =
+                "operator '" + operation_ + "' is deprecated; use '" +
+                replacement + "' instead.";
             std::cerr << "Warning: line " << line_ << ", column " << column_
-                      << ": operator '" << operation_ << "' is deprecated; use '"
-                      << replacement << "' instead.\n";
+                      << " [" << diagnosticCodeForMessage(message) << "]: "
+                      << message << '\n';
         }
     }
     return applyUnary(operation_, operand_->evaluate(environment), line_,
@@ -1542,9 +1545,12 @@ Value BinaryExpression::evaluate(Environment& environment) const {
         if (const char* replacement =
                 deprecatedBinaryReplacement(operation_)) {
             warned_ = true;
+            const std::string message =
+                "operator '" + operation_ + "' is deprecated; use '" +
+                replacement + "' instead.";
             std::cerr << "Warning: line " << line_ << ", column " << column_
-                      << ": operator '" << operation_ << "' is deprecated; use '"
-                      << replacement << "' instead.\n";
+                      << " [" << diagnosticCodeForMessage(message) << "]: "
+                      << message << '\n';
         }
     }
     return applyBinary(binOpFromString(operation_, line_, column_), left,
@@ -1952,62 +1958,88 @@ void SwitchStatement::execute(Environment& environment) const {
 }
 
 TryCatchStatement::TryCatchStatement(StatementList tryStatements,
-                                     std::string catchName,
-                                     StatementList catchStatements, int line,
-                                     int column)
+                                     std::vector<CatchClause> catches,
+                                     bool hasFinally,
+                                     StatementList finallyStatements,
+                                     int line, int column)
     : tryStatements_(std::move(tryStatements)),
-      catchName_(std::move(catchName)),
-      catchStatements_(std::move(catchStatements)), line_(line),
+      catches_(std::move(catches)), hasFinally_(hasFinally),
+      finallyStatements_(std::move(finallyStatements)), line_(line),
       column_(column) {}
 
 void TryCatchStatement::execute(Environment& environment) const {
+    std::exception_ptr pending;
     try {
         executeStatements(tryStatements_, environment);
     } catch (const SourceError& error) {
-        const std::string previousExceptionInfo = activeExceptionInfo();
-        std::ostringstream exceptionDetails;
-        exceptionDetails << "Traceback (most recent call last):\n"
-                         << "  File \""
-                         << (error.source.empty() ? "<program>" : error.source)
-                         << "\", line " << error.line << ", column "
-                         << error.column << "\n"
-                         << error.what();
-        setActiveExceptionInfo(exceptionDetails.str());
-        try {
-            if (!catchName_.empty()) {
-                if (environment.hasVariable(catchName_)) {
-                    const Variable existing =
-                        environment.variableSnapshot(catchName_);
-                    if (existing.constant) {
-                        throw SourceError("Cannot bind catch variable '" +
-                                              catchName_ +
+        const auto handler = std::find_if(
+            catches_.begin(), catches_.end(),
+            [&error](const CatchClause& clause) {
+                return clause.errorCode.empty() || clause.errorCode == error.code;
+            });
+        if (handler == catches_.end()) {
+            pending = std::current_exception();
+        } else {
+            const std::string previousExceptionInfo = activeExceptionInfo();
+            const std::string previousExceptionCode = activeExceptionCode();
+            std::ostringstream exceptionDetails;
+            exceptionDetails << "Traceback (most recent call last):\n"
+                             << "  File \""
+                             << (error.source.empty() ? "<program>" : error.source)
+                             << "\", line " << error.line << ", column "
+                             << error.column << "\n"
+                             << error.what();
+            setActiveExceptionInfo(exceptionDetails.str());
+            setActiveExceptionCode(error.code);
+            try {
+                if (!handler->catchName.empty()) {
+                    const std::string& catchName = handler->catchName;
+                    if (environment.hasVariable(catchName)) {
+                        const Variable existing =
+                            environment.variableSnapshot(catchName);
+                        if (existing.constant) {
+                            throw SourceError("Cannot bind catch variable '" +
+                                              catchName +
                                               "': it is declared as const",
-                                          line_, column_);
-                    }
-                    if (existing.type != "str" && existing.type != "any") {
-                        throw SourceError(
-                            "Cannot bind catch variable '" + catchName_ +
-                                "' as 'str': '" + catchName_ +
+                                              handler->line, handler->column);
+                        }
+                        if (existing.type != "str" && existing.type != "any") {
+                            throw SourceError(
+                                "Cannot bind catch variable '" + catchName +
+                                "' as 'str': '" + catchName +
                                 "' is already declared as '" +
                                 existing.type + "'",
-                            line_, column_);
+                                handler->line, handler->column);
+                        }
+                        environment.assign(catchName,
+                                           std::string(error.what()),
+                                           handler->line,
+                                           handler->column);
+                    } else {
+                        environment.declare(catchName, "str",
+                                            std::string(error.what()),
+                                            handler->line, handler->column);
                     }
-                    environment.assign(catchName_,
-                                       std::string(error.what()), line_,
-                                       column_);
-                } else {
-                    environment.declare(catchName_, "str",
-                                        std::string(error.what()), line_,
-                                        column_);
                 }
+                executeStatements(handler->body, environment);
+            } catch (...) {
+                pending = std::current_exception();
             }
-            executeStatements(catchStatements_, environment);
-        } catch (...) {
             setActiveExceptionInfo(previousExceptionInfo);
-            throw;
+            setActiveExceptionCode(previousExceptionCode);
         }
-        setActiveExceptionInfo(previousExceptionInfo);
+    } catch (...) {
+        pending = std::current_exception();
     }
+
+    if (hasFinally_) {
+        try {
+            executeStatements(finallyStatements_, environment);
+        } catch (...) {
+            pending = std::current_exception();
+        }
+    }
+    if (pending != nullptr) std::rethrow_exception(pending);
 }
 
 ReturnStatement::ReturnStatement(ExpressionPtr value, int line, int column)
@@ -2440,7 +2472,8 @@ SourceError withModuleSource(const SourceError& error,
     if (!error.source.empty()) {
         return error;
     }
-    return SourceError(error.what(), error.line, error.column, module);
+    return SourceError(error.what(), error.line, error.column, module,
+                       error.code);
 }
 
 }  // namespace
@@ -2454,12 +2487,16 @@ void ImportStatement::execute(Environment& environment) const {
         throw SourceError("module path has no name", line_, column_);
     }
     if (environment.hasImportedModule(importKey)) {
-        if (!alias_.empty()) {
-            const auto existing = environment.moduleNamespace(module);
-            if (existing != nullptr) {
-                environment.registerModuleNamespace(alias_, existing);
-                environment.aliasModuleFunctions(module, alias_);
-            }
+        const std::string existingName =
+            environment.importedModuleNamespace(importKey);
+        const auto existing = environment.moduleNamespace(existingName);
+        if (existing != nullptr && existingName != namespaceName) {
+            environment.registerModuleNamespace(namespaceName, existing);
+            environment.aliasModuleFunctions(existingName, namespaceName);
+        }
+        if (importAll_) {
+            environment.importAllModuleFunctions(namespaceName, line_,
+                                                  column_);
         }
         return;
     }
@@ -2560,6 +2597,7 @@ void ImportStatement::execute(Environment& environment) const {
                 RecordField{"str", entry.first, entry.second, true});
         }
         environment.registerModuleNamespace(namespaceName, namespaceValue);
+        environment.setImportedModuleNamespace(importKey, namespaceName);
         for (const auto& entry : registration.functions) {
             environment.registerModuleFunction(
                 namespaceName + "." + entry.first,
@@ -2569,6 +2607,10 @@ void ImportStatement::execute(Environment& environment) const {
                     Environment&, int line, int column) {
                     return callNative(address, signature, args, line, column);
                 });
+        }
+        if (importAll_) {
+            environment.importAllModuleFunctions(namespaceName, line_,
+                                                  column_);
         }
         return;
     }
@@ -2668,6 +2710,7 @@ void ImportStatement::execute(Environment& environment) const {
                         variable.second.value, variable.second.constant});
     }
     environment.registerModuleNamespace(namespaceName, namespaceValue);
+    environment.setImportedModuleNamespace(importKey, namespaceName);
     std::function<void(const Function&, const std::string&)> registerFunction;
     registerFunction = [&](const Function& function,
                            const std::string& qualifiedName) {
@@ -2696,6 +2739,9 @@ void ImportStatement::execute(Environment& environment) const {
         if (entry.first != "setup" && entry.first != "main") {
             registerFunction(entry.second, entry.first);
         }
+    }
+    if (importAll_) {
+        environment.importAllModuleFunctions(namespaceName, line_, column_);
     }
 }
 
@@ -2891,7 +2937,8 @@ void ForeverStatement::execute(Environment& environment) const {
             "forever() has no break; it will run until the process is "
             "stopped. Add break; or call suppressForeverWarning() in "
             "fn setup(){}.");
-        std::cerr << "Warning: " << message << '\n';
+        std::cerr << "Warning: [" << diagnosticCodeForMessage(message) << "] "
+                  << message << '\n';
     }
     for (;;) {
         throwIfInterrupted();
@@ -3283,7 +3330,10 @@ void SwitchStatement::optimizeChildren(OptimizationStats& stats) {
 
 void TryCatchStatement::optimizeChildren(OptimizationStats& stats) {
     optimizeStatementList(tryStatements_, stats);
-    optimizeStatementList(catchStatements_, stats);
+    for (CatchClause& clause : catches_) {
+        optimizeStatementList(clause.body, stats);
+    }
+    optimizeStatementList(finallyStatements_, stats);
 }
 
 void CodeblockDeclarationStatement::optimizeChildren(OptimizationStats& stats) {
@@ -3684,9 +3734,19 @@ void SwitchStatement::dump(std::ostream& out, int indent) const {
 
 void TryCatchStatement::dump(std::ostream& out, int indent) const {
     dumpScalarLine(out, indent, "TryCatchStatement");
-    dumpStringField(out, indent, "catchName", catchName_);
     dumpStmtListField(out, indent, "try", tryStatements_);
-    dumpStmtListField(out, indent, "catch", catchStatements_);
+    dumpFieldLabel(out, indent, "catches");
+    dumpScalarLine(out, indent + 4, "list[");
+    for (const CatchClause& clause : catches_) {
+        dumpScalarLine(out, indent + 6, "CatchClause");
+        dumpStringField(out, indent + 6, "errorCode", clause.errorCode);
+        dumpStringField(out, indent + 6, "catchName", clause.catchName);
+        dumpStmtListField(out, indent + 6, "body", clause.body);
+    }
+    dumpScalarLine(out, indent + 4, "]");
+    if (hasFinally_) {
+        dumpStmtListField(out, indent, "finally", finallyStatements_);
+    }
 }
 
 void ReturnStatement::dump(std::ostream& out, int indent) const {

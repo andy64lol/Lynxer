@@ -683,6 +683,41 @@ void Environment::aliasModuleFunctions(const std::string& from,
     }
 }
 
+void Environment::importAllModuleFunctions(const std::string& module,
+                                           int line, int column) {
+    const std::string prefix = module + ".";
+    std::vector<std::pair<std::string, ModuleFunction>> imports;
+    for (const auto& entry : moduleFunctions_) {
+        if (entry.first.rfind(prefix, 0) != 0) {
+            continue;
+        }
+        const std::string name = entry.first.substr(prefix.size());
+        if (name.empty() || name.find('.') != std::string::npos) {
+            continue;
+        }
+        const auto existing = wildcardModuleFunctions_.find(name);
+        if (existing != wildcardModuleFunctions_.end()) {
+            if (existing->second != module) {
+                throw SourceError("importAll() name conflict for '" + name +
+                                      "' between modules '" + existing->second +
+                                      "' and '" + module + "'",
+                                  line, column);
+            }
+            continue;
+        }
+        if (findFunction(name) != nullptr) {
+            throw SourceError("importAll() name conflict for '" + name +
+                                  "' with an existing function",
+                              line, column);
+        }
+        imports.emplace_back(name, entry.second);
+    }
+    for (auto& entry : imports) {
+        wildcardModuleFunctions_[entry.first] = module;
+        moduleFunctions_[entry.first] = std::move(entry.second);
+    }
+}
+
 void Environment::retainNativeModule(std::shared_ptr<void> handle) {
     nativeModules_.push_back(std::move(handle));
 }
@@ -693,6 +728,18 @@ bool Environment::hasImportedModule(const std::string& name) const {
 
 void Environment::markImportedModule(const std::string& name) {
     importedModules_.insert(name);
+}
+
+void Environment::setImportedModuleNamespace(
+    const std::string& module, const std::string& namespaceName) {
+    importedModuleNamespaces_[module] = namespaceName;
+}
+
+std::string
+Environment::importedModuleNamespace(const std::string& module) const {
+    const auto found = importedModuleNamespaces_.find(module);
+    return found == importedModuleNamespaces_.end() ? std::string()
+                                                     : found->second;
 }
 
 void Environment::registerModuleNamespace(
@@ -723,23 +770,6 @@ bool Environment::deprecationWarningSuppressed() const {
     return deprecationWarningSuppressed_;
 }
 
-void Environment::setSyscallOperatingSystem(
-    const std::string& operatingSystem) {
-    syscallOperatingSystem_ = operatingSystem;
-}
-
-const std::string& Environment::syscallOperatingSystem() const {
-    return syscallOperatingSystem_;
-}
-
-void Environment::setSyscallArchitecture(const std::string& architecture) {
-    syscallArchitecture_ = architecture;
-}
-
-const std::string& Environment::syscallArchitecture() const {
-    return syscallArchitecture_;
-}
-
 void Environment::warnTupleBracketLiteral(int line, int column) {
     if (deprecationWarningSuppressed_) {
         return;
@@ -749,9 +779,11 @@ void Environment::warnTupleBracketLiteral(int line, int column) {
     if (!tupleBracketWarnings_.insert(key).second) {
         return;
     }
-    std::cerr << "Warning: line " << line << ", column " << column
-              << ": tuple assigned from a bracketed list is deprecated; use "
-                 "the '(int 1, int 2)' form instead.\n";
+    const std::string message =
+        "tuple assigned from a bracketed list is deprecated; use "
+        "the '(int 1, int 2)' form instead.";
+    std::cerr << "Warning: line " << line << ", column " << column << " ["
+              << diagnosticCodeForMessage(message) << "]: " << message << '\n';
 }
 
 std::string Environment::declaredTypeOf(const std::string& name) const {

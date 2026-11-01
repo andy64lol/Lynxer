@@ -10,9 +10,6 @@ fn setup(){
     import("os");
     import("text");
     import("multiprocessing");
-    str arch = "amd64";
-    if(os.getSystemMachine() is "aarch64"){ arch = "arm64"; }
-    syscalls("winAPI", arch);
 }
 
 fn main(){

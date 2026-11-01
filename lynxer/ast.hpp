@@ -507,6 +507,14 @@ struct SwitchCase {
     StatementList body;
 };
 
+struct CatchClause {
+    std::string errorCode;
+    std::string catchName;
+    StatementList body;
+    int line = 0;
+    int column = 0;
+};
+
 class SwitchStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;
@@ -529,21 +537,24 @@ private:
 class TryCatchStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;
-    TryCatchStatement(StatementList tryStatements, std::string catchName,
-                      StatementList catchStatements, int line, int column);
+    TryCatchStatement(StatementList tryStatements,
+                      std::vector<CatchClause> catches, bool hasFinally,
+                      StatementList finallyStatements, int line, int column);
 
     void execute(Environment& environment) const override;
 
     void optimizeChildren(OptimizationStats& stats) override;
 
     const StatementList& tryStatements() const { return tryStatements_; }
-    const StatementList& catchStatements() const { return catchStatements_; }
-    const std::string& catchName() const { return catchName_; }
+    const std::vector<CatchClause>& catches() const { return catches_; }
+    bool hasFinally() const { return hasFinally_; }
+    const StatementList& finallyStatements() const { return finallyStatements_; }
 
 private:
     StatementList tryStatements_;
-    std::string catchName_;
-    StatementList catchStatements_;
+    std::vector<CatchClause> catches_;
+    bool hasFinally_;
+    StatementList finallyStatements_;
     int line_;
     int column_;
 };
@@ -709,9 +720,10 @@ private:
 class ImportStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;
-    ImportStatement(std::string path, std::string alias, int line, int column)
+    ImportStatement(std::string path, std::string alias, bool importAll,
+                    int line, int column)
         : path_(std::move(path)), alias_(std::move(alias)), line_(line),
-          column_(column) {}
+          column_(column), importAll_(importAll) {}
 
     void execute(Environment& environment) const override;
 
@@ -720,6 +732,7 @@ private:
     std::string alias_;
     int line_;
     int column_;
+    bool importAll_;
 };
 
 void executeStatements(const StatementList& statements, Environment& environment);

@@ -11,8 +11,7 @@ passed after it — not the `lynxer` process command line.
 ////
 global setup(){ importAs("sys.so", "nativeSys"); }
 global platform() -> str { return global.nativeSys.platform(); }
-// The canonical syscall architecture of this build ("amd64" or "arm64") — the
-// word syscalls() accepts, so `syscalls(sys.architecture())` is valid.
+// The canonical syscall architecture of this build ("amd64" or "arm64").
 global architecture() -> str { return global.nativeSys.architecture(); }
 // Online processor count (0 when unknown).
 global cpuCount() -> int { return global.nativeSys.cpuCount(); }

@@ -12,13 +12,13 @@ use their bare name, including when referenced as values — see
 Names that Lynxer recognises but does not implement fail with a source-located
 `<name>() is not supported in Lynxer yet`. On a Linux/POSIX build the
 **supported** families include the `ffi*`, `async*`, `sound*`, `filesystem*`,
-`process*`, `networking*`, `nativeThread*`, `nativeMutex*`, `nativeCondition*`,
-`nativeSemaphore*` and `syscall*` builtins; the
+`process*`, `networking*`, `nativeThread*`, `nativeMutex*`, `nativeCondition*`
+and `nativeSemaphore*` builtins; the
 unsupported set is listed under [Unsupported names](#unsupported-names) and is
 defined by `unsupportedTable()` in `lynxer/builtins.cpp`. On a build without
 POSIX support, the `filesystem*`/`process*`/`networking*`/`sound*` families join
-the unsupported set. The `syscall*` family is routed to a generic syscall
-dispatcher rather than to a per-name handler.
+the unsupported set. Linux named syscalls are provided by the
+[`syscalls` standard-library module](syscalls.md), not by built-ins.
 
 ## Input, output and conversion
 
@@ -39,6 +39,7 @@ dispatcher rather than to a per-name handler.
 | `returnLength(value)` | Length of a `str` in **code points**, or the element count of a `list`/`tuple` |
 | `raise(message)` | Raises a catchable runtime error with the supplied string message |
 | `exceptionInfo()` | Formatted details for the active `try`/`catch` exception, or `""` outside a catch block |
+| `exceptionCode()` | Stable code for the active `try`/`catch` exception, or `""` outside a catch block |
 
 ## Strings
 
@@ -312,61 +313,23 @@ crashes. 64-bit writes preserve the full signed and unsigned range (see
 
 ## Syscalls
 
-Named syscalls are **target-gated**. A program first declares the operating
-system and architecture it targets, then reaches every syscall through that
-architecture's namespace:
+Named Linux syscalls are standard-library functions, not built-ins. Import the
+`syscalls` module and select the host architecture before calling them:
 
 ```lynx
-fn setup(){ syscalls("Linux", "amd64"); }
+fn setup(){
+    import("syscalls");
+    syscalls.select("Linux", "amd64");
+}
 
 fn main(){
-    amd64.syscallRead(fd, buffer, 16);
+    syscalls.amd64.syscallRead(fd, buffer, 16);
 }
 ```
 
-`syscalls(...)` takes an operating system and an architecture. The OS is
-`Linux` (case-insensitive; `Windows` and `macOS` are recognised but no host can
-select them while named syscalls require Linux), and the architecture is
-`amd64` / `x86-64` or `arm64` / `aarch64`. Both must name the machine the
-program runs on, and only one target can be selected at a time: a different
-target, a second target, or a syscall call before `syscalls(...)` is a
-source-located error. An unknown keyword or namespace prefix reports the closest
-match, e.g. `unknown syscall architecture 'amd6'. You meant: amd64?`. The old
-flat `syscallRead(...)` spelling is gone; it fails with a pointer to the
-namespaced form. `syscalls(sys.platform(), sys.architecture())`
-asserts the host.
-
-Syscall calls take integer arguments only (at most six).
-`syscallPollFileDescriptors` takes three arguments;
-`syscallPpollFileDescriptors`, `syscallWaitForEvents` and
-`syscallWaitForEventsWithSignalMask` take five.
-
-On amd64 the portable `syscallPollFileDescriptors` / `syscallWaitForEvents`
-wrappers use `poll`/`epoll_wait`; on aarch64 they use `ppoll`/`epoll_pwait`. The
-explicit `ppoll`/`epoll_pwait` wrappers are available on both. A name whose
-number is missing from the build's headers fails with
-`syscall '<name>' is not available on this architecture` instead of dispatching
-the wrong table.
-
-Every name below is called as `<arch>.<name>(...)`; the full reference, with the
-Linux syscall each maps to and its arguments, is [syscalls.md](syscalls.md).
-
-| Group | Names |
-| --- | --- |
-| Filesystem | `syscallOpenAt2`, `syscallCheckFileAccessAt2`, `syscallCopyFileRange`, `syscallFallocateFile`, `syscallSynchronizeFilesystem` |
-| Processes and threads | `syscallCreateThread3`, `syscallOpenProcessFileDescriptor`, `syscallSendSignalToProcessFileDescriptor`, `syscallGetThreadAffinity`, `syscallSetThreadAffinity`, `syscallGetThreadPriority`, `syscallSetThreadPriority`, `syscallWaitForProcessId` |
-| Memory | `syscallLockMemory`, `syscallUnlockMemory`, `syscallSynchronizeMemory`, `syscallCreateMemoryFileDescriptor`, `syscallSetMemoryPolicy` |
-| Time | `syscallGetTimeOfDay`, `syscallSleepClock`, `syscallCreateTimerFileDescriptor`, `syscallControlTimerFileDescriptor` |
-| Signals | `syscallControlSignal`, `syscallControlSignalMask`, `syscallCreateSignalFileDescriptor` |
-| Sockets and event loops | `syscallSendMessages`, `syscallReceiveMessages`, `syscallAcceptConnection4`, `syscallWaitForEvents2`, `syscallCreateEventFileDescriptor` |
-| System information | `syscallGetCapabilities`, `syscallSetCapabilities`, `syscallGetSystemTimes` |
-| Async I/O | `syscallSetupIoUring`, `syscallEnterIoUring`, `syscallRegisterIoUring` |
-| Sandboxing | `syscallCreateLandlockRuleset`, `syscallAddLandlockRule`, `syscallRestrictLandlockSelf`, `syscallControlSeccomp` |
-
-The io_uring and sandboxing entries are raw passthroughs: build any `struct`
-(io_uring params, Landlock rules, `struct seccomp_data`) in native memory and
-pass its address. `syscallControlSeccomp` is unguarded — operation `0` installs
-`SECCOMP_MODE_STRICT` and will terminate the process.
+See [syscalls.md](syscalls.md) for the full Linux syscall standard-library API,
+target selection, architecture behavior, raw argument conventions and security
+considerations.
 
 `lynxer/examples/syscall_extended.lynx` and `syscall_io_uring.lynx` pin the
 wiring; `lowlevel_syscalls.lynx` and `lowlevel_arch.lynx` are architecture

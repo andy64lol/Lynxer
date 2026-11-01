@@ -5,10 +5,9 @@
 #include <string>
 #include <vector>
 
-// The `winAPI.*` surface: Win32 calls a program can make after selecting the
-// Windows target with `syscalls("winAPI", "<arch>")` (the operating-system
-// keyword also accepts `windows` and `win32`). Names are the camelCase Win32
-// forms: `winAPI.getProcessId()`, `winAPI.getCurrentDirectory()`, ...
+// The `winAPI.*` surface: Win32 calls available on Windows hosts. Names are
+// the camelCase Win32 forms: `winAPI.getProcessId()`,
+// `winAPI.getCurrentDirectory()`, ...
 //
 // The Win32 calls live here so no other translation unit includes <windows.h>,
 // matching the host-abstraction rule. On a non-Windows host `available()` is

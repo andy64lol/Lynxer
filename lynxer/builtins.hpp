@@ -24,6 +24,8 @@ void joinAsyncTasksAtExit();
 // tui.printException(). Empty outside a catch block.
 std::string activeExceptionInfo();
 void setActiveExceptionInfo(std::string info);
+std::string activeExceptionCode();
+void setActiveExceptionCode(std::string code);
 
 // Resolves an `await`: joins a task handle produced by `asyncRun` and returns
 // its value, raising the task's failure if it failed; other values pass through.

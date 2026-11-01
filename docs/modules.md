@@ -1,6 +1,8 @@
 # Modules
 
 `import` and `importAs` load a module and bind its members under a namespace.
+`importAll` additionally imports the module's top-level functions into the
+current function namespace.
 
 ## Importing
 
@@ -11,6 +13,7 @@ conventional place, but any function works:
 fn setup(){
     import("math");
     importAs("json", "j");
+    importAll("math");
 }
 
 fn main(){}
@@ -54,6 +57,14 @@ executable-relative lookup. See [install.md](install.md#environment-variables).
   load their own `.so` (for example `math.lynx` imports `math.so` as
   `nativeMath`).
 - Imports are idempotent: importing the same module twice is a no-op.
+- `importAll("math")` also makes the module's top-level functions callable by
+  their unqualified names. It can be combined with `import` and `importAs`, and
+  repeating `importAll` for the same module is harmless.
+- A wildcard import exposes only top-level functions; nested functions remain
+  available through their qualified path. If two wildcard imports export the
+  same name, or a name conflicts with a function declared by the importing
+  program, the later import fails with a source-located name-conflict error.
+  Built-in functions may be shadowed, matching ordinary function lookup.
 - A module that cannot be found reports
   `module 'nope' was not found` with the importing source location.
 
@@ -98,10 +109,12 @@ Members are reached through the module namespace: `<module>.<name>(...)`
 fn setup(){
     import("math");
     importAs("json", "j");
+    importAll("math");
 }
 
 fn main(){
     println(math.max(2, 5));                    // 5
+    println(sqrt(9.0));                          // 3
     println(j.jsonGet("{\"a\": 1}", "a"));      // 1
 }
 ```

@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
@@ -138,12 +139,13 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="modules">Modules</h1>
-<p><code>import</code> and <code>importAs</code> load a module and bind its members under a namespace.</p>
+<p><code>import</code> and <code>importAs</code> load a module and bind its members under a namespace. <code>importAll</code> additionally imports the module's top-level functions into the current function namespace.</p>
 <h2 id="importing">Importing</h2>
 <p>Imports are <strong>statements</strong>, so they run from a function body — <code>setup()</code> is the conventional place, but any function works:</p>
 <pre><code>fn setup(){
     import(&quot;math&quot;);
     importAs(&quot;json&quot;, &quot;j&quot;);
+    importAll(&quot;math&quot;);
 }
 
 fn main(){}</code></pre>
@@ -165,6 +167,8 @@ fn main(){}</code></pre>
 <li>A relative path such as <code>import(&quot;helpers/text.lynx&quot;)</code> is resolved from the importing source file's directory. Imports inside that module are resolved from the module's own directory, so modules and their dependencies may live in separate directories.</li>
 <li>A native library is named with its <code>.so</code> suffix; the stdlib <code>.lynx</code> wrappers load their own <code>.so</code> (for example <code>math.lynx</code> imports <code>math.so</code> as <code>nativeMath</code>).</li>
 <li>Imports are idempotent: importing the same module twice is a no-op.</li>
+<li><code>importAll(&quot;math&quot;)</code> also makes the module's top-level functions callable by their unqualified names. It can be combined with <code>import</code> and <code>importAs</code>, and repeating <code>importAll</code> for the same module is harmless.</li>
+<li>A wildcard import exposes only top-level functions; nested functions remain available through their qualified path. If two wildcard imports export the same name, or a name conflicts with a function declared by the importing program, the later import fails with a source-located name-conflict error. Built-in functions may be shadowed, matching ordinary function lookup.</li>
 <li>A module that cannot be found reports <code>module &#x27;nope&#x27; was not found</code> with the importing source location.</li>
 </ul>
 <p>There is <strong>no</strong> <code>.lynxc</code> bytecode import in Lynxer.</p>
@@ -183,10 +187,12 @@ fn main(){}</code></pre>
 <pre><code>fn setup(){
     import(&quot;math&quot;);
     importAs(&quot;json&quot;, &quot;j&quot;);
+    importAll(&quot;math&quot;);
 }
 
 fn main(){
     println(math.max(2, 5));                    // 5
+    println(sqrt(9.0));                          // 3
     println(j.jsonGet(&quot;{\&quot;a\&quot;: 1}&quot;, &quot;a&quot;));      // 1
 }</code></pre>
 <p>Inside the module file itself, call its own functions by bare name. Functions imported from another module use that module's name or alias as the prefix.</p>

@@ -29,7 +29,6 @@
 #include <unordered_set>
 
 #ifdef __linux__
-#include <sys/syscall.h>
 #include <unistd.h>
 #endif
 
@@ -70,6 +69,7 @@ namespace lynxer {
 namespace {
 
 thread_local std::string currentExceptionInfo;
+thread_local std::string currentExceptionCode;
 
 }  // namespace
 
@@ -79,20 +79,13 @@ void setActiveExceptionInfo(std::string info) {
     currentExceptionInfo = std::move(info);
 }
 
+std::string activeExceptionCode() { return currentExceptionCode; }
+
+void setActiveExceptionCode(std::string code) {
+    currentExceptionCode = std::move(code);
+}
+
 namespace {
-
-#if defined(__x86_64__)
-constexpr bool kX86_64 = true;
-constexpr bool kArm64 = false;
-#elif defined(__aarch64__)
-constexpr bool kX86_64 = false;
-constexpr bool kArm64 = true;
-#else
-constexpr bool kX86_64 = false;
-constexpr bool kArm64 = false;
-#endif
-
-
 
 [[noreturn]] void fail(const std::string& message, int line, int column) {
     throw SourceError(message, line, column);
@@ -102,13 +95,6 @@ using Handler = Value (*)(const std::vector<Value>& args, Environment&,
                           int line, int column);
 
 Value none() { return Value{}; }
-
-// Canonical syscall-architecture word for the host this binary was built for.
-const char* hostSyscallArch() {
-    if (kX86_64) return "amd64";
-    if (kArm64) return "arm64";
-    return "";
-}
 
 std::size_t editDistance(const std::string& left, const std::string& right) {
     std::vector<std::size_t> previous(right.size() + 1);
@@ -145,14 +131,6 @@ std::string closestWord(const std::string& word,
     return best;
 }
 
-// Maps a syscalls() keyword or a namespace prefix to a canonical architecture,
-// or "" when unknown: amd64/x86-64 -> amd64, arm64/aarch64 -> arm64.
-std::string canonicalSyscallArch(const std::string& word) {
-    if (word == "amd64" || word == "x86-64") return "amd64";
-    if (word == "arm64" || word == "aarch64") return "arm64";
-    return "";
-}
-
 std::string lowerAscii(const std::string& word) {
     std::string lowered = word;
     for (char& character : lowered) {
@@ -161,34 +139,6 @@ std::string lowerAscii(const std::string& word) {
         }
     }
     return lowered;
-}
-
-// Maps a syscalls() operating-system keyword to a canonical name, or "" when
-// unknown. Matching is case-insensitive so `sys.platform()` can be passed
-// directly: it returns "linux" here and "win32" on Windows.
-std::string canonicalSyscallOS(const std::string& word) {
-    const std::string lowered = lowerAscii(word);
-    if (lowered == "linux") return "Linux";
-    // `winAPI` is the spelling the `winAPI.*` namespace uses; `windows` and
-    // `win32` (what `sys.platform()` returns) are synonyms, all matched
-    // case-insensitively.
-    if (lowered == "windows" || lowered == "win32" || lowered == "winapi") {
-        return "Windows";
-    }
-    if (lowered == "macos" || lowered == "darwin") return "macOS";
-    return "";
-}
-
-// Canonical operating system for the host this binary was built for, or "" when
-// it has no named-syscall support.
-const char* hostSyscallOS() {
-#if defined(__linux__)
-    return "Linux";
-#elif defined(_WIN32)
-    return "Windows";
-#else
-    return "";
-#endif
 }
 
 Value makeList(std::vector<Value> elements) {
@@ -719,13 +669,20 @@ Value builtinRaise(const std::vector<Value>& args, Environment&, int line,
     if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
         fail("raise(message) expects one string", line, column);
     }
-    fail(std::get<std::string>(args[0]), line, column);
+    throw SourceError(std::get<std::string>(args[0]), line, column, "",
+                      "userRaised");
 }
 
 Value builtinExceptionInfo(const std::vector<Value>& args, Environment&,
                            int line, int column) {
     requireArity(args, 0, "exceptionInfo() takes no arguments", line, column);
     return activeExceptionInfo();
+}
+
+Value builtinExceptionCode(const std::vector<Value>& args, Environment&,
+                           int line, int column) {
+    requireArity(args, 0, "exceptionCode() takes no arguments", line, column);
+    return activeExceptionCode();
 }
 
 Value builtinObject(const std::vector<Value>& args, Environment&, int line,
@@ -1975,69 +1932,6 @@ Value builtinSuppressDeprecationWarning(const std::vector<Value>& args,
         fail("suppressDeprecationWarning() takes no arguments", line, column);
     }
     env.setDeprecationWarningSuppressed();
-    return none();
-}
-
-// `syscalls("<os>", "<arch>")` selects the operating system and architecture
-// whose syscalls the program uses. Both keywords must name the host, and the
-// selection is what makes the `<arch>.syscall*` calls available.
-Value builtinSyscalls(const std::vector<Value>& args, Environment& env, int line,
-                      int column) {
-    if (args.size() != 2) {
-        fail("syscalls() takes an operating system and an architecture keyword",
-             line, column);
-    }
-    const auto* osWord = std::get_if<std::string>(&args[0]);
-    if (osWord == nullptr) {
-        fail("syscalls() expects a string operating system keyword", line,
-             column);
-    }
-    const auto* archWord = std::get_if<std::string>(&args[1]);
-    if (archWord == nullptr) {
-        fail("syscalls() expects a string architecture keyword", line, column);
-    }
-    const std::string canonicalOS = canonicalSyscallOS(*osWord);
-    if (canonicalOS.empty()) {
-        fail("unknown syscall operating system '" + *osWord + "'. You meant: " +
-                 closestWord(lowerAscii(*osWord), {"linux", "windows", "macos"}) +
-                 "?",
-             line, column);
-    }
-    const std::string canonicalArch = canonicalSyscallArch(*archWord);
-    if (canonicalArch.empty()) {
-        fail("unknown syscall architecture '" + *archWord + "'. You meant: " +
-                 closestWord(*archWord, {"amd64", "arm64", "aarch64", "x86-64"}) +
-                 "?",
-             line, column);
-    }
-    const std::string hostOS = hostSyscallOS();
-    if (hostOS.empty()) {
-        fail("syscalls() is not available on this operating system", line,
-             column);
-    }
-    if (canonicalOS != hostOS) {
-        fail("syscalls(\"" + *osWord + "\") selects " + canonicalOS +
-                 ", but this machine is " + hostOS,
-             line, column);
-    }
-    const std::string hostArch = hostSyscallArch();
-    if (hostArch.empty()) {
-        fail("syscalls() is not available on this architecture", line, column);
-    }
-    if (canonicalArch != hostArch) {
-        fail("syscalls(\"" + *archWord + "\") selects " + canonicalArch +
-                 ", but this machine is " + hostArch,
-             line, column);
-    }
-    const std::string& selected = env.syscallArchitecture();
-    if (!selected.empty() && selected != canonicalArch) {
-        fail("this program already selected syscalls(\"" +
-                 env.syscallOperatingSystem() + "\", \"" + selected +
-                 "\"); only one target can be used at a time",
-             line, column);
-    }
-    env.setSyscallOperatingSystem(canonicalOS);
-    env.setSyscallArchitecture(canonicalArch);
     return none();
 }
 
@@ -3487,360 +3381,6 @@ Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
         fail("unknown C type '" + type + "'", line, column);
     }
     return static_cast<std::int64_t>(size);
-}
-
-// --- named Linux syscalls --------------------------------------------------------
-
-long syscallNumberFor(const std::string& name, bool& known) {
-    known = true;
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-    if (name == "syscallGetCurrentDirectory") return SYS_getcwd;
-    if (name == "syscallChangeDirectory") return SYS_chdir;
-    if (name == "syscallControlInputOutput") return SYS_ioctl;
-    if (name == "syscallRead") return SYS_read;
-    if (name == "syscallWrite") return SYS_write;
-#ifdef SYS_pread64
-    if (name == "syscallPositionedRead64") return SYS_pread64;
-    if (name == "syscallPositionedWrite64") return SYS_pwrite64;
-#endif
-    if (name == "syscallOpenAt") return SYS_openat;
-    if (name == "syscallClose") return SYS_close;
-#ifdef SYS_readv
-    if (name == "syscallReadVector") return SYS_readv;
-    if (name == "syscallWriteVector") return SYS_writev;
-#endif
-    if (name == "syscallSeekFile") return SYS_lseek;
-    if (name == "syscallGetFileStatus") return SYS_fstat;
-    if (name == "syscallGetFileStatusAt") return SYS_newfstatat;
-    if (name == "syscallTruncateFile") return SYS_ftruncate;
-    if (name == "syscallCheckFileAccessAt") return SYS_faccessat;
-    if (name == "syscallSynchronizeFile") return SYS_fsync;
-    if (name == "syscallSynchronizeFileData") return SYS_fdatasync;
-    if (name == "syscallDuplicateFileDescriptor") return SYS_dup;
-    if (name == "syscallDuplicateFileDescriptorAt") return SYS_dup3;
-    if (name == "syscallCreatePipe") return SYS_pipe2;
-    if (name == "syscallControlFileDescriptor") return SYS_fcntl;
-#ifdef SYS_getdents64
-    if (name == "syscallGetDirectoryEntries") return SYS_getdents64;
-#endif
-    if (name == "syscallReadSymbolicLink") return SYS_readlinkat;
-    if (name == "syscallCreateDirectoryAt") return SYS_mkdirat;
-    if (name == "syscallRemoveFileAt") return SYS_unlinkat;
-    if (name == "syscallRenameFileAt") return SYS_renameat;
-    if (name == "syscallCreateHardLinkAt") return SYS_linkat;
-    if (name == "syscallCreateSymbolicLinkAt") return SYS_symlinkat;
-    if (name == "syscallChangeFilePermissions") return SYS_fchmodat;
-    if (name == "syscallChangeFileDescriptorPermissions") return SYS_fchmod;
-    if (name == "syscallChangeFileOwner") return SYS_fchownat;
-    if (name == "syscallChangeFileDescriptorOwner") return SYS_fchown;
-    if (name == "syscallMemoryMap") return SYS_mmap;
-    if (name == "syscallMemoryUnmap") return SYS_munmap;
-    if (name == "syscallMemoryProtect") return SYS_mprotect;
-    if (name == "syscallMemoryAdvise") return SYS_madvise;
-#ifdef SYS_mremap
-    if (name == "syscallMemoryRemap") return SYS_mremap;
-#endif
-    if (name == "syscallAdjustProgramBreak") return SYS_brk;
-    if (name == "syscallExecuteProgram") return SYS_execve;
-    if (name == "syscallExecuteProgramAt") return SYS_execveat;
-    if (name == "syscallExitProcess") return SYS_exit;
-    if (name == "syscallExitAllThreads") return SYS_exit_group;
-    if (name == "syscallWaitForProcess") return SYS_wait4;
-    if (name == "syscallGetProcessId") return SYS_getpid;
-    if (name == "syscallGetParentProcessId") return SYS_getppid;
-    if (name == "syscallSendSignal") return SYS_kill;
-    if (name == "syscallCreateThread") return SYS_clone;
-    if (name == "syscallGetThreadId") return SYS_gettid;
-    if (name == "syscallWaitOnMemory") return SYS_futex;
-    if (name == "syscallSetThreadIdAddress") return SYS_set_tid_address;
-    if (name == "syscallSetRobustThreadList") return SYS_set_robust_list;
-    if (name == "syscallGetRobustThreadList") return SYS_get_robust_list;
-    if (name == "syscallYieldProcessor") return SYS_sched_yield;
-    if (name == "syscallGetClockTime") return SYS_clock_gettime;
-    if (name == "syscallGetClockResolution") return SYS_clock_getres;
-    if (name == "syscallSleep") return SYS_nanosleep;
-    if (name == "syscallGetRandomBytes") return SYS_getrandom;
-    if (name == "syscallCreateSocket") return SYS_socket;
-    if (name == "syscallCreateSocketPair") return SYS_socketpair;
-    if (name == "syscallBindSocket") return SYS_bind;
-    if (name == "syscallListenSocket") return SYS_listen;
-    if (name == "syscallAcceptConnection") return SYS_accept;
-    if (name == "syscallConnectSocket") return SYS_connect;
-    if (name == "syscallSendData") return SYS_sendto;
-    if (name == "syscallReceiveData") return SYS_recvfrom;
-    if (name == "syscallSendMessage") return SYS_sendmsg;
-    if (name == "syscallReceiveMessage") return SYS_recvmsg;
-    if (name == "syscallShutdownSocket") return SYS_shutdown;
-    if (name == "syscallGetSocketAddress") return SYS_getsockname;
-    if (name == "syscallGetPeerAddress") return SYS_getpeername;
-    if (name == "syscallSetSocketOption") return SYS_setsockopt;
-    if (name == "syscallGetSocketOption") return SYS_getsockopt;
-    if (name == "syscallCreateEventPoll") return SYS_epoll_create1;
-    if (name == "syscallControlEventPoll") return SYS_epoll_ctl;
-    if (name == "syscallInitializeInodeNotifications") return SYS_inotify_init1;
-    if (name == "syscallAddInodeNotificationWatch") return SYS_inotify_add_watch;
-    if (name == "syscallRemoveInodeNotificationWatch") return SYS_inotify_rm_watch;
-    if (name == "syscallGetSystemInformation") return SYS_sysinfo;
-    if (name == "syscallGetUnixSystemName") return SYS_uname;
-    if (name == "syscallGetExtendedFileStatus") return SYS_statx;
-    if (name == "syscallGetResourceUsage") return SYS_getrusage;
-    if (name == "syscallGetResourceLimit") return SYS_getrlimit;
-    if (name == "syscallSetResourceLimit") return SYS_setrlimit;
-    if (name == "syscallControlProcess") return SYS_prctl;
-    // Extended filesystem surface.
-#ifdef SYS_openat2
-    if (name == "syscallOpenAt2") return SYS_openat2;
-#endif
-#ifdef SYS_faccessat2
-    if (name == "syscallCheckFileAccessAt2") return SYS_faccessat2;
-#endif
-#ifdef SYS_copy_file_range
-    if (name == "syscallCopyFileRange") return SYS_copy_file_range;
-#endif
-#ifdef SYS_fallocate
-    if (name == "syscallFallocateFile") return SYS_fallocate;
-#endif
-#ifdef SYS_syncfs
-    if (name == "syscallSynchronizeFilesystem") return SYS_syncfs;
-#endif
-    // Processes and threads.
-#ifdef SYS_clone3
-    if (name == "syscallCreateThread3") return SYS_clone3;
-#endif
-#ifdef SYS_pidfd_open
-    if (name == "syscallOpenProcessFileDescriptor") return SYS_pidfd_open;
-#endif
-#ifdef SYS_pidfd_send_signal
-    if (name == "syscallSendSignalToProcessFileDescriptor")
-        return SYS_pidfd_send_signal;
-#endif
-#ifdef SYS_sched_getaffinity
-    if (name == "syscallGetThreadAffinity") return SYS_sched_getaffinity;
-    if (name == "syscallSetThreadAffinity") return SYS_sched_setaffinity;
-#endif
-#ifdef SYS_getpriority
-    if (name == "syscallGetThreadPriority") return SYS_getpriority;
-    if (name == "syscallSetThreadPriority") return SYS_setpriority;
-#endif
-#ifdef SYS_waitid
-    if (name == "syscallWaitForProcessId") return SYS_waitid;
-#endif
-    // Memory.
-#ifdef SYS_mlock
-    if (name == "syscallLockMemory") return SYS_mlock;
-    if (name == "syscallUnlockMemory") return SYS_munlock;
-#endif
-#ifdef SYS_msync
-    if (name == "syscallSynchronizeMemory") return SYS_msync;
-#endif
-#ifdef SYS_memfd_create
-    if (name == "syscallCreateMemoryFileDescriptor") return SYS_memfd_create;
-#endif
-#ifdef SYS_mbind
-    if (name == "syscallSetMemoryPolicy") return SYS_mbind;
-#endif
-    // Time.
-#ifdef SYS_gettimeofday
-    if (name == "syscallGetTimeOfDay") return SYS_gettimeofday;
-#endif
-#ifdef SYS_clock_nanosleep
-    if (name == "syscallSleepClock") return SYS_clock_nanosleep;
-#endif
-#ifdef SYS_timerfd_create
-    if (name == "syscallCreateTimerFileDescriptor") return SYS_timerfd_create;
-    if (name == "syscallControlTimerFileDescriptor")
-        return SYS_timerfd_settime;
-#endif
-    // Signals.
-#ifdef SYS_rt_sigaction
-    if (name == "syscallControlSignal") return SYS_rt_sigaction;
-#endif
-#ifdef SYS_rt_sigprocmask
-    if (name == "syscallControlSignalMask") return SYS_rt_sigprocmask;
-#endif
-#ifdef SYS_signalfd4
-    if (name == "syscallCreateSignalFileDescriptor") return SYS_signalfd4;
-#endif
-    // Sockets and event loops.
-#ifdef SYS_sendmmsg
-    if (name == "syscallSendMessages") return SYS_sendmmsg;
-#endif
-#ifdef SYS_recvmmsg
-    if (name == "syscallReceiveMessages") return SYS_recvmmsg;
-#endif
-#ifdef SYS_accept4
-    if (name == "syscallAcceptConnection4") return SYS_accept4;
-#endif
-#ifdef SYS_epoll_pwait2
-    if (name == "syscallWaitForEvents2") return SYS_epoll_pwait2;
-#endif
-#ifdef SYS_eventfd2
-    if (name == "syscallCreateEventFileDescriptor") return SYS_eventfd2;
-#endif
-    // System information.
-#ifdef SYS_capget
-    if (name == "syscallGetCapabilities") return SYS_capget;
-    if (name == "syscallSetCapabilities") return SYS_capset;
-#endif
-#ifdef SYS_times
-    if (name == "syscallGetSystemTimes") return SYS_times;
-#endif
-    // Stretch: asynchronous I/O, then sandboxing. All of these are raw
-    // passthroughs; the caller builds any struct in native memory and passes
-    // its address.
-#ifdef SYS_io_uring_setup
-    if (name == "syscallSetupIoUring") return SYS_io_uring_setup;
-#endif
-#ifdef SYS_io_uring_enter
-    if (name == "syscallEnterIoUring") return SYS_io_uring_enter;
-#endif
-#ifdef SYS_io_uring_register
-    if (name == "syscallRegisterIoUring") return SYS_io_uring_register;
-#endif
-#ifdef SYS_landlock_create_ruleset
-    if (name == "syscallCreateLandlockRuleset") return SYS_landlock_create_ruleset;
-#endif
-#ifdef SYS_landlock_add_rule
-    if (name == "syscallAddLandlockRule") return SYS_landlock_add_rule;
-#endif
-#ifdef SYS_landlock_restrict_self
-    if (name == "syscallRestrictLandlockSelf") return SYS_landlock_restrict_self;
-#endif
-#ifdef SYS_seccomp
-    if (name == "syscallControlSeccomp") return SYS_seccomp;
-#endif
-    // poll/epoll availability differs by architecture: x86-64 has poll(2) and
-    // epoll_wait(2), aarch64 only their ppoll(2)/epoll_pwait(2) forms. The
-    // portable wrappers follow that split.
-#if defined(__x86_64__)
-    if (name == "syscallPollFileDescriptors") return SYS_poll;
-    if (name == "syscallWaitForEvents") return SYS_epoll_wait;
-#elif defined(__aarch64__)
-    if (name == "syscallPollFileDescriptors") return SYS_ppoll;
-    if (name == "syscallWaitForEvents") return SYS_epoll_pwait;
-#endif
-    // The explicit ppoll/epoll_pwait wrappers are present on both architectures.
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
-#ifdef SYS_ppoll
-    if (name == "syscallPpollFileDescriptors") return SYS_ppoll;
-#endif
-#ifdef SYS_epoll_pwait
-    if (name == "syscallWaitForEventsWithSignalMask") return SYS_epoll_pwait;
-#endif
-#endif
-    known = false;
-    return -1;
-#else
-    (void)name;
-    known = false;
-    return -1;
-#endif
-}
-
-#if defined(__linux__)
-
-bool syscallArgumentsValid(const std::vector<Value>& args, int line, int column) {
-    for (const auto& argument : args) {
-        if (!isIntegerValue(argument)) {
-            fail("syscall arguments must be integers", line, column);
-        }
-    }
-    return true;
-}
-
-// Converts one validated integer argument into a syscall word. isIntegerValue
-// also accepts the wide unsigned representation, which would otherwise reach
-// std::get<std::int64_t> and throw; a value above INT64_MAX cannot be a word.
-long syscallArgumentWord(const Value& value, int line, int column) {
-    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
-        return static_cast<long>(*integer);
-    }
-    const auto* wide = std::get_if<UInt64Value>(&value);
-    if (wide != nullptr &&
-        wide->value <= static_cast<std::uint64_t>(INT64_MAX)) {
-        return static_cast<long>(wide->value);
-    }
-    fail("syscall argument is out of range", line, column);
-}
-
-#endif  // defined(__linux__)
-
-Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
-                     int line, int column) {
-#if !defined(__linux__)
-    (void)name;
-    (void)args;
-    fail("named syscalls require a Linux runtime", line, column);
-#else
-    if (args.size() > 6) {
-        fail("syscalls accept at most six arguments", line, column);
-    }
-    syscallArgumentsValid(args, line, column);
-    std::size_t expected = 0;
-    if (name == "syscallPollFileDescriptors") {
-        expected = 3;
-    } else if (name == "syscallPpollFileDescriptors" ||
-               name == "syscallWaitForEvents" ||
-               name == "syscallWaitForEventsWithSignalMask") {
-        expected = 5;
-    }
-    if (expected != 0 && args.size() != expected) {
-        fail(name + " expects exactly " + std::to_string(expected) +
-                 " arguments, received " + std::to_string(args.size()),
-             line, column);
-    }
-
-    bool known = false;
-    long number = syscallNumberFor(name, known);
-    if (!known) {
-        fail("syscall '" + name + "' is not available on this architecture",
-             line, column);
-    }
-
-    std::vector<long> words;
-    for (const auto& argument : args) {
-        words.push_back(syscallArgumentWord(argument, line, column));
-    }
-
-    struct ::timespec timeout {};
-    if (name == "syscallPollFileDescriptors" && kArm64) {
-        // ARM64 lacks poll(2); ppoll(2) takes a timespec instead of
-        // milliseconds, mirroring the Python implementation.
-        const std::int64_t timeoutMs =
-            syscallArgumentWord(args[2], line, column);
-        if (timeoutMs < 0) {
-            words = {words[0], words[1], 0, 0,
-                     static_cast<long>(sizeof(unsigned long))};
-        } else {
-            timeout.tv_sec = timeoutMs / 1000;
-            timeout.tv_nsec = (timeoutMs % 1000) * 1000000L;
-            words = {words[0], words[1],
-                     static_cast<long>(reinterpret_cast<std::uintptr_t>(&timeout)),
-                     0, static_cast<long>(sizeof(unsigned long))};
-        }
-    } else if (name == "syscallWaitForEvents" && kX86_64) {
-        // epoll_wait(2) takes four words; the portable API's fifth slot is
-        // ignored on x86-64.
-        words.resize(std::min<std::size_t>(words.size(), 4));
-    } else if (name == "syscallWaitForEvents" ||
-               name == "syscallWaitForEventsWithSignalMask") {
-        // epoll_pwait(2) ends with a sigsetsize word.
-        words.push_back(static_cast<long>(sizeof(unsigned long)));
-    }
-
-    while (words.size() < 6) {
-        words.push_back(0);
-    }
-    errno = 0;
-    const long result =
-        ::syscall(number, words[0], words[1], words[2], words[3], words[4],
-                  words[5]);
-    if (result == -1 && errno != 0) {
-        fail("syscall '" + name + "' failed: " + std::strerror(errno), line,
-             column);
-    }
-    return static_cast<std::int64_t>(result);
-#endif
 }
 
 // --- registry ---------------------------------------------------------------------
@@ -7121,6 +6661,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"sentinel", builtinSentinel},
         {"raise", builtinRaise},
         {"exceptionInfo", builtinExceptionInfo},
+        {"exceptionCode", builtinExceptionCode},
         {"object", builtinObject},
         {"returnType", builtinReturnType},
         {"returnLength", builtinReturnLength},
@@ -7208,7 +6749,6 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"foreverDelay", builtinForeverDelay},
         {"suppressForeverWarning", builtinSuppressForeverWarning},
         {"suppressDeprecationWarning", builtinSuppressDeprecationWarning},
-        {"syscalls", builtinSyscalls},
         {"overrideMain", builtinOverrideMain},
         {"memoryAllocate", builtinMemoryAllocate},
         {"memoryAllocateZeroed", builtinMemoryAllocateZeroed},
@@ -7438,85 +6978,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "networkingBlocking", "networkingOption", "networkingResolve",
         "networkingAddress",
 #endif
-        // Named syscalls that are dispatched generically below.
-        "syscallGetCurrentDirectory", "syscallChangeDirectory",
-        "syscallControlInputOutput", "syscallRead", "syscallWrite",
-        "syscallPositionedRead64", "syscallPositionedWrite64", "syscallOpenAt",
-        "syscallClose", "syscallReadVector", "syscallWriteVector",
-        "syscallSeekFile", "syscallGetFileStatus", "syscallGetFileStatusAt",
-        "syscallTruncateFile", "syscallCheckFileAccessAt",
-        "syscallSynchronizeFile", "syscallSynchronizeFileData",
-        "syscallDuplicateFileDescriptor", "syscallDuplicateFileDescriptorAt",
-        "syscallCreatePipe", "syscallControlFileDescriptor",
-        "syscallGetDirectoryEntries", "syscallReadSymbolicLink",
-        "syscallCreateDirectoryAt", "syscallRemoveFileAt", "syscallRenameFileAt",
-        "syscallCreateHardLinkAt", "syscallCreateSymbolicLinkAt",
-        "syscallChangeFilePermissions", "syscallChangeFileDescriptorPermissions",
-        "syscallChangeFileOwner", "syscallChangeFileDescriptorOwner",
-        "syscallMemoryMap", "syscallMemoryUnmap", "syscallMemoryProtect",
-        "syscallMemoryAdvise", "syscallMemoryRemap", "syscallAdjustProgramBreak",
-        "syscallExecuteProgram", "syscallExecuteProgramAt",
-        "syscallExitProcess", "syscallExitAllThreads", "syscallWaitForProcess",
-        "syscallGetProcessId", "syscallGetParentProcessId", "syscallSendSignal",
-        "syscallCreateThread", "syscallGetThreadId", "syscallWaitOnMemory",
-        "syscallSetThreadIdAddress", "syscallSetRobustThreadList",
-        "syscallGetRobustThreadList", "syscallYieldProcessor",
-        "syscallGetClockTime", "syscallGetClockResolution", "syscallSleep",
-        "syscallGetRandomBytes", "syscallCreateSocket", "syscallCreateSocketPair",
-        "syscallBindSocket", "syscallListenSocket", "syscallAcceptConnection",
-        "syscallConnectSocket", "syscallSendData", "syscallReceiveData",
-        "syscallSendMessage", "syscallReceiveMessage", "syscallShutdownSocket",
-        "syscallGetSocketAddress", "syscallGetPeerAddress",
-        "syscallSetSocketOption", "syscallGetSocketOption",
-        "syscallPollFileDescriptors", "syscallPpollFileDescriptors",
-        "syscallCreateEventPoll", "syscallControlEventPoll",
-        "syscallWaitForEvents", "syscallWaitForEventsWithSignalMask",
-        "syscallInitializeInodeNotifications",
-        "syscallAddInodeNotificationWatch",
-        "syscallRemoveInodeNotificationWatch", "syscallGetSystemInformation",
-        "syscallGetUnixSystemName", "syscallGetExtendedFileStatus",
-        "syscallGetResourceUsage", "syscallGetResourceLimit",
-        "syscallSetResourceLimit", "syscallControlProcess",
-        "syscallOpenAt2",
-        "syscallCheckFileAccessAt2",
-        "syscallCopyFileRange",
-        "syscallFallocateFile",
-        "syscallSynchronizeFilesystem",
-        "syscallCreateThread3",
-        "syscallOpenProcessFileDescriptor",
-        "syscallSendSignalToProcessFileDescriptor",
-        "syscallGetThreadAffinity",
-        "syscallSetThreadAffinity",
-        "syscallGetThreadPriority",
-        "syscallSetThreadPriority",
-        "syscallWaitForProcessId",
-        "syscallLockMemory",
-        "syscallUnlockMemory",
-        "syscallSynchronizeMemory",
-        "syscallCreateMemoryFileDescriptor",
-        "syscallSetMemoryPolicy",
-        "syscallGetTimeOfDay",
-        "syscallSleepClock",
-        "syscallCreateTimerFileDescriptor",
-        "syscallControlTimerFileDescriptor",
-        "syscallControlSignal",
-        "syscallControlSignalMask",
-        "syscallCreateSignalFileDescriptor",
-        "syscallSendMessages",
-        "syscallReceiveMessages",
-        "syscallAcceptConnection4",
-        "syscallWaitForEvents2",
-        "syscallCreateEventFileDescriptor",
-        "syscallGetCapabilities",
-        "syscallSetCapabilities",
-        "syscallGetSystemTimes",
-        "syscallSetupIoUring",
-        "syscallEnterIoUring",
-        "syscallRegisterIoUring",
-        "syscallCreateLandlockRuleset",
-        "syscallAddLandlockRule",
-        "syscallRestrictLandlockSelf",
-        "syscallControlSeccomp",
     };
     return unsupported;
 }
@@ -7615,14 +7076,6 @@ bool isBuiltinName(const std::string& name) {
     if (handlers.find(name) != handlers.end()) {
         return true;
     }
-    // "<arch>.syscallFoo" is a syscall call whose prefix is validated at run
-    // time; the flat function name must be a known syscall.
-    const std::size_t dot = name.find('.');
-    if (dot != std::string::npos &&
-        name.compare(dot + 1, 7, "syscall") == 0 &&
-        unsupported.find(name.substr(dot + 1)) != unsupported.end()) {
-        return true;
-    }
     return unsupported.find(name) != unsupported.end();
 }
 
@@ -7641,57 +7094,13 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
     if (handler != handlers.end()) {
         return handler->second(args, environment, line, column);
     }
-    // Architecture-namespaced syscalls: "<arch>.syscallFoo". The prefix names the
-    // architecture; the call is refused until syscalls("<os>", "<arch>") has run,
-    // and only the selected architecture's namespace is usable.
     const std::size_t dot = resolved.find('.');
-    if (dot != std::string::npos &&
-        resolved.compare(dot + 1, 7, "syscall") == 0) {
-        const std::string prefix = resolved.substr(0, dot);
-        const std::string function = resolved.substr(dot + 1);
-        if (unsupportedTable().find(function) == unsupportedTable().end()) {
-            fail("unknown function '" + name + "'", line, column);
-        }
-        const std::string canonical = canonicalSyscallArch(prefix);
-        if (canonical.empty()) {
-            fail("unknown syscall architecture '" + prefix + "'. You meant: " +
-                     closestWord(prefix, {"amd64", "arm64", "aarch64"}) + "?",
-                 line, column);
-        }
-        const std::string hostOS = hostSyscallOS();
-        const std::string osName = hostOS.empty() ? std::string("<os>") : hostOS;
-        const std::string& selected = environment.syscallArchitecture();
-        if (selected.empty()) {
-            fail(std::string("syscalls are not available yet; call "
-                             "syscalls(\"") +
-                     osName + "\", \"" + canonical + "\") first",
-                 line, column);
-        }
-        if (selected != canonical) {
-            fail(prefix + "." + function + "() needs syscalls(\"" + osName +
-                     "\", \"" + canonical + "\"), but this program selected "
-                     "\"" + environment.syscallOperatingSystem() + "\", \"" +
-                     selected + "\"",
-                 line, column);
-        }
-        return builtinSyscall(function, args, line, column);
-    }
-    // Windows API surface: "<prefix>.<fn>" with the prefix `winAPI` in any
-    // casing. Refused until syscalls("<windows os>", "<arch>") has selected the
-    // Windows target, which only a Windows host accepts.
+    // Win32 calls are available only on Windows hosts.
     if (dot != std::string::npos &&
         lowerAscii(resolved.substr(0, dot)) == "winapi") {
         const std::string function = resolved.substr(dot + 1);
-        const std::string& selectedOS = environment.syscallOperatingSystem();
-        if (selectedOS.empty()) {
-            fail("winAPI calls are not available yet; call "
-                 "syscalls(\"winAPI\", \"<arch>\") first",
-                 line, column);
-        }
-        if (selectedOS != "Windows") {
-            fail("winAPI." + function + "() needs the Windows target, but this "
-                 "program selected " + selectedOS,
-                 line, column);
+        if (winapi::supportedNames().empty()) {
+            fail("winAPI functions require a Windows runtime", line, column);
         }
         const std::vector<std::string>& supported = winapi::supportedNames();
         if (std::find(supported.begin(), supported.end(), function) ==
@@ -7706,18 +7115,6 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
             fail("winAPI." + function + "() failed: " + winError, line, column);
         }
         return winResult;
-    }
-    if (resolved.rfind("syscall", 0) == 0 &&
-        unsupportedTable().find(resolved) != unsupportedTable().end()) {
-        // Flat syscall names are no longer accepted: they must name an
-        // architecture so the interpreter can check it against the host.
-        const std::string host = hostSyscallArch();
-        const std::string arch = host.empty() ? std::string("<arch>") : host;
-        const std::string osHost = hostSyscallOS();
-        const std::string os = osHost.empty() ? std::string("<os>") : osHost;
-        fail(resolved + "() is not available; use " + arch + "." + resolved +
-                 "() after syscalls(\"" + os + "\", \"" + arch + "\")",
-             line, column);
     }
     if (unsupportedTable().find(resolved) != unsupportedTable().end()) {
         fail(resolved + "() is not supported in Lynxer yet", line, column);

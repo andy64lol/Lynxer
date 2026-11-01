@@ -184,8 +184,7 @@ extern "C" const char* sys_platform() {
     return "unknown";
 #endif
 }
-// The canonical syscall architecture of this build — the same word syscalls()
-// accepts: amd64 on x86-64, arm64 on aarch64.
+// The canonical syscall architecture of this build: amd64, arm64, or empty.
 extern "C" const char* sys_architecture() {
 #if defined(__x86_64__)
     return "amd64";

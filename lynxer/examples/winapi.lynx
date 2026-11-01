@@ -1,12 +1,11 @@
 ////
 Regression fixture for the `winAPI` surface.
 
-Windows-only: it selects the Windows target, which only a Windows host accepts.
-It asserts shape (`> 0`, lengths) rather than exact values, so the expected
-output is stable across machines.
+Windows-only. It asserts shape (`> 0`, lengths) rather than exact values, so
+the expected output is stable across machines.
 ////
 
-fn setup(){ syscalls("winAPI", "__ARCH__"); }
+fn setup(){}
 
 fn main(){
     println(winAPI.getProcessId() > 0);

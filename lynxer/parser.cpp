@@ -1070,6 +1070,9 @@ StatementPtr Parser::parseStatement() {
     if (checkText("importAs")) {
         return parseImportAs();
     }
+    if (checkText("importAll")) {
+        return parseImportAll();
+    }
     if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
         peekAt(2).text == "(") {
         return parseLocalFunction();
@@ -1167,7 +1170,7 @@ StatementPtr Parser::parseImport() {
     expectText(";", "expected ';' after import");
     imports_.push_back(ImportRecord{path.text, "", keyword.line,
                                     keyword.column});
-    return std::make_unique<ImportStatement>(path.text, "", keyword.line,
+    return std::make_unique<ImportStatement>(path.text, "", false, keyword.line,
                                               keyword.column);
 }
 
@@ -1181,7 +1184,19 @@ StatementPtr Parser::parseImportAs() {
     expectText(";", "expected ';' after importAs");
     imports_.push_back(ImportRecord{path.text, alias.text, keyword.line,
                                     keyword.column});
-    return std::make_unique<ImportStatement>(path.text, alias.text, keyword.line,
+    return std::make_unique<ImportStatement>(path.text, alias.text, false,
+                                              keyword.line, keyword.column);
+}
+
+StatementPtr Parser::parseImportAll() {
+    const Token keyword = expectText("importAll", "expected 'importAll'");
+    expectText("(", "expected '(' after importAll");
+    const Token path = expect(TokenKind::String, "expected module path string");
+    expectText(")", "expected ')' after importAll");
+    expectText(";", "expected ';' after importAll");
+    imports_.push_back(ImportRecord{path.text, "", keyword.line,
+                                    keyword.column});
+    return std::make_unique<ImportStatement>(path.text, "", true, keyword.line,
                                               keyword.column);
 }
 
@@ -1400,28 +1415,54 @@ StatementPtr Parser::parseSwitch() {
 StatementPtr Parser::parseTryCatch() {
     const Token start = expectText("try", "expected 'try'");
     StatementList tryStatements = parseBlock("try body");
-    expectText("catch", "expected 'catch' after 'try' body");
-
-    std::string catchName;
-    int catchLine = start.line;
-    int catchColumn = start.column;
-    if (match("(")) {
-        const Token type =
-            expect(TokenKind::Identifier, "expected 'str' in catch clause");
-        if (type.text != "str") {
-            fail("expected 'str' type keyword for the catch variable", type);
+    std::vector<CatchClause> catches;
+    std::unordered_set<std::string> seenErrorCodes;
+    bool catchAllSeen = false;
+    while (checkText("catch")) {
+        const Token catchToken = advance();
+        if (catchAllSeen) {
+            fail("catch-all clause must be the final catch clause", catchToken);
         }
-        const Token name =
-            expect(TokenKind::Identifier, "expected catch variable name");
-        catchName = name.text;
-        catchLine = name.line;
-        catchColumn = name.column;
-        expectText(")", "expected ')' after catch variable");
+        CatchClause clause;
+        clause.line = catchToken.line;
+        clause.column = catchToken.column;
+        if (match("(")) {
+            const Token selector = expect(
+                TokenKind::Identifier, "expected error code or 'str' in catch clause");
+            if (selector.text == "str") {
+                const Token name =
+                    expect(TokenKind::Identifier, "expected catch variable name");
+                clause.catchName = name.text;
+                clause.line = name.line;
+                clause.column = name.column;
+                catchAllSeen = true;
+            } else {
+                clause.errorCode = selector.text;
+                if (!seenErrorCodes.insert(clause.errorCode).second) {
+                    fail("duplicate catch code '" + clause.errorCode + "'",
+                         selector);
+                }
+            }
+            expectText(")", "expected ')' after catch selector");
+        } else {
+            catchAllSeen = true;
+        }
+        clause.body = parseBlock("catch body");
+        catches.push_back(std::move(clause));
     }
-    StatementList catchStatements = parseBlock("catch body");
+
+    const bool hasFinally = checkText("finally");
+    StatementList finallyStatements;
+    if (hasFinally) {
+        advance();
+        finallyStatements = parseBlock("finally body");
+    }
+    if (catches.empty() && !hasFinally) {
+        fail("try requires at least one catch or finally clause", current());
+    }
     return std::make_unique<TryCatchStatement>(
-        std::move(tryStatements), std::move(catchName),
-        std::move(catchStatements), catchLine, catchColumn);
+        std::move(tryStatements), std::move(catches), hasFinally,
+        std::move(finallyStatements), start.line, start.column);
 }
 
 StatementPtr Parser::parseExec() {
@@ -2318,23 +2359,8 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
         const Token field =
             expect(TokenKind::Identifier, "expected name after '.'");
         if (match("(")) {
-            // Architecture-namespaced syscalls: `amd64.syscallRead(...)` folds to
-            // the flat call name "amd64.syscallRead", which the builtin router
-            // validates against the selected architecture. A misspelled prefix
-            // is reported with a "You meant:" hint there.
-            if (field.text.rfind("syscall", 0) == 0) {
-                if (const auto* receiver =
-                        dynamic_cast<const VariableExpression*>(expression.get());
-                    receiver != nullptr) {
-                    expression = std::make_unique<CallExpression>(
-                        receiver->name() + "." + field.text,
-                        parseArguments(), start.line, start.column);
-                    continue;
-                }
-            }
-            // Windows API namespace: `winAPI.getProcessId(...)` folds to the flat
-            // call name "winAPI.getProcessId", which the builtin router checks
-            // against the selected target.
+            // Windows API namespace: `winAPI.getProcessId(...)` folds to the
+            // flat call name "winAPI.getProcessId" for builtin dispatch.
             if (const auto* receiver =
                     dynamic_cast<const VariableExpression*>(expression.get());
                 receiver != nullptr && isWinApiPrefix(receiver->name())) {
@@ -2444,8 +2470,8 @@ void Parser::warn(const std::string& message, const Token& token) const {
     if (!sourcePath_.empty()) {
         std::cerr << sourcePath_ << ':';
     }
-    std::cerr << token.line << ':' << token.column << ": warning: " << message
-              << '\n';
+    std::cerr << token.line << ':' << token.column << ": warning["
+              << diagnosticCodeForMessage(message) << "]: " << message << '\n';
 }
 
 void Parser::fail(const std::string& message, const Token& token) const {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Named syscalls - Lynxer</title>
+    <title>Linux syscall standard library - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
@@ -130,44 +131,41 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Named syscalls</span>
+            <span>Linux syscall standard library</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="named-syscalls">Named syscalls</h1>
-<p>Lynxer exposes one named built-in per Linux syscall. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility. Every wrapper is <strong>target-gated</strong> and reached through the architecture's namespace.</p>
-<pre><code>fn setup(){ syscalls(&quot;Linux&quot;, &quot;amd64&quot;); }
+<h1 id="linux-syscall-standard-library">Linux syscall standard library</h1>
+<p>Linux named syscalls are provided by the <code>syscalls</code> standard-library module, not by special language built-ins. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility.</p>
+<pre><code>fn setup(){
+    import(&quot;syscalls&quot;);
+    syscalls.select(&quot;Linux&quot;, &quot;amd64&quot;);
+}
 
 fn main(){
-    println(amd64.syscallGetProcessId());
-    println(amd64.syscallYieldProcessor());
+    println(syscalls.amd64.syscallGetProcessId());
+    println(syscalls.amd64.syscallYieldProcessor());
 }</code></pre>
 <h2 id="selecting-an-operating-system-and-architecture">Selecting an operating system and architecture</h2>
-<p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any syscall call; it declares which operating system and architecture the program targets.</p>
+<p><code>syscalls.select(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> checks the current host and must run before calling a named syscall.</p>
 <table>
 <tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
-<tr><td><code>Linux</code></td><td>operating system</td><td>the Linux syscall surface (<code>amd64.syscallX</code>)</td></tr>
-<tr><td><code>winAPI</code>, <code>windows</code>, <code>win32</code></td><td>operating system</td><td>the Windows API surface (<code>winAPI.getX</code>)</td></tr>
-<tr><td><code>macOS</code>, <code>darwin</code></td><td>operating system</td><td>recognised, but not implemented</td></tr>
+<tr><td><code>Linux</code></td><td>operating system</td><td>the Linux syscall module</td></tr>
 <tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
 <tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
 </table>
 <ul>
-<li>Both keywords must name the <strong>host</strong>. <code>syscalls(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so are <code>syscalls(&quot;Linux&quot;, &quot;amd64&quot;)</code> on a non-Linux host and <code>syscalls(&quot;winAPI&quot;, &quot;amd64&quot;)</code> on a non-Windows host.</li>
-<li>Matching is <strong>case-insensitive</strong>, and <code>winAPI</code>/<code>windows</code>/<code>win32</code> are synonyms, so <code>syscalls(sys.platform(), sys.architecture())</code> asserts the host (see <a href="stdlib/sys.html">stdlib/sys</a>); <code>sys.platform()</code> returns <code>win32</code> on Windows.</li>
-<li>Only <strong>one target at a time</strong> may be selected; re-selecting the same one is a no-op, a different one is an error.</li>
-<li>A misspelled keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>.</li>
-<li>The former flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form.</li>
+<li>Both keywords must name the <strong>host</strong>. <code>syscalls.select(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so are any selection on a non-Linux host.</li>
+<li><code>syscalls.select(sys.platform(), sys.architecture())</code> checks the host using the values from <a href="stdlib/sys.html">stdlib/sys</a>.</li>
+<li>Selection is scoped to the imported module instance; selecting the same host target again is harmless.</li>
 </ul>
-<p>Calls then use the matching namespace — <code>amd64.syscallRead(...)</code> or <code>arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>
+<p>Calls use the matching architecture namespace, for example <code>syscalls.amd64.syscallRead(...)</code> or <code>syscalls.arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>
 <h2 id="windows-api-calls">Windows API calls</h2>
-<p>Selecting the Windows target (<code>winAPI</code>, <code>windows</code> or <code>win32</code>) is only possible on a Windows host. It makes the <code>winAPI.*</code> namespace available — the Win32 calls a program needs, in the camelCase Win32 naming:</p>
-<pre><code>fn setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
-
-fn main(){
+<p>The Windows <code>winAPI.*</code> surface is a separate built-in Win32 API, not a Linux syscall module. It is available on Windows hosts without a target selector:</p>
+<pre><code>fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getCurrentDirectory());
     println(winAPI.getComputerName());
@@ -209,11 +207,10 @@ fn main(){
 </table>
 <p>Beyond files, the surface also covers <strong>process control</strong> (<code>getCurrentThreadId</code>, <code>openProcess</code>, <code>terminateProcess</code>, <code>getExitCodeProcess</code>, <code>createProcess</code>, <code>waitForSingleObject</code>, <code>getPriorityClass</code>, <code>setPriorityClass</code>), the <strong>console session</strong> (<code>getStdHandle</code>, <code>getConsoleMode</code>, <code>setConsoleMode</code>, <code>setConsoleTitle</code>, <code>getConsoleOutputCP</code>, <code>setConsoleOutputCP</code>, <code>getConsoleWindow</code>, <code>getConsoleScreenBufferInfo</code>), file attributes and paths (<code>getFileAttributes</code>, <code>setFileAttributes</code>, <code>getFullPathName</code>, <code>flushFileBuffers</code>, <code>getTempFileName</code>, <code>setCurrentDirectory</code>, <code>getFileType</code>, <code>getFileTime</code>) and the <strong>high-resolution timer</strong> (<code>queryPerformanceCounter</code>, <code>queryPerformanceFrequency</code>). System information includes <code>getSystemTime</code>, <code>getSystemInfo</code>, <code>getMemoryStatus</code>, <code>getPowerStatus</code>, <code>getVolumeInfo</code>, <code>getDiskSpace</code>, <code>getACP</code>, <code>getOEMCP</code>, <code>getCommandLine</code>, <code>getCurrentProcess</code>, <code>getModuleHandle</code> and <code>getActiveProcessorCount</code>. The full reference is <a href="windows-api.html">windows-api</a>.</p>
 <p>Most calls are <code>kernel32</code>; <code>getKnownFolderPath</code> uses <code>shell32</code>/<code>ole32</code>. The long tail — other DLLs, <code>user32</code>, <code>advapi32</code>, <code>*A</code>/<code>*W</code> pairs, structs — is reachable today through <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code> with a <code>cdecl:</code> signature (see <a href="native-modules.html">native-modules</a>); a curated wrapper for it may come later.</p>
-<p>The namespace prefix is matched case-insensitively, an unknown function reports the closest match, and a <code>winAPI.*</code> call made before the selection (or after selecting another target) is a source-located error. Win32 handles, <code>*W</code>/<code>*A</code> pairs and struct layouts are not exposed yet; see <a href="windows.html">windows</a> and the tracker in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
-<p>For a complete reference, see <a href="windows-api.html">windows-api</a>.</p>
+<p>The separate built-in <code>winAPI.*</code> surface is available on Windows without a selector; see <a href="windows-api.html">windows-api</a> for its API and conventions.</p>
 <h2 id="calling-convention">Calling convention</h2>
 <ul>
-<li>Arguments are positional <strong>integers</strong>, zero to six of them.</li>
+<li>Arguments are positional <strong>integers</strong>; each named function has the signature shown in the tables below (up to six arguments).</li>
 <li>Pointer arguments must be native addresses, such as those returned by <code>memoryAllocate</code>; strings and structures are prepared in native memory first.</li>
 <li>The result is the syscall's return value as an integer. A result of <code>-1</code> is raised as a source-located error carrying the Linux <code>errno</code> message, e.g. <code>syscall &#x27;syscallRead&#x27; failed: Bad file descriptor</code>.</li>
 <li>These wrappers require a Linux runtime. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</li>
@@ -221,7 +218,7 @@ fn main(){
 <h2 id="portable-pollepoll">Portable <code>poll</code>/<code>epoll</code></h2>
 <p><code>poll(2)</code> and <code>epoll_wait(2)</code> do not exist on AArch64, so the two portable wrappers dispatch to whichever the host has, while the explicit <code>ppoll</code> / <code>epoll_pwait</code> forms are available on <strong>both</strong> architectures:</p>
 <table>
-<tr><th>Built-in</th><th>amd64</th><th>aarch64</th></tr>
+<tr><th>Standard-library function</th><th>amd64</th><th>aarch64</th></tr>
 <tr><td><code>syscallPollFileDescriptors</code></td><td><code>poll</code></td><td><code>ppoll</code></td></tr>
 <tr><td><code>syscallPpollFileDescriptors</code></td><td><code>ppoll</code></td><td><code>ppoll</code></td></tr>
 <tr><td><code>syscallWaitForEvents</code></td><td><code>epoll_wait</code></td><td><code>epoll_pwait</code></td></tr>
@@ -229,13 +226,13 @@ fn main(){
 </table>
 <h2 id="working-directories">Working directories</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallGetCurrentDirectory(buffer, size)</code></td><td><code>getcwd</code></td><td>output buffer address, buffer capacity</td></tr>
 <tr><td><code>syscallChangeDirectory(path)</code></td><td><code>chdir</code></td><td>NUL-terminated path address</td></tr>
 </table>
 <h2 id="file-descriptors-and-files">File descriptors and files</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallRead(fd, buffer, count)</code></td><td><code>read</code></td><td>descriptor, buffer address, byte count</td></tr>
 <tr><td><code>syscallWrite(fd, buffer, count)</code></td><td><code>write</code></td><td>descriptor, buffer address, byte count</td></tr>
 <tr><td><code>syscallPositionedRead64(fd, buffer, count, offset)</code></td><td><code>pread64</code></td><td>descriptor, buffer address, byte count, byte offset</td></tr>
@@ -267,7 +264,7 @@ fn main(){
 </table>
 <h2 id="directory-entries-links-ownership-and-permissions">Directory entries, links, ownership, and permissions</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallCreateDirectoryAt(dirfd, path, mode)</code></td><td><code>mkdirat</code></td><td>directory descriptor, path address, mode</td></tr>
 <tr><td><code>syscallRemoveFileAt(dirfd, path, flags)</code></td><td><code>unlinkat</code></td><td>directory descriptor, path address, flags</td></tr>
 <tr><td><code>syscallRenameFileAt(oldfd, oldpath, newfd, newpath)</code></td><td><code>renameat</code></td><td>directory descriptors and path addresses</td></tr>
@@ -280,7 +277,7 @@ fn main(){
 </table>
 <h2 id="memory-and-program-execution">Memory and program execution</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallMemoryMap(address, length, protection, flags, fd, offset)</code></td><td><code>mmap</code></td><td>address, length, <code>PROT_*</code>, <code>MAP_*</code>, descriptor, offset</td></tr>
 <tr><td><code>syscallMemoryUnmap(address, length)</code></td><td><code>munmap</code></td><td>address, length</td></tr>
 <tr><td><code>syscallMemoryProtect(address, length, protection)</code></td><td><code>mprotect</code></td><td>address, length, <code>PROT_*</code></td></tr>
@@ -297,7 +294,7 @@ fn main(){
 </table>
 <h2 id="processes-and-threads">Processes and threads</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallExitProcess(status)</code></td><td><code>exit</code></td><td>exit status; does not return</td></tr>
 <tr><td><code>syscallExitAllThreads(status)</code></td><td><code>exit_group</code></td><td>exit status; does not return</td></tr>
 <tr><td><code>syscallWaitForProcess(pid, status, options, rusage)</code></td><td><code>wait4</code></td><td>process ID, status address, options, rusage address</td></tr>
@@ -322,7 +319,7 @@ fn main(){
 </table>
 <h2 id="clocks-sleep-and-randomness">Clocks, sleep, and randomness</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallGetClockTime(clock, timespec)</code></td><td><code>clock_gettime</code></td><td>clock ID, timespec address</td></tr>
 <tr><td><code>syscallGetClockResolution(clock, resolution)</code></td><td><code>clock_getres</code></td><td>clock ID, timespec address</td></tr>
 <tr><td><code>syscallGetTimeOfDay(timeval, timezone)</code></td><td><code>gettimeofday</code></td><td>timeval address, timezone address</td></tr>
@@ -334,14 +331,14 @@ fn main(){
 </table>
 <h2 id="signals">Signals</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallControlSignal(signal, action, oldaction, size)</code></td><td><code>rt_sigaction</code></td><td>signal, <code>sigaction</code> addresses, signal-set size</td></tr>
 <tr><td><code>syscallControlSignalMask(how, set, oldset, size)</code></td><td><code>rt_sigprocmask</code></td><td><code>SIG_*</code> how, signal-set addresses, size</td></tr>
 <tr><td><code>syscallCreateSignalFileDescriptor(fd, mask, size, flags)</code></td><td><code>signalfd4</code></td><td>descriptor, mask, signal-set size, flags</td></tr>
 </table>
 <h2 id="sockets">Sockets</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallCreateSocket(domain, type, protocol)</code></td><td><code>socket</code></td><td>socket domain, type, protocol</td></tr>
 <tr><td><code>syscallCreateSocketPair(domain, type, protocol, sockets)</code></td><td><code>socketpair</code></td><td>domain, type, protocol, output array address</td></tr>
 <tr><td><code>syscallBindSocket(socket, address, length)</code></td><td><code>bind</code></td><td>descriptor, socket address, length</td></tr>
@@ -363,7 +360,7 @@ fn main(){
 </table>
 <h2 id="polling-and-event-loops">Polling and event loops</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallPollFileDescriptors(fds, count, timeout_ms)</code></td><td><code>poll</code> / <code>ppoll</code></td><td>pollfd array address, count, timeout in milliseconds</td></tr>
 <tr><td><code>syscallPpollFileDescriptors(fds, count, timespec, sigmask, sigsetsize)</code></td><td><code>ppoll</code></td><td>pollfd array, count, timespec address, signal-mask address, signal-set size</td></tr>
 <tr><td><code>syscallCreateEventPoll(flags)</code></td><td><code>epoll_create1</code></td><td>flags</td></tr>
@@ -378,7 +375,7 @@ fn main(){
 </table>
 <h2 id="system-information-and-resources">System information and resources</h2>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallGetSystemInformation(info)</code></td><td><code>sysinfo</code></td><td>sysinfo structure address</td></tr>
 <tr><td><code>syscallGetUnixSystemName(name)</code></td><td><code>uname</code></td><td><code>utsname</code> structure address</td></tr>
 <tr><td><code>syscallGetSystemTimes(buffer)</code></td><td><code>times</code></td><td>tms structure address (or 0)</td></tr>
@@ -392,7 +389,7 @@ fn main(){
 <h2 id="async-io-iouring">Async I/O (io_uring)</h2>
 <p>Raw passthrough; build the <code>io_uring_params</code> and submission structures in native memory and pass their addresses. Available on both architectures.</p>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallSetupIoUring(entries, params)</code></td><td><code>io_uring_setup</code></td><td>ring entries, <code>io_uring_params</code> address</td></tr>
 <tr><td><code>syscallEnterIoUring(fd, to_submit, min_complete, flags, sig, sigsz)</code></td><td><code>io_uring_enter</code></td><td>ring descriptor and submission arguments</td></tr>
 <tr><td><code>syscallRegisterIoUring(fd, opcode, arg, nr_args)</code></td><td><code>io_uring_register</code></td><td>ring descriptor, opcode, argument, count</td></tr>
@@ -400,7 +397,7 @@ fn main(){
 <h2 id="sandboxing-landlock-and-seccomp">Sandboxing (Landlock and seccomp)</h2>
 <p>Raw passthrough. The <code>seccomp</code> syscall is unguarded: operation <code>0</code> installs <code>SECCOMP_MODE_STRICT</code>, which terminates a process that issues anything outside its tiny allowlist.</p>
 <table>
-<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>
 <tr><td><code>syscallCreateLandlockRuleset(attr, size, flags)</code></td><td><code>landlock_create_ruleset</code></td><td>ruleset attribute address, size, flags</td></tr>
 <tr><td><code>syscallAddLandlockRule(ruleset, type, attr, flags)</code></td><td><code>landlock_add_rule</code></td><td>ruleset descriptor, rule type, rule attribute address, flags</td></tr>
 <tr><td><code>syscallRestrictLandlockSelf(ruleset, flags)</code></td><td><code>landlock_restrict_self</code></td><td>ruleset descriptor, flags</td></tr>

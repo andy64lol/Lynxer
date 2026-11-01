@@ -1,0 +1,15 @@
+divisionByZero
+true
+division-finally
+1
+user-raised: userRaised
+raise-finally
+inner-finally
+outer-catch: userRaised
+break-finally
+finally-only-body
+finally-only
+return-finally
+7
+legacy-catch: legacy
+userRaised

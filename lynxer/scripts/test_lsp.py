@@ -184,6 +184,9 @@ def main() -> int:
               f"missing unused-variable diagnostic: {messages}")
         check(any("initializer for 'broken'" in item for item in messages),
               f"missing type diagnostic: {messages}")
+        check(any(item.get("code") == "lintUnusedVariable"
+                  for item in diagnostics),
+              f"missing stable diagnostic code: {diagnostics}")
         check(any(item["severity"] == 2 for item in diagnostics),
               "unused variable should be a warning")
         check(any(item["severity"] == 1 for item in diagnostics),

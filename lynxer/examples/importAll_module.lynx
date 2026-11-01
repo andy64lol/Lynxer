@@ -1,0 +1,7 @@
+fn add(int left, int right) -> int {
+    return left + right;
+}
+
+fn outer() -> int {
+    return 7;
+}

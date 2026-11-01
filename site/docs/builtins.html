@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
@@ -140,7 +141,7 @@
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
 <p>Inside a module, the legacy <code>global.name(...)</code> form always resolves to a <em>core builtin</em>, never to the module's own function of that name. Ordinary functions use their bare name, including when referenced as values — see <a href="modules.html#calling-module-members">modules</a>.</p>
-<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
+<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code> and <code>nativeSemaphore*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. Linux named syscalls are provided by the <a href="syscalls.html"><code>syscalls</code> standard-library module</a>, not by built-ins.</p>
 <h2 id="input-output-and-conversion">Input, output and conversion</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
@@ -159,6 +160,7 @@
 <tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code> in <strong>code points</strong>, or the element count of a <code>list</code>/<code>tuple</code></td></tr>
 <tr><td><code>raise(message)</code></td><td>Raises a catchable runtime error with the supplied string message</td></tr>
 <tr><td><code>exceptionInfo()</code></td><td>Formatted details for the active <code>try</code>/<code>catch</code> exception, or <code>&quot;&quot;</code> outside a catch block</td></tr>
+<tr><td><code>exceptionCode()</code></td><td>Stable code for the active <code>try</code>/<code>catch</code> exception, or <code>&quot;&quot;</code> outside a catch block</td></tr>
 </table>
 <h2 id="strings">Strings</h2>
 <table>
@@ -378,29 +380,16 @@ ffiCloseLibrary(lib);</code></pre>
 <p><code>memoryProtect</code> is POSIX-only and fails with a source-located error elsewhere. Making a page read-only or <code>none</code> also affects unrelated bytes that share it, so callers must keep an allocation's pages to themselves.</p>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
-<p>Named syscalls are <strong>target-gated</strong>. A program first declares the operating system and architecture it targets, then reaches every syscall through that architecture's namespace:</p>
-<pre><code>fn setup(){ syscalls(&quot;Linux&quot;, &quot;amd64&quot;); }
+<p>Named Linux syscalls are standard-library functions, not built-ins. Import the <code>syscalls</code> module and select the host architecture before calling them:</p>
+<pre><code>fn setup(){
+    import(&quot;syscalls&quot;);
+    syscalls.select(&quot;Linux&quot;, &quot;amd64&quot;);
+}
 
 fn main(){
-    amd64.syscallRead(fd, buffer, 16);
+    syscalls.amd64.syscallRead(fd, buffer, 16);
 }</code></pre>
-<p><code>syscalls(...)</code> takes an operating system and an architecture. The OS is <code>Linux</code> (case-insensitive; <code>Windows</code> and <code>macOS</code> are recognised but no host can select them while named syscalls require Linux), and the architecture is <code>amd64</code> / <code>x86-64</code> or <code>arm64</code> / <code>aarch64</code>. Both must name the machine the program runs on, and only one target can be selected at a time: a different target, a second target, or a syscall call before <code>syscalls(...)</code> is a source-located error. An unknown keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>. The old flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form. <code>syscalls(sys.platform(), sys.architecture())</code> asserts the host.</p>
-<p>Syscall calls take integer arguments only (at most six). <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
-<p>On amd64 the portable <code>syscallPollFileDescriptors</code> / <code>syscallWaitForEvents</code> wrappers use <code>poll</code>/<code>epoll_wait</code>; on aarch64 they use <code>ppoll</code>/<code>epoll_pwait</code>. The explicit <code>ppoll</code>/<code>epoll_pwait</code> wrappers are available on both. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</p>
-<p>Every name below is called as <code>&lt;arch&gt;.&lt;name&gt;(...)</code>; the full reference, with the Linux syscall each maps to and its arguments, is <a href="syscalls.html">syscalls</a>.</p>
-<table>
-<tr><th>Group</th><th>Names</th></tr>
-<tr><td>Filesystem</td><td><code>syscallOpenAt2</code>, <code>syscallCheckFileAccessAt2</code>, <code>syscallCopyFileRange</code>, <code>syscallFallocateFile</code>, <code>syscallSynchronizeFilesystem</code></td></tr>
-<tr><td>Processes and threads</td><td><code>syscallCreateThread3</code>, <code>syscallOpenProcessFileDescriptor</code>, <code>syscallSendSignalToProcessFileDescriptor</code>, <code>syscallGetThreadAffinity</code>, <code>syscallSetThreadAffinity</code>, <code>syscallGetThreadPriority</code>, <code>syscallSetThreadPriority</code>, <code>syscallWaitForProcessId</code></td></tr>
-<tr><td>Memory</td><td><code>syscallLockMemory</code>, <code>syscallUnlockMemory</code>, <code>syscallSynchronizeMemory</code>, <code>syscallCreateMemoryFileDescriptor</code>, <code>syscallSetMemoryPolicy</code></td></tr>
-<tr><td>Time</td><td><code>syscallGetTimeOfDay</code>, <code>syscallSleepClock</code>, <code>syscallCreateTimerFileDescriptor</code>, <code>syscallControlTimerFileDescriptor</code></td></tr>
-<tr><td>Signals</td><td><code>syscallControlSignal</code>, <code>syscallControlSignalMask</code>, <code>syscallCreateSignalFileDescriptor</code></td></tr>
-<tr><td>Sockets and event loops</td><td><code>syscallSendMessages</code>, <code>syscallReceiveMessages</code>, <code>syscallAcceptConnection4</code>, <code>syscallWaitForEvents2</code>, <code>syscallCreateEventFileDescriptor</code></td></tr>
-<tr><td>System information</td><td><code>syscallGetCapabilities</code>, <code>syscallSetCapabilities</code>, <code>syscallGetSystemTimes</code></td></tr>
-<tr><td>Async I/O</td><td><code>syscallSetupIoUring</code>, <code>syscallEnterIoUring</code>, <code>syscallRegisterIoUring</code></td></tr>
-<tr><td>Sandboxing</td><td><code>syscallCreateLandlockRuleset</code>, <code>syscallAddLandlockRule</code>, <code>syscallRestrictLandlockSelf</code>, <code>syscallControlSeccomp</code></td></tr>
-</table>
-<p>The io_uring and sandboxing entries are raw passthroughs: build any <code>struct</code> (io_uring params, Landlock rules, <code>struct seccomp_data</code>) in native memory and pass its address. <code>syscallControlSeccomp</code> is unguarded — operation <code>0</code> installs <code>SECCOMP_MODE_STRICT</code> and will terminate the process.</p>
+<p>See <a href="syscalls.html">syscalls</a> for the full Linux syscall standard-library API, target selection, architecture behavior, raw argument conventions and security considerations.</p>
 <p><code>lynxer/examples/syscall_extended.lynx</code> and <code>syscall_io_uring.lynx</code> pin the wiring; <code>lowlevel_syscalls.lynx</code> and <code>lowlevel_arch.lynx</code> are architecture agnostic (they carry a <code>__ARCH__</code> token the test harness fills in), while <code>amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> cover the <code>poll</code>/<code>epoll</code> split per target.</p>
 <h2 id="managed-filesystem">Managed filesystem</h2>
 <p>A small handle-based filesystem API, separate from the <code>fileIO</code>, <code>os</code> and <code>path</code> stdlib modules. Handles are non-negative integers; the interpreter owns the descriptor behind one, and an unknown or already-closed handle is a runtime error rather than a silent failure. Failures preserve the operation and the original errno in the message, for example <code>filesystemOpen() failed: [2] No such file or directory</code>. Descriptors a program leaves open are closed when the process exits.</p>

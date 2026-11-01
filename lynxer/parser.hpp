@@ -69,6 +69,7 @@ private:
     StatementPtr parseCallStatement();
     StatementPtr parseImport();
     StatementPtr parseImportAs();
+    StatementPtr parseImportAll();
 
     ExpressionPtr parseCallExpression();
 

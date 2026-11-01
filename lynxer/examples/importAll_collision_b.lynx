@@ -1,0 +1,3 @@
+fn sharedName() -> int {
+    return 2;
+}

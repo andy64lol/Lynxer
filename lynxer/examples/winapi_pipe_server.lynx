@@ -2,12 +2,7 @@
 Server half of winapi_pipe.lynx. Launched by the parent; not a standalone
 fixture.
 ////
-fn setup(){
-    import("os");
-    str arch = "amd64";
-    if(os.getSystemMachine() is "aarch64"){ arch = "arm64"; }
-    syscalls("winAPI", arch);
-}
+fn setup(){}
 
 fn main(){
     str name = "lynxer-winapi-fixture-pipe";

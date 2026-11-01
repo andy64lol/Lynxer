@@ -40,9 +40,11 @@ BUILD = re.compile(
     r"^\s*build\s+[A-Za-z_]\w*\s*\(.*\)\s+named\s+([A-Za-z_]\w*)\s*;"
 )
 STATIC_DIAGNOSTIC = re.compile(
-    r"^(.+):(\d+):(\d+): (error|warning): (.*)$"
+    r"^(.+):(\d+):(\d+): (error|warning)(?:\[([A-Za-z0-9]+)\])?: (.*)$"
 )
-SOURCE_DIAGNOSTIC = re.compile(r"^lynxer: (.+):(\d+):(\d+): (.*)$")
+SOURCE_DIAGNOSTIC = re.compile(
+    r"^lynxer: (.+):(\d+):(\d+): (?:\[([A-Za-z0-9]+)\] )?(.*)$"
+)
 
 KEYWORDS = [
     "fn", "global", "func", "local", "lambda", "template", "build", "named",
@@ -197,16 +199,16 @@ class LynxerLanguageServer:
         for line in output:
             match = STATIC_DIAGNOSTIC.match(line)
             if match:
-                _, line_number, column, severity, message = match.groups()
+                _, line_number, column, severity, code, message = match.groups()
                 diagnostics.append(self.make_diagnostic(
-                    int(line_number), int(column), severity, message
+                    int(line_number), int(column), severity, message, code
                 ))
                 continue
             match = SOURCE_DIAGNOSTIC.match(line)
             if match:
-                _, line_number, column, message = match.groups()
+                _, line_number, column, code, message = match.groups()
                 diagnostics.append(self.make_diagnostic(
-                    int(line_number), int(column), "error", message
+                    int(line_number), int(column), "error", message, code
                 ))
         if result.returncode != 0 and not diagnostics:
             message = (result.stderr or result.stdout).strip()
@@ -216,10 +218,10 @@ class LynxerLanguageServer:
 
     @staticmethod
     def make_diagnostic(line: int, column: int, severity: str,
-                        message: str) -> dict[str, Any]:
+                        message: str, code: str | None = None) -> dict[str, Any]:
         start_line = max(0, line - 1)
         start_column = max(0, column - 1)
-        return {
+        diagnostic = {
             "range": {
                 "start": {"line": start_line, "character": start_column},
                 "end": {"line": start_line, "character": start_column + 1},
@@ -228,6 +230,9 @@ class LynxerLanguageServer:
             "source": "lynxer",
             "message": message,
         }
+        if code:
+            diagnostic["code"] = code
+        return diagnostic
 
     def publish_diagnostics(self, uri: str) -> None:
         document = self.documents.get(uri, {})

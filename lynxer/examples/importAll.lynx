@@ -1,0 +1,12 @@
+fn setup() {
+    importAs("importAll_module.lynx", "helpers");
+    import("importAll_module.lynx");
+    importAll("importAll_module.lynx");
+    importAll("importAll_module.lynx");
+}
+
+fn main() {
+    println(add(20, 22));
+    println(helpers.add(1, 2));
+    println(outer());
+}

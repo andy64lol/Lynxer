@@ -1,0 +1,12 @@
+fn setup() {
+    importAll("importAll_collision_a.lynx");
+    try {
+        importAll("importAll_collision_b.lynx");
+    } catch (str message) {
+        println(message);
+    }
+}
+
+fn main() {
+    println(sharedName());
+}

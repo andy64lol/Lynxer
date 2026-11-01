@@ -1,0 +1,72 @@
+fn setup(){ }
+
+fn returnValue() -> int {
+    try {
+        return 7;
+    } finally {
+        println("return-finally");
+    }
+}
+
+fn main(){
+    int caught = 0;
+    try {
+        int value = 1 /% 0;
+    } catch (numericValueExpected) {
+        println("wrong-code");
+    } catch (divisionByZero) {
+        println(exceptionCode());
+        println(exceptionInfo() isnt "");
+        caught = 1;
+    } catch (str message) {
+        println("wrong-catchall: ", message);
+    } finally {
+        println("division-finally");
+    }
+    println(caught);
+
+    try {
+        raise("custom message");
+    } catch (divisionByZero) {
+        println("wrong-user-raised");
+    } catch (userRaised) {
+        println("user-raised: ", exceptionCode());
+    } finally {
+        println("raise-finally");
+    }
+
+    try {
+        try {
+            raise("propagate");
+        } catch (divisionByZero) {
+            println("wrong-inner-catch");
+        } finally {
+            println("inner-finally");
+        }
+    } catch (userRaised) {
+        println("outer-catch: ", exceptionCode());
+    }
+
+    while (true) {
+        try {
+            break;
+        } finally {
+            println("break-finally");
+        }
+    }
+
+    try {
+        println("finally-only-body");
+    } finally {
+        println("finally-only");
+    }
+
+    println(returnValue());
+
+    try {
+        raise("legacy");
+    } catch (str message) {
+        println("legacy-catch: ", message);
+        println(exceptionCode());
+    }
+}

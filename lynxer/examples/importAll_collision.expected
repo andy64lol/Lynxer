@@ -1,0 +1,2 @@
+importAll() name conflict for 'sharedName' between modules 'importAll_collision_a' and 'importAll_collision_b'
+1

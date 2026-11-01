@@ -495,8 +495,15 @@ bool terminates(const Statement& statement) {
                statementsTerminate(branch->elseStatements());
     }
     if (const auto* attempt = dynamic_cast<const TryCatchStatement*>(&statement)) {
+        if (attempt->hasFinally() &&
+            statementsTerminate(attempt->finallyStatements())) {
+            return true;
+        }
         return statementsTerminate(attempt->tryStatements()) &&
-               statementsTerminate(attempt->catchStatements());
+               std::all_of(attempt->catches().begin(), attempt->catches().end(),
+                           [](const CatchClause& clause) {
+                               return statementsTerminate(clause.body);
+                           });
     }
     if (const auto* selection = dynamic_cast<const SwitchStatement*>(&statement)) {
         bool hasDefault = false;
@@ -719,12 +726,16 @@ void analyzeStatements(Context& context, const StatementList& statements) {
         } else if (const auto* attempt =
                        dynamic_cast<const TryCatchStatement*>(&statement)) {
             analyzeStatements(context, attempt->tryStatements());
-            if (!attempt->catchName().empty()) {
-                context.scopes.back()[attempt->catchName()] =
-                    std::make_shared<VariableInfo>(VariableInfo{
-                        "str", attempt->catchName(), line, column});
+            for (const CatchClause& clause : attempt->catches()) {
+                if (!clause.catchName.empty()) {
+                    context.scopes.back()[clause.catchName] =
+                        std::make_shared<VariableInfo>(VariableInfo{
+                            "str", clause.catchName, clause.line,
+                            clause.column});
+                }
+                analyzeStatements(context, clause.body);
             }
-            analyzeStatements(context, attempt->catchStatements());
+            analyzeStatements(context, attempt->finallyStatements());
         } else if (const auto* declaration =
                        dynamic_cast<const FunctionDeclarationStatement*>(&statement)) {
             const auto& nested = declaration->function();

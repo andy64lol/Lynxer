@@ -237,9 +237,14 @@ public:
                                 ModuleFunction function);
     void aliasModuleFunctions(const std::string& from,
                               const std::string& to);
+    void importAllModuleFunctions(const std::string& module, int line,
+                                  int column);
     void retainNativeModule(std::shared_ptr<void> handle);
     bool hasImportedModule(const std::string& name) const;
     void markImportedModule(const std::string& name);
+    void setImportedModuleNamespace(const std::string& module,
+                                    const std::string& namespaceName);
+    std::string importedModuleNamespace(const std::string& module) const;
     void registerModuleNamespace(const std::string& name,
                                  std::shared_ptr<RecordValue> namespaceValue);
     std::shared_ptr<RecordValue> moduleNamespace(const std::string& name) const;
@@ -251,14 +256,6 @@ public:
     void setDeprecationWarningSuppressed();
 
     bool deprecationWarningSuppressed() const;
-
-    // The syscall operating system and architecture selected by
-    // syscalls("<os>", "<arch>"); empty until a program selects them. Syscall
-    // calls are refused while they are empty.
-    void setSyscallOperatingSystem(const std::string& operatingSystem);
-    const std::string& syscallOperatingSystem() const;
-    void setSyscallArchitecture(const std::string& architecture);
-    const std::string& syscallArchitecture() const;
 
     // Warn once per source location that a tuple is being (re)bound from a
     // bracketed list literal — the original syntax, superseded by `(...)`.
@@ -283,7 +280,6 @@ private:
     // Innermost-out variable lookup; nullptr when the name is unknown.
     Variable* findVariable(const std::string& name);
     const Variable* findVariable(const std::string& name) const;
-
     // Follows a borrowSource chain to the variable that owns the storage.
     // Returns "" when the name (or its source) is not defined.
     std::string canonicalName(const std::string& name) const;
@@ -296,8 +292,10 @@ private:
     std::vector<std::unordered_set<std::string>> lambdaScopeOnlyFunctions_;
     UserFunctionHandler userFunctionHandler_;
     std::unordered_map<std::string, ModuleFunction> moduleFunctions_;
+    std::unordered_map<std::string, std::string> wildcardModuleFunctions_;
     std::unordered_map<std::string, std::shared_ptr<RecordValue>> modules_;
     std::unordered_set<std::string> importedModules_;
+    std::unordered_map<std::string, std::string> importedModuleNamespaces_;
     std::vector<std::shared_ptr<void>> nativeModules_;
     std::string sourceDirectory_;
     std::vector<std::string> programArguments_;
@@ -305,10 +303,6 @@ private:
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     bool deprecationWarningSuppressed_ = false;
-    // Canonical syscall target selected by syscalls("<os>", "<arch>"); "" until
-    // set.
-    std::string syscallOperatingSystem_;
-    std::string syscallArchitecture_;
     // Source locations ("line:column") already warned about a bracketed-list
     // tuple, so a loop re-running one declaration warns only once.
     std::unordered_set<std::string> tupleBracketWarnings_;

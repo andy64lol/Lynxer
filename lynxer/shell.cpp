@@ -106,7 +106,7 @@ std::string formatSourceError(const std::string& display,
                               const SourceError& error) {
     std::ostringstream message;
     message << "lynxer: " << describeSourceError(display, error) << ": "
-            << error.what();
+            << '[' << error.code << "] " << error.what();
 
     const std::string tip = sourceErrorTip(error);
     if (error.line <= 0 || error.column <= 0) {
@@ -328,7 +328,9 @@ int lintFile(const std::string& display, const std::string& source) {
             std::cerr << ':' << diagnostic.line;
             if (diagnostic.column > 0) std::cerr << ':' << diagnostic.column;
         }
-        std::cerr << ": " << severity << ": " << diagnostic.message << '\n';
+        std::cerr << ": " << severity << '['
+                  << diagnosticCodeForMessage(diagnostic.message)
+                  << "]: " << diagnostic.message << '\n';
     }
     if (errors != 0) {
         return 1;
@@ -901,8 +903,8 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
                                      current.requireEntryPoints);
         } catch (const SourceError& importError) {
             std::cerr << "lynxer: " << current.path << ':' << importError.line
-                      << ':' << importError.column << ": " << importError.what()
-                      << '\n';
+                      << ':' << importError.column << ": [" << importError.code
+                      << "] " << importError.what() << '\n';
             return false;
         }
 
@@ -958,7 +960,10 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
 }
 
 int failWith(const char* key, const char* fallback, const std::string& value) {
-    std::cerr << Config::instance().format(key, fallback, "{0}", value) << '\n';
+    const std::string message =
+        Config::instance().format(key, fallback, "{0}", value);
+    std::cerr << '[' << diagnosticCodeForMessage(message) << "] " << message
+              << '\n';
     return 1;
 }
 
@@ -1416,14 +1421,17 @@ int emitLibrary(const std::vector<std::string>& arguments) {
             if (!parseExportSignature(record.signature, plan.signature,
                                       reason)) {
                 std::cerr << "lynxer: " << file << ':' << record.line << ':'
-                          << record.column << ": " << reason << '\n';
+                          << record.column << ": ["
+                          << diagnosticCodeForMessage(reason) << "] " << reason
+                          << '\n';
                 return 1;
             }
             exports.push_back(std::move(plan));
         }
     } catch (const SourceError& parseError) {
         std::cerr << "lynxer: " << file << ':' << parseError.line << ':'
-                  << parseError.column << ": " << parseError.what() << '\n';
+                  << parseError.column << ": [" << parseError.code << "] "
+                  << parseError.what() << '\n';
         return 1;
     }
     if (exports.empty()) {

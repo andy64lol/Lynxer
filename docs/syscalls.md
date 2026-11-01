@@ -1,59 +1,50 @@
-# Named syscalls
+# Linux syscall standard library
 
-Lynxer exposes one named built-in per Linux syscall. They are **raw ABI calls**:
-argument layouts, flags, structures and pointer lifetimes are the caller's
-responsibility. Every wrapper is **target-gated** and reached through the
-architecture's namespace.
+Linux named syscalls are provided by the `syscalls` standard-library module,
+not by special language built-ins. They are **raw ABI calls**: argument layouts,
+flags, structures and pointer lifetimes are the caller's responsibility.
 
 ```lynx
-fn setup(){ syscalls("Linux", "amd64"); }
+fn setup(){
+    import("syscalls");
+    syscalls.select("Linux", "amd64");
+}
 
 fn main(){
-    println(amd64.syscallGetProcessId());
-    println(amd64.syscallYieldProcessor());
+    println(syscalls.amd64.syscallGetProcessId());
+    println(syscalls.amd64.syscallYieldProcessor());
 }
 ```
 
 ## Selecting an operating system and architecture
 
-`syscalls("<os>", "<arch>")` must run before any syscall call; it declares which
-operating system and architecture the program targets.
+`syscalls.select("<os>", "<arch>")` checks the current host and must run before
+calling a named syscall.
 
 | Keyword | Kind | Selects |
 | --- | --- | --- |
-| `Linux` | operating system | the Linux syscall surface (`amd64.syscallX`) |
-| `winAPI`, `windows`, `win32` | operating system | the Windows API surface (`winAPI.getX`) |
-| `macOS`, `darwin` | operating system | recognised, but not implemented |
+| `Linux` | operating system | the Linux syscall module |
 | `amd64`, `x86-64` | architecture | x86-64 |
 | `arm64`, `aarch64` | architecture | AArch64 |
 
-- Both keywords must name the **host**. `syscalls("Linux", "arm64")` on an amd64
+- Both keywords must name the **host**. `syscalls.select("Linux", "arm64")` on an amd64
   machine is an error, not a cross-target dispatch, and so are
-  `syscalls("Linux", "amd64")` on a non-Linux host and
-  `syscalls("winAPI", "amd64")` on a non-Windows host.
-- Matching is **case-insensitive**, and `winAPI`/`windows`/`win32` are synonyms,
-  so `syscalls(sys.platform(), sys.architecture())` asserts the
-  host (see [stdlib/sys.md](stdlib/sys.md)); `sys.platform()` returns `win32` on
-  Windows.
-- Only **one target at a time** may be selected; re-selecting the same one is a
-  no-op, a different one is an error.
-- A misspelled keyword or namespace prefix reports the closest match, e.g.
-  `unknown syscall architecture 'amd6'. You meant: amd64?`.
-- The former flat `syscallRead(...)` spelling is gone; it fails with a pointer to
-  the namespaced form.
+  any selection on a non-Linux host.
+- `syscalls.select(sys.platform(), sys.architecture())` checks the host using
+  the values from [stdlib/sys.md](stdlib/sys.md).
+- Selection is scoped to the imported module instance; selecting the same host
+  target again is harmless.
 
-Calls then use the matching namespace — `amd64.syscallRead(...)` or
-`arm64.syscallRead(...)`. A call through the wrong namespace is an error.
+Calls use the matching architecture namespace, for example
+`syscalls.amd64.syscallRead(...)` or `syscalls.arm64.syscallRead(...)`. A call
+through the wrong namespace is an error.
 
 ## Windows API calls
 
-Selecting the Windows target (`winAPI`, `windows` or `win32`) is only possible on
-a Windows host. It makes the `winAPI.*` namespace available — the Win32 calls a
-program needs, in the camelCase Win32 naming:
+The Windows `winAPI.*` surface is a separate built-in Win32 API, not a Linux
+syscall module. It is available on Windows hosts without a target selector:
 
 ```lynx
-fn setup(){ syscalls("winAPI", "amd64"); }
-
 fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getCurrentDirectory());
@@ -120,17 +111,13 @@ today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature
 (see [native-modules.md](native-modules.md)); a curated wrapper for it may come
 later.
 
-The namespace prefix is matched case-insensitively, an unknown function reports
-        the closest match, and a `winAPI.*` call made before the selection (or after
-        selecting another target) is a source-located error. Win32 handles, `*W`/`*A`
-pairs and struct layouts are not exposed yet; see
-        [windows.md](windows.md) and the tracker in [../todo.md](../todo.md).
-        
-        For a complete reference, see [windows-api.md](windows-api.md).
+The separate built-in `winAPI.*` surface is available on Windows without a
+selector; see [windows-api.md](windows-api.md) for its API and conventions.
 
 ## Calling convention
 
-- Arguments are positional **integers**, zero to six of them.
+- Arguments are positional **integers**; each named function has the signature
+  shown in the tables below (up to six arguments).
 - Pointer arguments must be native addresses, such as those returned by
   `memoryAllocate`; strings and structures are prepared in native memory first.
 - The result is the syscall's return value as an integer. A result of `-1` is
@@ -146,7 +133,7 @@ pairs and struct layouts are not exposed yet; see
 wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 `epoll_pwait` forms are available on **both** architectures:
 
-| Built-in | amd64 | aarch64 |
+| Standard-library function | amd64 | aarch64 |
 | --- | --- | --- |
 | `syscallPollFileDescriptors` | `poll` | `ppoll` |
 | `syscallPpollFileDescriptors` | `ppoll` | `ppoll` |
@@ -155,14 +142,14 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Working directories
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallGetCurrentDirectory(buffer, size)` | `getcwd` | output buffer address, buffer capacity |
 | `syscallChangeDirectory(path)` | `chdir` | NUL-terminated path address |
 
 ## File descriptors and files
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallRead(fd, buffer, count)` | `read` | descriptor, buffer address, byte count |
 | `syscallWrite(fd, buffer, count)` | `write` | descriptor, buffer address, byte count |
@@ -195,7 +182,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Directory entries, links, ownership, and permissions
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallCreateDirectoryAt(dirfd, path, mode)` | `mkdirat` | directory descriptor, path address, mode |
 | `syscallRemoveFileAt(dirfd, path, flags)` | `unlinkat` | directory descriptor, path address, flags |
@@ -209,7 +196,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Memory and program execution
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallMemoryMap(address, length, protection, flags, fd, offset)` | `mmap` | address, length, `PROT_*`, `MAP_*`, descriptor, offset |
 | `syscallMemoryUnmap(address, length)` | `munmap` | address, length |
@@ -227,7 +214,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Processes and threads
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallExitProcess(status)` | `exit` | exit status; does not return |
 | `syscallExitAllThreads(status)` | `exit_group` | exit status; does not return |
@@ -253,7 +240,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Clocks, sleep, and randomness
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallGetClockTime(clock, timespec)` | `clock_gettime` | clock ID, timespec address |
 | `syscallGetClockResolution(clock, resolution)` | `clock_getres` | clock ID, timespec address |
@@ -266,7 +253,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Signals
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallControlSignal(signal, action, oldaction, size)` | `rt_sigaction` | signal, `sigaction` addresses, signal-set size |
 | `syscallControlSignalMask(how, set, oldset, size)` | `rt_sigprocmask` | `SIG_*` how, signal-set addresses, size |
@@ -274,7 +261,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Sockets
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallCreateSocket(domain, type, protocol)` | `socket` | socket domain, type, protocol |
 | `syscallCreateSocketPair(domain, type, protocol, sockets)` | `socketpair` | domain, type, protocol, output array address |
@@ -297,7 +284,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## Polling and event loops
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallPollFileDescriptors(fds, count, timeout_ms)` | `poll` / `ppoll` | pollfd array address, count, timeout in milliseconds |
 | `syscallPpollFileDescriptors(fds, count, timespec, sigmask, sigsetsize)` | `ppoll` | pollfd array, count, timespec address, signal-mask address, signal-set size |
@@ -313,7 +300,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 
 ## System information and resources
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallGetSystemInformation(info)` | `sysinfo` | sysinfo structure address |
 | `syscallGetUnixSystemName(name)` | `uname` | `utsname` structure address |
@@ -330,7 +317,7 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 Raw passthrough; build the `io_uring_params` and submission structures in native
 memory and pass their addresses. Available on both architectures.
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallSetupIoUring(entries, params)` | `io_uring_setup` | ring entries, `io_uring_params` address |
 | `syscallEnterIoUring(fd, to_submit, min_complete, flags, sig, sigsz)` | `io_uring_enter` | ring descriptor and submission arguments |
@@ -342,7 +329,7 @@ Raw passthrough. The `seccomp` syscall is unguarded: operation `0` installs
 `SECCOMP_MODE_STRICT`, which terminates a process that issues anything outside
 its tiny allowlist.
 
-| Built-in | Linux syscall | Arguments |
+| Standard-library function | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallCreateLandlockRuleset(attr, size, flags)` | `landlock_create_ruleset` | ruleset attribute address, size, flags |
 | `syscallAddLandlockRule(ruleset, type, attr, flags)` | `landlock_add_rule` | ruleset descriptor, rule type, rule attribute address, flags |

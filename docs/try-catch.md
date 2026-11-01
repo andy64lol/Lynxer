@@ -1,65 +1,90 @@
-# `try` / `catch`
+# `try` / `catch` / `finally`
 
-Lynxer handles runtime errors with a `try` / `catch` statement. There is no
-`except`, `finally` or `throw` keyword, and no hierarchy of exception types:
-every handler catches every catchable runtime error, and the caught value is
-always a `str` message.
+Runtime errors have stable diagnostic codes and human-readable messages.
+`try` can select handlers by error code, retain the legacy string catch-all, and
+run cleanup in an optional `finally` block.
 
 ## Syntax
 
 ```lynx
 try {
-    int value = intOf("not a number");   // raises a runtime error
+    int value = 1 /% 0;
+} catch (divisionByZero) {
+    println("matched code: ", exceptionCode());
 } catch (str error) {
-    println("caught ", error);
+    println("other failure: ", error);
+} finally {
+    println("cleanup");
 }
 ```
 
-The binding clause is optional — `catch` may take no variable:
+`catch(errorCode)` matches only the named diagnostic code and does not declare a
+variable. `exceptionCode()` returns the active code, and `exceptionInfo()`
+returns the formatted traceback. `catch(str error)` remains a catch-all for
+compatibility and binds the error message to `error`; a bare `catch` is also a
+catch-all without a binding. Multiple code-specific handlers are allowed. A
+catch-all may occur only once and must be the final handler.
+
+A `try` must have at least one `catch` or a `finally`. A `finally` without any
+catch handlers is valid:
 
 ```lynx
 try {
-    raise("something went wrong");
-} catch {
-    println("failed");
+    performWork();
+} finally {
+    releaseResources();
 }
 ```
 
-A `try` must be followed by exactly one `catch`; there is no `finally` and no
-second `catch` clause.
+## Handler selection
 
-## What a handler catches
+Only catchable runtime errors are considered. Catch clauses are checked in
+source order; the first matching code-specific clause or catch-all runs. If no
+clause matches, the error continues propagating after `finally` runs.
 
-A `catch` block runs only for a **catchable runtime error**: the failures the
-interpreter and its builtins raise (a division by zero, an out-of-range index, a
-bad argument shape, a missing file where the builtin raises rather than returns
-a sentinel, …), and any error you raise yourself with [`raise`](#raise). Native
-modules may also raise a catchable error; this is the *Catchable runtime error*
-family in [stdlib-contracts.md](stdlib-contracts.md), used by `sqldb`.
+Examples of diagnostic codes include `divisionByZero`,
+`numericValueExpected`, `stringUnterminated`, `macroDuplicated`,
+`nativeValueResultNull`, and `structHasNoField`. The complete message and code
+reference is [errorlist.md](errorlist.md).
 
-An error raised inside an [imported module](modules.md) is caught by the
-importer's handler. `exceptionInfo()` then names the module file, so the
-diagnostic is not misattributed to the importing program.
+Errors raised inside an [imported module](modules.md) retain their code and
+source location when caught by the importer. `exceptionInfo()` identifies the
+module file where the error originated.
 
-A `catch` does **not** intercept:
+A `catch` does not intercept:
 
-- `sys.exit` / `sys.exitCode` — the process exit runs to completion;
-- an interrupt (Ctrl-C);
-- an internal interpreter failure that is not a Lynxer runtime error — the run
-  aborts with `lynxer: interpreter failure in '<file>': …`;
-- control flow. `return`, `break`, `continue` and `restart` inside a `try` body
-  behave exactly as they do outside one and are never routed to `catch`.
+- `sys.exit` / `sys.exitCode`, which exit after running applicable `finally`
+  blocks;
+- an interrupt (Ctrl-C), which also runs applicable `finally` blocks;
+- a host/interpreter failure that is not represented as a `SourceError`.
 
-## The caught value
+## `finally` and control flow
 
-The bound variable receives the error **message**, not the traceback. For the
-example above it is `division by zero`. The variable is a `str`:
+`finally` runs after normal completion, a matched catch, an uncaught error, or
+control flow leaving the protected body through `return`, `break`, or
+`continue`. If `finally` itself raises an error or transfers control, that
+outcome takes precedence over the pending return, loop control, or error.
 
-- if the name does not exist yet, it is declared as `str` in the current scope;
-- if it already exists, it must be an existing `str` (or `any`) variable and not
-  `const`, and is reassigned;
-- otherwise the `catch` clause itself fails with a runtime error explaining the
-  conflict, which propagates to an enclosing handler.
+```lynx
+fn value() -> int {
+    try {
+        return 42;
+    } finally {
+        println("runs before returning");
+    }
+}
+```
+
+## Legacy string catch binding
+
+The existing `catch(str error)` syntax remains a catch-all. The bound variable
+contains the message, not the traceback:
+
+- if the name does not exist, Lynxer declares it as `str` in the current scope;
+- if it already exists, it must be a mutable `str` or `any` variable and is
+  reassigned;
+- otherwise the catch clause raises a runtime error, which propagates after
+  `finally` executes.
 
 ## `raise`
 
@@ -67,10 +92,27 @@ example above it is `division by zero`. The variable is a `str`:
 raise(message)
 ```
 
-Raises a catchable runtime error with the given string message. The argument
-must be a string; anything else is itself reported as
-`raise(message) expects one string`. Because only the message is carried,
-re-raising a caught error is written `raise(error)`.
+Raises a catchable runtime error with code `userRaised` and the supplied string
+message. The argument must be a string; otherwise Lynxer raises
+`raise(message) expects one string`. Custom error codes and user-defined error
+types are not currently supported.
+
+## `exceptionCode()`
+
+```lynx
+exceptionCode() -> str
+```
+
+Returns the stable code for the active catch handler, or `""` outside a catch
+handler. A code-specific handler can use it without declaring a local:
+
+```lynx
+try {
+    int value = 1 /% 0;
+} catch (divisionByZero) {
+    println(exceptionCode()); // divisionByZero
+}
+```
 
 ## `exceptionInfo()`
 
@@ -78,82 +120,13 @@ re-raising a caught error is written `raise(error)`.
 exceptionInfo() -> str
 ```
 
-Returns the formatted traceback for the **active** handler, or `""` outside a
-`catch` block:
-
-```text
-Traceback (most recent call last):
-  File "<program>", line 4, column 18
-division by zero
-```
-
-The `File` line names the module path when the error was raised inside an
-imported module, and `<program>` otherwise. `exceptionInfo()` is only meaningful
-inside the matching `catch`: a handler that calls another handler restores the
-outer value when the inner one finishes.
-
-## Nesting
-
-Handlers nest. The inner handler's `exceptionInfo()` is scoped to the inner
-error, and the outer handler's information is restored afterwards — an outer
-`catch` sees `""` again if nothing is propagating:
-
-```lynx
-try {
-    try {
-        raise("inner");
-    } catch (str error) {
-        println(error);                 // inner
-    }
-    println(exceptionInfo() is "");      // true
-} catch (str error) {
-    println("not reached");
-}
-```
-
-To let an error continue past a handler, raise it again with
-`raise(error)`; the enclosing `catch` then receives the new message.
+Returns the formatted traceback for the active catch handler, or `""` outside
+one. The `File` line names the module path when the error originated in an
+imported module, and `<program>` otherwise. Nested handlers restore the outer
+handler's information when they finish.
 
 ## Uncaught errors
 
-An error with no matching handler ends the run: the interpreter prints
-
-```text
-lynxer: <file>:<line>:<column>: <message>
-```
-
-to standard error and exits with status `1`. (An interrupt exits `130`.)
-
-## Example
-
-```lynx
-fn setup(){ }
-
-fn divide(int a, int b) -> int {
-    if(b is 0){ raise("cannot divide by zero"); }
-    return a /% b;
-}
-
-fn main(){
-    try {
-        println(divide(10, 2));   // 5
-        println(divide(10, 0));   // raises
-    } catch (str error) {
-        println("error: ", error);
-        println(exceptionInfo());
-    }
-}
-```
-
-## Limitations
-
-- **No `finally`.** Put cleanup in the handler and after the statement, or wrap
-  it in a helper function.
-- **One untyped handler.** There is no way to catch only some errors, to declare
-  several `catch` clauses, or to define your own error types — a `catch` catches
-  every catchable runtime error.
-- **String messages only.** The caught variable is a `str`; there is no
-  structured error object.
-- **Catching everything hides bugs.** A handler around a large block also
-  catches mistakes such as an unknown variable or a wrong argument type. Keep
-  the `try` body around the specific operation you expect to fail.
+An error with no matching handler runs applicable `finally` blocks, then ends
+the program. The interpreter prints the source location, error code, and
+message to standard error and exits with status `1`. An interrupt exits `130`.

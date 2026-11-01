@@ -33,3 +33,5 @@ fn main(){
 
 - [modules.md](modules.md) — the search order, resolution, and compiled-
   executable behaviour.
+- Use `importAll("module")` when the module's top-level functions should be
+  available without a namespace; see [modules.md](modules.md#importing).

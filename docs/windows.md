@@ -43,9 +43,8 @@ values, key/value enumeration, and recursive deletion. The `winreg_basic.lynx`
 fixture writes under `HKCU` and cleans up after itself. See
 [stdlib/winreg.md](stdlib/winreg.md).
 
-**Windows API surface.** On Windows, selecting the Windows target
-(`syscalls("winAPI", "amd64")`, with `windows` and `win32` as synonyms) enables
-the `winAPI.*` namespace — mostly `kernel32`, with `shell32`/`ole32` for Known
+**Windows API surface.** On Windows, the `winAPI.*` namespace is available
+without selecting a target — mostly `kernel32`, with `shell32`/`ole32` for Known
 Folders: the system information calls
 (`getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
 `getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
@@ -93,11 +92,11 @@ One consequence of the copy-instead-of-symlink install: on POSIX
 These features need work that is being done slowly and are **not** part of the
 Windows build yet:
 
-- **Named Linux syscalls.** The `amd64.syscall*`/`arm64.syscall*` built-ins
-  require a Linux runtime; on Windows they are unavailable rather than emulated
-  (their tables and `<sys/syscall.h>` includes are Linux-only). Selecting
-  `"Linux"` is refused on a Windows host, and selecting `winAPI`/`"windows"` is
-  refused on Linux.
+- **Named Linux syscalls.** The `syscalls` standard-library module and its
+  `amd64.syscall*`/`arm64.syscall*` functions require a Linux runtime; on
+  Windows they are unavailable rather than emulated. Selecting `"Linux"` is
+  refused on a Windows host. The `winAPI.*` surface is independently available
+  on Windows and does not use a target selector.
 - **The `sys` stdlib module.** It is built on Linux system calls and is not
   compiled for Windows.
 - **The managed POSIX built-ins.** The `filesystem*`, `networking*` and

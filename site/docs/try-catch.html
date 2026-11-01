@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>try / catch - Lynxer</title>
+    <title>try / catch / finally - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
 </ul>
@@ -130,96 +131,74 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>try / catch</span>
+            <span>try / catch / finally</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="try--catch"><code>try</code> / <code>catch</code></h1>
-<p>Lynxer handles runtime errors with a <code>try</code> / <code>catch</code> statement. There is no <code>except</code>, <code>finally</code> or <code>throw</code> keyword, and no hierarchy of exception types: every handler catches every catchable runtime error, and the caught value is always a <code>str</code> message.</p>
+<h1 id="try--catch--finally"><code>try</code> / <code>catch</code> / <code>finally</code></h1>
+<p>Runtime errors have stable diagnostic codes and human-readable messages. <code>try</code> can select handlers by error code, retain the legacy string catch-all, and run cleanup in an optional <code>finally</code> block.</p>
 <h2 id="syntax">Syntax</h2>
 <pre><code>try {
-    int value = intOf(&quot;not a number&quot;);   // raises a runtime error
+    int value = 1 /% 0;
+} catch (divisionByZero) {
+    println(&quot;matched code: &quot;, exceptionCode());
 } catch (str error) {
-    println(&quot;caught &quot;, error);
+    println(&quot;other failure: &quot;, error);
+} finally {
+    println(&quot;cleanup&quot;);
 }</code></pre>
-<p>The binding clause is optional — <code>catch</code> may take no variable:</p>
+<p><code>catch(errorCode)</code> matches only the named diagnostic code and does not declare a variable. <code>exceptionCode()</code> returns the active code, and <code>exceptionInfo()</code> returns the formatted traceback. <code>catch(str error)</code> remains a catch-all for compatibility and binds the error message to <code>error</code>; a bare <code>catch</code> is also a catch-all without a binding. Multiple code-specific handlers are allowed. A catch-all may occur only once and must be the final handler.</p>
+<p>A <code>try</code> must have at least one <code>catch</code> or a <code>finally</code>. A <code>finally</code> without any catch handlers is valid:</p>
 <pre><code>try {
-    raise(&quot;something went wrong&quot;);
-} catch {
-    println(&quot;failed&quot;);
+    performWork();
+} finally {
+    releaseResources();
 }</code></pre>
-<p>A <code>try</code> must be followed by exactly one <code>catch</code>; there is no <code>finally</code> and no second <code>catch</code> clause.</p>
-<h2 id="what-a-handler-catches">What a handler catches</h2>
-<p>A <code>catch</code> block runs only for a <strong>catchable runtime error</strong>: the failures the interpreter and its builtins raise (a division by zero, an out-of-range index, a bad argument shape, a missing file where the builtin raises rather than returns a sentinel, …), and any error you raise yourself with <a href="#raise"><code>raise</code></a>. Native modules may also raise a catchable error; this is the <em>Catchable runtime error</em> family in <a href="stdlib-contracts.html">stdlib-contracts</a>, used by <code>sqldb</code>.</p>
-<p>An error raised inside an <a href="modules.html">imported module</a> is caught by the importer's handler. <code>exceptionInfo()</code> then names the module file, so the diagnostic is not misattributed to the importing program.</p>
-<p>A <code>catch</code> does <strong>not</strong> intercept:</p>
+<h2 id="handler-selection">Handler selection</h2>
+<p>Only catchable runtime errors are considered. Catch clauses are checked in source order; the first matching code-specific clause or catch-all runs. If no clause matches, the error continues propagating after <code>finally</code> runs.</p>
+<p>Examples of diagnostic codes include <code>divisionByZero</code>, <code>numericValueExpected</code>, <code>stringUnterminated</code>, <code>macroDuplicated</code>, <code>nativeValueResultNull</code>, and <code>structHasNoField</code>. The complete message and code reference is <a href="errorlist.html">errorlist</a>.</p>
+<p>Errors raised inside an <a href="modules.html">imported module</a> retain their code and source location when caught by the importer. <code>exceptionInfo()</code> identifies the module file where the error originated.</p>
+<p>A <code>catch</code> does not intercept:</p>
 <ul>
-<li><code>sys.exit</code> / <code>sys.exitCode</code> — the process exit runs to completion;</li>
-<li>an interrupt (Ctrl-C);</li>
-<li>an internal interpreter failure that is not a Lynxer runtime error — the run aborts with <code>lynxer: interpreter failure in &#x27;&lt;file&gt;&#x27;: …</code>;</li>
-<li>control flow. <code>return</code>, <code>break</code>, <code>continue</code> and <code>restart</code> inside a <code>try</code> body behave exactly as they do outside one and are never routed to <code>catch</code>.</li>
+<li><code>sys.exit</code> / <code>sys.exitCode</code>, which exit after running applicable <code>finally</code> blocks;</li>
+<li>an interrupt (Ctrl-C), which also runs applicable <code>finally</code> blocks;</li>
+<li>a host/interpreter failure that is not represented as a <code>SourceError</code>.</li>
 </ul>
-<h2 id="the-caught-value">The caught value</h2>
-<p>The bound variable receives the error <strong>message</strong>, not the traceback. For the example above it is <code>division by zero</code>. The variable is a <code>str</code>:</p>
+<h2 id="finally-and-control-flow"><code>finally</code> and control flow</h2>
+<p><code>finally</code> runs after normal completion, a matched catch, an uncaught error, or control flow leaving the protected body through <code>return</code>, <code>break</code>, or <code>continue</code>. If <code>finally</code> itself raises an error or transfers control, that outcome takes precedence over the pending return, loop control, or error.</p>
+<pre><code>fn value() -&gt; int {
+    try {
+        return 42;
+    } finally {
+        println(&quot;runs before returning&quot;);
+    }
+}</code></pre>
+<h2 id="legacy-string-catch-binding">Legacy string catch binding</h2>
+<p>The existing <code>catch(str error)</code> syntax remains a catch-all. The bound variable contains the message, not the traceback:</p>
 <ul>
-<li>if the name does not exist yet, it is declared as <code>str</code> in the current scope;</li>
-<li>if it already exists, it must be an existing <code>str</code> (or <code>any</code>) variable and not <code>const</code>, and is reassigned;</li>
-<li>otherwise the <code>catch</code> clause itself fails with a runtime error explaining the conflict, which propagates to an enclosing handler.</li>
+<li>if the name does not exist, Lynxer declares it as <code>str</code> in the current scope;</li>
+<li>if it already exists, it must be a mutable <code>str</code> or <code>any</code> variable and is reassigned;</li>
+<li>otherwise the catch clause raises a runtime error, which propagates after <code>finally</code> executes.</li>
 </ul>
 <h2 id="raise"><code>raise</code></h2>
 <pre><code>raise(message)</code></pre>
-<p>Raises a catchable runtime error with the given string message. The argument must be a string; anything else is itself reported as <code>raise(message) expects one string</code>. Because only the message is carried, re-raising a caught error is written <code>raise(error)</code>.</p>
+<p>Raises a catchable runtime error with code <code>userRaised</code> and the supplied string message. The argument must be a string; otherwise Lynxer raises <code>raise(message) expects one string</code>. Custom error codes and user-defined error types are not currently supported.</p>
+<h2 id="exceptioncode"><code>exceptionCode()</code></h2>
+<pre><code>exceptionCode() -&gt; str</code></pre>
+<p>Returns the stable code for the active catch handler, or <code>&quot;&quot;</code> outside a catch handler. A code-specific handler can use it without declaring a local:</p>
+<pre><code>try {
+    int value = 1 /% 0;
+} catch (divisionByZero) {
+    println(exceptionCode()); // divisionByZero
+}</code></pre>
 <h2 id="exceptioninfo"><code>exceptionInfo()</code></h2>
 <pre><code>exceptionInfo() -&gt; str</code></pre>
-<p>Returns the formatted traceback for the <strong>active</strong> handler, or <code>&quot;&quot;</code> outside a <code>catch</code> block:</p>
-<pre><code>Traceback (most recent call last):
-  File &quot;&lt;program&gt;&quot;, line 4, column 18
-division by zero</code></pre>
-<p>The <code>File</code> line names the module path when the error was raised inside an imported module, and <code>&lt;program&gt;</code> otherwise. <code>exceptionInfo()</code> is only meaningful inside the matching <code>catch</code>: a handler that calls another handler restores the outer value when the inner one finishes.</p>
-<h2 id="nesting">Nesting</h2>
-<p>Handlers nest. The inner handler's <code>exceptionInfo()</code> is scoped to the inner error, and the outer handler's information is restored afterwards — an outer <code>catch</code> sees <code>&quot;&quot;</code> again if nothing is propagating:</p>
-<pre><code>try {
-    try {
-        raise(&quot;inner&quot;);
-    } catch (str error) {
-        println(error);                 // inner
-    }
-    println(exceptionInfo() is &quot;&quot;);      // true
-} catch (str error) {
-    println(&quot;not reached&quot;);
-}</code></pre>
-<p>To let an error continue past a handler, raise it again with <code>raise(error)</code>; the enclosing <code>catch</code> then receives the new message.</p>
+<p>Returns the formatted traceback for the active catch handler, or <code>&quot;&quot;</code> outside one. The <code>File</code> line names the module path when the error originated in an imported module, and <code>&lt;program&gt;</code> otherwise. Nested handlers restore the outer handler's information when they finish.</p>
 <h2 id="uncaught-errors">Uncaught errors</h2>
-<p>An error with no matching handler ends the run: the interpreter prints</p>
-<pre><code>lynxer: &lt;file&gt;:&lt;line&gt;:&lt;column&gt;: &lt;message&gt;</code></pre>
-<p>to standard error and exits with status <code>1</code>. (An interrupt exits <code>130</code>.)</p>
-<h2 id="example">Example</h2>
-<pre><code>fn setup(){ }
-
-fn divide(int a, int b) -&gt; int {
-    if(b is 0){ raise(&quot;cannot divide by zero&quot;); }
-    return a /% b;
-}
-
-fn main(){
-    try {
-        println(divide(10, 2));   // 5
-        println(divide(10, 0));   // raises
-    } catch (str error) {
-        println(&quot;error: &quot;, error);
-        println(exceptionInfo());
-    }
-}</code></pre>
-<h2 id="limitations">Limitations</h2>
-<ul>
-<li><strong>No <code>finally</code>.</strong> Put cleanup in the handler and after the statement, or wrap it in a helper function.</li>
-<li><strong>One untyped handler.</strong> There is no way to catch only some errors, to declare several <code>catch</code> clauses, or to define your own error types — a <code>catch</code> catches every catchable runtime error.</li>
-<li><strong>String messages only.</strong> The caught variable is a <code>str</code>; there is no structured error object.</li>
-<li><strong>Catching everything hides bugs.</strong> A handler around a large block also catches mistakes such as an unknown variable or a wrong argument type. Keep the <code>try</code> body around the specific operation you expect to fail.</li>
-</ul>
+<p>An error with no matching handler runs applicable <code>finally</code> blocks, then ends the program. The interpreter prints the source location, error code, and message to standard error and exits with status <code>1</code>. An interrupt exits <code>130</code>.</p>
     </main>
 </div>
 

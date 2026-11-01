@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="../install.html">install</a></li>
 <li><a href="../CLI.html">CLI</a></li>
+<li><a href="../errorlist.html">errorlist</a></li>
 <li><a href="../language-server.html">language-server</a></li>
 <li><a href="../benchmarks.html">benchmarks</a></li>
 </ul>
@@ -143,7 +144,7 @@
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td>Host operating system: <code>linux</code>, <code>darwin</code>, <code>freebsd</code>, <code>netbsd</code>, <code>openbsd</code>, <code>dragonfly</code> or <code>win32</code>; otherwise <code>unknown</code></td></tr>
-<tr><td><code>architecture</code></td><td><code>() -&gt; str</code></td><td>Canonical syscall architecture of this build: <code>amd64</code> or <code>arm64</code>; <code>&quot;&quot;</code> otherwise. Pass with <code>platform()</code> to <code>syscalls(...)</code></td></tr>
+<tr><td><code>architecture</code></td><td><code>() -&gt; str</code></td><td>Canonical syscall architecture of this build: <code>amd64</code> or <code>arm64</code>; <code>&quot;&quot;</code> otherwise. Pass with <code>platform()</code> to <code>syscalls.select(...)</code></td></tr>
 <tr><td><code>cpuCount</code></td><td><code>() -&gt; int</code></td><td>Online processors (<code>0</code> when unknown)</td></tr>
 <tr><td><code>pageSize</code></td><td><code>() -&gt; int</code></td><td>Memory page size in bytes (<code>0</code> when unknown)</td></tr>
 <tr><td><code>memoryTotal</code></td><td><code>() -&gt; int</code></td><td>Total physical memory in bytes (<code>0</code> when unavailable)</td></tr>

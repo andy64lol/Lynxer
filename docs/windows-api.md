@@ -1,12 +1,10 @@
 # Windows API access
 
 On Windows, Lynxer calls the Win32 API through the built-in `winAPI.*` surface.
-It is **not a module** — there is no `import` — and it is gated by the same
-`syscalls(...)` target selector the named Linux syscalls use:
+It is **not a module** — there is no `import` — and is available only on a
+Windows host:
 
 ```lynx
-fn setup(){ syscalls("winAPI", "amd64"); }
-
 fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getComputerName());
@@ -18,26 +16,11 @@ Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32` for the
 Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be
 installed.
 
-## Selecting the target
+## Host availability
 
-`syscalls("<os>", "<arch>")` must run before any `winAPI.*` call.
-
-| Keyword | Kind | Selects |
-| --- | --- | --- |
-| `winAPI`, `windows`, `win32` | operating system | the Win32 surface |
-| `amd64`, `x86-64` | architecture | x86-64 |
-| `arm64`, `aarch64` | architecture | AArch64 |
-
-- Both keywords must name the **host**. On Linux,
-  `syscalls("winAPI", "amd64")` fails with
-  `syscalls("winAPI") selects Windows, but this machine is Linux`; on a host
-  that is neither Linux nor Windows the selector reports that it is unavailable.
-- Matching is case-insensitive, so
-  `syscalls(sys.platform(), sys.architecture())` asserts the host — `platform()`
-  returns `win32` on Windows.
-- Calling `winAPI.*` before the selection is an error:
-  `winAPI calls are not available yet; call syscalls("winAPI", "<arch>") first`.
-  A call after selecting a different target is an error too.
+- Calls are gated by the current runtime host; no target selector is needed.
+- On non-Windows hosts, calling the namespace reports that the Win32 API
+  requires a Windows runtime.
 - The namespace prefix is matched case-insensitively, so `winAPI.getProcessId()`
   and `winapi.getProcessId()` are the same call. A misspelled function reports
   the closest match, e.g. `unknown winAPI function 'getProcesId'. You meant:
@@ -138,8 +121,6 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 `seekFile` positions absolutely from the start of the file.
 
 ```lynx
-fn setup(){ syscalls("winAPI", "amd64"); }
-
 fn main(){
     str path = winAPI.getTempPath() + "demo.txt";
 
@@ -196,8 +177,6 @@ so a client may start before the server. Pipe handles are ordinary handles and
 are released with `winAPI.closeHandle`. Reads and writes are blocking.
 
 ```lynx
-fn setup(){ syscalls("winAPI", "amd64"); }
-
 fn main(){
     int server = winAPI.createNamedPipe("lynxer-demo");
     // In another process:
@@ -260,8 +239,6 @@ Windows the Win32 calling convention is the one `cdecl:` describes, so a Win32
 call looks like any other:
 
 ```lynx
-fn setup(){ syscalls("winAPI", "amd64"); }
-
 fn main(){
     int user32 = ffiLoadLibrary("user32.dll");
     functionAddress box = ffiLookup(user32, "MessageBoxA");
@@ -276,6 +253,6 @@ tracked in [../todo.md](../todo.md).
 
 ## See also
 
-- [syscalls.md](syscalls.md) — the target selector and the named Linux syscalls
+- [syscalls.md](syscalls.md) — the Linux named-syscall standard-library module
 - [windows.md](windows.md) — the Windows port status and what it excludes
 - [native-modules.md](native-modules.md) — `ffiLoadLibrary`/`ffiLookup`/`ffiCall`

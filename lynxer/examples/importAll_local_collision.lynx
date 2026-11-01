@@ -1,0 +1,15 @@
+fn localName() -> int {
+    return 3;
+}
+
+fn setup() {
+    try {
+        importAll("importAll_local_collision_module.lynx");
+    } catch (str message) {
+        println(message);
+    }
+}
+
+fn main() {
+    println(localName());
+}
