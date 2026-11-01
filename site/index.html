@@ -39,9 +39,9 @@
 
         <p>
             Lynxer is a small, statically-flavoured, C-style programming language with a
-            standalone native runtime. Source files use the <code>.lynx</code> extension,
-            and every program defines <code>global setup()</code> followed by
-            <code>global main()</code>.
+            standalone native runtime. Source files use the <code>.lynx</code> extension.
+            Declare functions with <code>fn</code>; <code>main()</code>
+            is required and <code>setup()</code> is optional.
         </p>
 
         <p>
@@ -70,11 +70,11 @@
     <section id="example">
         <h2>A first program</h2>
 
-        <pre><code>global setup(){
+        <pre><code>fn setup(){
     str name = input("What's your name? ");
 }
 
-global main(){
+fn main(){
     println("Hello, ", name, "!");
 }</code></pre>
 
@@ -85,11 +85,11 @@ global main(){
 
         <h3>A little more</h3>
 
-        <pre><code>global setup(){
+        <pre><code>fn setup(){
     importAs("math", "m");
 }
 
-global main(){
+fn main(){
     for(int i = 1; i &lt; 4; i = i + 1){
         println("sqrt(", i, ") = ", m.sqrt(i));
     }
