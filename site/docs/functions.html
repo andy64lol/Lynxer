@@ -33,6 +33,7 @@
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
 <li><a href="functions.html" class="active">functions</a></li>
+<li><a href="deprecated.html">deprecated</a></li>
 <li><a href="macros.html">macros</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
@@ -163,7 +164,7 @@ fn main() {
 println(m.calculate(21));</code></pre>
 <p>Nested names use hierarchical dot notation, with no fixed depth: <code>parent.child.grandchild()</code>.</p>
 <h2 id="deprecated-declaration-keywords">Deprecated declaration keywords</h2>
-<p>The old <code>global</code>, <code>local</code> and <code>func</code> declarations remain accepted for backwards compatibility, but each produces a deprecation warning recommending <code>fn</code>. Replace the declaration keyword with <code>fn</code>; call functions directly in the current module, through an imported module namespace, or through their nested function path. The old <code>global.</code> and <code>local.</code> function prefixes are also unnecessary for ordinary function calls.</p>
+<p>The old <code>global</code>, <code>local</code> and <code>func</code> declarations remain accepted for backwards compatibility, but each produces a deprecation warning recommending <code>fn</code>. Replace the declaration keyword with <code>fn</code>; call functions directly in the current module, through an imported module namespace, or through their nested function path. The old <code>global.</code> and <code>local.</code> function prefixes are also unnecessary for ordinary function calls. See <a href="deprecated.html">deprecated</a> for the complete migration index.</p>
 <h2 id="named-lambdas">Named lambdas</h2>
 <p>A named <code>lambda</code> is declared inside a function and called by its name in that scope. It accepts typed parameters and an optional <code>-&gt; type</code> return annotation:</p>
 <pre><code>fn setup(){}

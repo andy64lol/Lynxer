@@ -381,9 +381,12 @@ ifeq ($(strip $(SYSCALL_ARCH)),)
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 endif
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
 test: testLynxer
+
+testPackageManifests:
+	@$(PYTHON) packaging/windows/test-package-manifests.py
 
 # Lint the syntax showcase, then run the suite.
 check: testLynxer
@@ -623,7 +626,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST)
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST) testPackageManifests
 	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "lynxer: $(PYTHON) not found; Python 3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -1251,6 +1254,7 @@ help:
 	@echo "  make cargo"
 	@echo "  make test               (Lynxer suite)"
 	@echo "  make testLynxer        (Lynxer suite only)"
+	@echo "  make testPackageManifests (Windows package manifest renderer)"
 	@echo "  make testLynxerInstall (--install into a throwaway prefix, no root)"
 	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"

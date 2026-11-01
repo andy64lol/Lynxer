@@ -53,6 +53,7 @@ backwards compatibility, but each produces a deprecation warning recommending
 the current module, through an imported module namespace, or through their
 nested function path. The old `global.` and `local.` function prefixes are
 also unnecessary for ordinary function calls.
+See [deprecated.md](deprecated.md) for the complete migration index.
 
 ## Named lambdas
 

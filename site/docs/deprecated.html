@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Deprecated syntax and APIs - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <div class="wrap header-inner">
+        <img class="logo" src="../assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="../index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+<li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="language.html">language</a></li>
+<li><a href="functions.html">functions</a></li>
+<li><a href="deprecated.html" class="active">deprecated</a></li>
+<li><a href="macros.html">macros</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
+<li><a href="windows-api.html">windows-api</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winpipe.html">winpipe</a></li>
+<li><a href="stdlib/winreg.html">winreg</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
+            <span>Deprecated syntax and APIs</span>
+        </div>
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="deprecated-syntax-and-apis">Deprecated syntax and APIs</h1>
+<p>This page is the migration index for Lynxer's deprecated language syntax. Deprecated forms remain accepted where stated, but new code should use the replacement. Deprecation warnings are emitted for the declaration keywords, deprecated operators, tuple bracket coercions, and legacy methods where the parser/runtime supports them. <code>suppressDeprecationWarning()</code> suppresses runtime deprecation warnings; it does not make old syntax canonical.</p>
+<h2 id="function-declarations">Function declarations</h2>
+<p>Use <code>fn</code> for top-level functions, nested functions, and methods.</p>
+<table>
+<tr><th>Deprecated declaration</th><th>Replacement</th><th>Notes</th></tr>
+<tr><td><code>global name(...) { ... }</code></td><td><code>fn name(...) { ... }</code></td><td>Use a bare call in the same module.</td></tr>
+<tr><td><code>func name(...) { ... }</code></td><td><code>fn name(...) { ... }</code></td><td>Use a bare call in the same module.</td></tr>
+<tr><td><code>local name(...) { ... }</code></td><td><code>fn name(...) { ... }</code></td><td>Declare nested functions with <code>fn</code>; call them by name or qualified path.</td></tr>
+<tr><td><code>local method(...) { ... }</code> in a <code>template</code> or legacy <code>class</code></td><td><code>fn method(...) { ... }</code></td><td>Method behavior is unchanged.</td></tr>
+<tr><td><code>global.name(...)</code> for a same-module function</td><td><code>name(...)</code></td><td>Do not remove <code>global.</code> when it refers to a builtin or an imported namespace.</td></tr>
+<tr><td><code>local.name(...)</code> for a nested function</td><td><code>name(...)</code> or <code>parent.name(...)</code></td><td>Use the nested hierarchy when calling from outside the declaring scope.</td></tr>
+</table>
+<p>Legacy function declaration keywords produce a deprecation warning recommending <code>fn</code>. Call same-module functions by name, imported functions through <code>&lt;module&gt;.&lt;name&gt;(...)</code>, and nested functions through their hierarchy. The former <code>global.</code> and <code>local.</code> function prefixes are unnecessary. The <code>global.</code> prefix still has builtin/namespace behavior in some contexts; do not mechanically remove it from builtin calls or native-module forwarders without checking what the name refers to.</p>
+<h2 id="legacy-class-form">Legacy class form</h2>
+<p>The <code>class</code> object form is deprecated in favor of <a href="templates.html"><code>template</code></a>. Use template header parameters, <code>build Type(args) named value;</code>, and <code>extending</code> inheritance. The legacy form remains supported for compatibility; see <a href="classes.html">classes</a> for its <code>init</code>, <code>new</code>, <code>extends</code>, and <code>super</code> behavior.</p>
+<h2 id="operator-spellings">Operator spellings</h2>
+<p>Use keyword operators instead of these deprecated symbolic spellings:</p>
+<table>
+<tr><th>Deprecated</th><th>Replacement</th></tr>
+<tr><td><code>==</code></td><td><code>is</code></td></tr>
+<tr><td><code>!=</code>, <code>not is</code></td><td><code>isnt</code></td></tr>
+<tr><td><code>&amp;&amp;</code></td><td><code>and</code></td></tr>
+<tr><td><code>||</code></td><td><code>or</code></td></tr>
+<tr><td><code>!!</code></td><td><code>not</code></td></tr>
+<tr><td><code>!&amp;&amp;</code></td><td><code>nand</code></td></tr>
+<tr><td><code>!||</code></td><td><code>nor</code></td></tr>
+<tr><td><code>&amp;</code></td><td><code>bitand</code></td></tr>
+<tr><td><code>|</code></td><td><code>bitor</code></td></tr>
+<tr><td><code>^</code></td><td><code>bitxor</code></td></tr>
+<tr><td><code>~</code></td><td><code>bitnot</code></td></tr>
+<tr><td><code>!&amp;</code></td><td><code>bitnand</code></td></tr>
+<tr><td><code>!|</code></td><td><code>bitnor</code></td></tr>
+<tr><td><code>!^</code></td><td><code>bitxnor</code></td></tr>
+<tr><td><code>&lt;&lt;</code></td><td><code>bitleft</code></td></tr>
+<tr><td><code>&gt;&gt;</code></td><td><code>bitright</code></td></tr>
+</table>
+<p>The symbolic forms still parse and run while warning at each use. A bare <code>!</code> is not deprecated syntax; it is invalid.</p>
+<h2 id="tuple-assignment">Tuple assignment</h2>
+<p>Assign tuples using parenthesized tuple syntax rather than coercing a bracket list:</p>
+<pre><code>tuple current = (int 1, int 2);
+current = (int 3, int 4);</code></pre>
+<p>Assigning a bracket list to a <code>tuple</code> variable is accepted for compatibility, but emits a deprecation warning. <code>tupleCreate(...)</code> and <code>listToTuple(...)</code> are the explicit conversion helpers. See <a href="tuples.html#declaration">tuples</a>.</p>
+<h2 id="other-legacy-syntax">Other legacy syntax</h2>
+<p>The old <code>exec({name})</code> codeblock invocation is replaced by <code>exec(){{name}}</code>; use the latter form. See <a href="codeblocks.html">codeblocks</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="functions.html#deprecated-declaration-keywords">functions</a></li>
+<li><a href="operators.html#deprecated-spellings-at-a-glance">operators</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="templates.html">templates</a> and <a href="classes.html">classes</a></li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../search.js" defer></script>
+</body>
+</html>

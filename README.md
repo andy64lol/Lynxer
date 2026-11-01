@@ -22,7 +22,7 @@ fn main(){
 }
 ```
 
-→ **[Documentation](docs/README.md)** | **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
+→ **[Documentation](docs/README.md)** | **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Deprecated syntax](docs/deprecated.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
 
 ---
 
@@ -78,16 +78,16 @@ sudo ./lynxer/lynxer --install
 ## Language at a glance
 
 ```c
-global setup(){
+fn setup(){
     importAs("math", "m");
     const str LANG = "Lynxer";
 }
 
-global greet(str name){
+fn greet(str name){
     println("Hello, ", name, "!");
 }
 
-global main(){
+fn main(){
     int x = 10;
     float pi = 3.14;
     bool ok = true;
@@ -95,7 +95,7 @@ global main(){
     x += 5;
 
     if(x > 10){
-        global.greet(LANG);
+        greet(LANG);
     }
 
     for(int i = 0; i < 3; i = i + 1){
@@ -103,7 +103,7 @@ global main(){
     }
 
     // stdlib
-    println(global.m.sqrt(144));
+    println(m.sqrt(144));
 }
 ```
 
@@ -120,6 +120,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
 | [Functions](docs/functions.md) | `fn` declarations, deprecated function keywords, nested and module functions, inferred generic parameters, and caller-supplied codeblocks |
+| [Deprecated syntax](docs/deprecated.md) | Migration reference for every deprecated language spelling |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
 | [Errors](docs/try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |

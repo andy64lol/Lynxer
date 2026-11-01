@@ -254,10 +254,12 @@ surface stays a documented boundary in
   renderers. Remaining: track amd64/ARM64 parity and re-check the remaining
   skips on a real runner.
 
-- [ ] **Package managers.** `packaging/windows/render-package-manifests.py`
-  now renders winget, Scoop and Chocolatey manifests (with SHA-256 hashes) from
-  the released `lynxer-windows-*.zip`. Still to do: submit them to the three
-  registries once the signed zips are published.
+- [x] ~~**Package manifests.** `packaging/windows/render-package-manifests.py`
+  renders winget, Scoop and Chocolatey manifests from the release archives.
+  `make testPackageManifests` verifies their versions, architecture URLs,
+  archive hashes and Chocolatey metadata, and runs in `make testLynxer`.~~
+- [ ] **Package manager publishing.** Submit the generated manifests to winget,
+  Scoop and Chocolatey after signed release zips are published.
 - [x] ~~**C runtime and minimum Windows version.** Windows 10 is the minimum;
   AMD64 uses MSYS2 MINGW64 (`msvcrt.dll` + GCC runtime DLLs), ARM64 uses
   CLANGARM64 (UCRT + CLANGARM64 runtime DLLs). CI collects non-system DLLs with

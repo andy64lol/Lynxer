@@ -25,6 +25,7 @@ standard-library improvements.
 | --- | --- |
 | [language.md](language.md) | Program structure, variables, operators, control flow, functions, scoping, interpolation |
 | [functions.md](functions.md) | `fn` declarations, nested and module-qualified calls, named `lambda`, inferred generic parameters, and caller-supplied codeblocks |
+| [deprecated.md](deprecated.md) | Complete deprecated syntax and API migration reference |
 | [macros.md](macros.md) | File-scoped macros, `pub` exports, token arguments and codeblock parameters |
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |

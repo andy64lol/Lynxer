@@ -113,6 +113,10 @@ Each zip also contains its installer; the winget manifest points at the
 portable `lynxer.exe` inside the zip, so the extra installer does not change how
 winget installs it.
 
+Run `make testPackageManifests` to verify the generated version, architecture
+URLs and SHA-256 values for all three package formats without release artifacts.
+The full `make testLynxer` suite runs this check as well.
+
 The zips must be signed and uploaded to a release before the manifests can be
 submitted. Publishing to winget, Scoop and Chocolatey is tracked in `todo.md`.
 
