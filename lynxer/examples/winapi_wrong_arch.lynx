@@ -1,0 +1,7 @@
+fn setup() {
+    importAs("winAPI-__OTHER_ARCH__", "wrongWinApi");
+}
+
+fn main() {
+    wrongWinApi.getProcessId();
+}

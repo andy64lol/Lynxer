@@ -382,6 +382,7 @@ SYSCALL_ARCH := $(shell $(LYNXER_CXX) -dumpmachine 2>/dev/null | sed -e 's/^x86_
 ifeq ($(strip $(SYSCALL_ARCH)),)
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 endif
+SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
 .PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
@@ -1017,6 +1018,26 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: [vargroupAndLegac
 	echo "expected:"; printf '%s\n' "$$expected_output"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi
+	@list_output="$$(cd /tmp && "$(CURDIR)/$(LYNXER_TARGET)" --list-stdlibs)"; \
+	for module in syscalls winapi; do \
+	if printf '%s\n' "$$list_output" | grep -Fqx "  $$module"; then \
+	echo "deprecated combined stdlib is still exposed: $$module"; exit 1; fi; \
+	done
+	@for spec in "linux_wrong_arch:Linux" "winapi_wrong_arch:Windows"; do \
+	fixture=$${spec%%:*}; expected=$${spec#*:}; \
+	run="$(CLYX_TMP)_$${fixture}.lynx"; \
+	sed "s/__OTHER_ARCH__/$(SYSCALL_OTHER_ARCH)/g" "$(LYNXER_DIR)/examples/$${fixture}.lynx" > "$$run"; \
+	if output="$$($(CLYX) "$$run" 2>&1)"; then status=0; else status=$$?; fi; \
+	rm -f "$$run"; \
+	if [ $$status -eq 0 ] || ! printf '%s\n' "$$output" | grep -q "requires a $$expected "; then \
+	echo "$$fixture did not reject the mismatched host:"; printf '%s\n' "$$output"; exit 1; fi; \
+	if printf '%s\n' "$$output" | grep -q 'deprecatedWinApiBuiltin'; then \
+	echo "architecture-specific module called a deprecated WinAPI builtin:"; printf '%s\n' "$$output"; exit 1; fi; \
+	done
+	@echo "architecture module host-guard tests passed"
+	@if output="$$($(CLYX) $(LYNXER_DIR)/examples/winapi_legacy_deprecation.lynx 2>&1)"; then status=0; else status=$$?; fi; \
+	if [ $$status -eq 0 ] || ! printf '%s\n' "$$output" | grep -q 'warning\[deprecatedWinApiBuiltin\]'; then \
+	echo "legacy WinAPI calls did not produce the deprecation warning:"; printf '%s\n' "$$output"; exit 1; fi
 	@if [ -n "$(LYNXER_PROGRAM_ARGS_FIXTURE)" ]; then \
 	output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \
 	expected="$$(cat $(LYNXER_PROGRAM_ARGS_FIXTURE:.lynx=.expected))"; \

@@ -132,9 +132,9 @@ extern "C" std::int64_t syscalls_call(const char* name, std::int64_t count,
 #endif
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
-                                      void (*)(const char*, std::int64_t),
-                                      void (*)(const char*, const char*)) {
+extern "C" LYNXER_MODULE_EXPORT int lynxer_module_init_v1(
+    RegisterFunction function, void (*)(const char*, std::int64_t),
+    void (*)(const char*, const char*)) {
     return function("call", "syscalls_call",
                     "cdecl:int64(cstring,int64,int64,int64,int64,int64,int64,int64)") &&
                    function("lastError", "syscalls_lastError",

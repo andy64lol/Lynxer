@@ -1,0 +1,7 @@
+fn setup() {
+    importAs("linux-__OTHER_ARCH__", "wrongLinux");
+}
+
+fn main() {
+    wrongLinux.syscallGetProcessId();
+}

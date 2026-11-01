@@ -7,18 +7,17 @@
 
 #include "winapi.hpp"
 
-#include <cstring>
 #include <string>
-#include <thread>
 #include <vector>
-
-#include "stdlib/native_json.hpp"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0601
 #endif
+#include <cstring>
+#include <thread>
+#include "stdlib/native_json.hpp"
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
