@@ -3,7 +3,7 @@
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
 native shared libraries. It provides standalone Linux and Windows executables,
-41 natively backed modules, an AST optimizer, a frozen native-module ABI, a
+43 natively backed modules, an AST optimizer, a frozen native-module ABI, a
 source debugger, a language server and performance benchmarks. See
 [limitations.md](limitations.md) for planned runtime and
 standard-library improvements.
@@ -49,7 +49,13 @@ standard-library improvements.
 | Document | What it covers |
 | --- | --- |
 | [builtins.md](builtins.md) | Every function the interpreter implements itself |
-| [syscalls.md](syscalls.md) | The named Linux syscall wrappers: OS/architecture gate, namespaces, full list |
+| [syscalls.md](syscalls.md) | Linux syscall overview and links to the OS/architecture references |
+| [stdlib/linux-amd64.md](stdlib/linux-amd64.md) | The native-backed Linux amd64 syscall module |
+| [stdlib/linux-arm64.md](stdlib/linux-arm64.md) | The native-backed Linux arm64 syscall module |
+| [stdlib/winAPI-amd64.md](stdlib/winAPI-amd64.md) | The native-backed Windows amd64 API module |
+| [stdlib/winAPI-arm64.md](stdlib/winAPI-arm64.md) | The native-backed Windows arm64 API module |
+| [syscalls/linux-amd64.md](syscalls/linux-amd64.md) | Linux amd64 syscall details |
+| [syscalls/linux-arm64.md](syscalls/linux-arm64.md) | Linux arm64 syscall details |
 | [async.md](async.md) | Local `async` sub-functions, `await`, and the `async*` builtins |
 | [native-memory.md](native-memory.md) | Typed raw memory, blocks/arrays/views, native struct layouts |
 | [filesystem.md](filesystem.md) | The handle-based `filesystem*` API |
@@ -65,6 +71,9 @@ standard-library improvements.
 | [removed-features.md](removed-features.md) | Bytecode, Python bridging and other removed features |
 | [limitations.md](limitations.md) | Deliberate constraints and what is not implemented |
 | [windows.md](windows.md) | Windows build status, embedding, and the features excluded from it |
+| [windows-api.md](windows-api.md) | The native-backed Win32 architecture modules |
+| [winapi/windows-amd64.md](winapi/windows-amd64.md) | WinAPI behavior on Windows amd64 |
+| [winapi/windows-arm64.md](winapi/windows-arm64.md) | WinAPI behavior on Windows arm64 |
 
 ## Build and run
 
@@ -100,7 +109,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 46 bundled modules. A module is exposed to Lynxer by
+There are 50 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from the `lynxer_stdlib` package under `rust/` (`json` is its own
 package in the same workspace); *pure* modules are written in Lynxer only and

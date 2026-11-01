@@ -88,6 +88,10 @@ inline std::string diagnosticCodeForMessage(const std::string& message) {
     if (message.find(" is deprecated; use ") != std::string::npos) {
         return "deprecatedOperator";
     }
+    if (message.find("WinAPI built-in calls are deprecated") !=
+        std::string::npos) {
+        return "deprecatedWinApiBuiltin";
+    }
     if (message.find("forever() has no break") != std::string::npos) {
         return "foreverMissingBreak";
     }

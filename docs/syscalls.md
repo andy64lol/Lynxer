@@ -1,118 +1,44 @@
-# Linux syscall standard library
+# Linux syscall standard libraries
 
-Linux named syscalls are provided by the `syscalls` standard-library module,
-not by special language built-ins. They are **raw ABI calls**: argument layouts,
-flags, structures and pointer lifetimes are the caller's responsibility.
+Linux named syscalls are provided by native-backed, architecture-specific
+standard-library modules—not by special language built-ins. They are **raw ABI
+calls**: argument layouts, flags, structures and pointer lifetimes are the
+caller's responsibility. Import the module matching the host:
 
 ```lynx
-fn setup(){
-    import("syscalls");
-    syscalls.select("Linux", "amd64");
+fn setup() {
+    importAs("linux-amd64", "linuxAmd64");
 }
 
-fn main(){
-    println(syscalls.amd64.syscallGetProcessId());
-    println(syscalls.amd64.syscallYieldProcessor());
+fn main() {
+    println(linuxAmd64.syscallGetProcessId());
+    println(linuxAmd64.syscallYieldProcessor());
 }
 ```
 
-## Selecting an operating system and architecture
+The `linux-amd64` and `linux-arm64` modules each reject a mismatched OS or
+process architecture; there is no runtime selection or cross-target dispatch.
+See the [amd64](syscalls/linux-amd64.md) and
+[arm64](syscalls/linux-arm64.md) references and their module pages
+([amd64](stdlib/linux-amd64.md),
+[arm64](stdlib/linux-arm64.md)).
 
-`syscalls.select("<os>", "<arch>")` checks the current host and must run before
-calling a named syscall.
+Each wrapper accepts the syscall's documented arguments, up to the Linux
+six-argument limit. Arguments are passed as raw integer values, commonly
+addresses returned by the native-memory built-ins. Successful calls return the
+kernel result. A kernel failure raises a catchable Lynxer error containing the
+syscall name and host error text; it does not return the negative `errno` value.
+The module adapts a small number of architecture-specific interfaces such as
+`poll` and `epoll_wait`, documented with their wrappers below.
 
-| Keyword | Kind | Selects |
-| --- | --- | --- |
-| `Linux` | operating system | the Linux syscall module |
-| `amd64`, `x86-64` | architecture | x86-64 |
-| `arm64`, `aarch64` | architecture | AArch64 |
+## Windows API standard libraries
 
-- Both keywords must name the **host**. `syscalls.select("Linux", "arm64")` on an amd64
-  machine is an error, not a cross-target dispatch, and so are
-  any selection on a non-Linux host.
-- `syscalls.select(sys.platform(), sys.architecture())` checks the host using
-  the values from [stdlib/sys.md](stdlib/sys.md).
-- Selection is scoped to the imported module instance; selecting the same host
-  target again is harmless.
-
-Calls use the matching architecture namespace, for example
-`syscalls.amd64.syscallRead(...)` or `syscalls.arm64.syscallRead(...)`. A call
-through the wrong namespace is an error.
-
-## Windows API calls
-
-The Windows `winAPI.*` surface is a separate built-in Win32 API, not a Linux
-syscall module. It is available on Windows hosts without a target selector:
-
-```lynx
-fn main(){
-    println(winAPI.getProcessId());
-    println(winAPI.getCurrentDirectory());
-    println(winAPI.getComputerName());
-}
-```
-
-| Function | Returns |
-| --- | --- |
-| `winAPI.getProcessId()` | the current process id |
-| `winAPI.getCurrentDirectory()` | the current directory |
-| `winAPI.getComputerName()` | the computer name |
-| `winAPI.getTempPath()` | the temporary directory |
-| `winAPI.getSystemDirectory()` | the system directory |
-| `winAPI.getWindowsDirectory()` | the Windows directory |
-| `winAPI.getModuleFileName()` | the running executable's path |
-| `winAPI.getTickCount()` | milliseconds since the system started |
-| `winAPI.getLastError()` | the last Win32 error code |
-| `winAPI.getEnvironmentVariable(name)` | the variable's value, or `""` |
-| `winAPI.setEnvironmentVariable(name, value)` | whether it was set |
-| `winAPI.expandEnvironmentStrings(text)` | `text` with `%VAR%` expanded |
-| `winAPI.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
-| `winAPI.getKnownFolderPath(name)` | a Known Folder path, or `""` |
-| `winAPI.sleep(milliseconds)` | — |
-| `winAPI.outputDebugString(text)` | — |
-| `winAPI.beep(frequency, duration)` | whether it played |
-
-Files and handles. A handle is an integer (`-1` on failure) and must be closed
-with `closeHandle`; the file calls use the same scalar-sentinel convention as the
-rest of the stdlib, with `getLastError()` for the reason:
-
-| Function | Returns |
-| --- | --- |
-| `winAPI.createFile(path, mode)` | a handle, or `-1`; `mode` is `read`, `write`, `append` or `readwrite` |
-| `winAPI.readFile(handle, length)` | up to `length` bytes, or `""` |
-| `winAPI.writeFile(handle, text)` | bytes written, or `-1` |
-| `winAPI.closeHandle(handle)` | whether it closed |
-| `winAPI.fileSize(handle)` | size in bytes, or `-1` |
-| `winAPI.seekFile(handle, offset)` | the new position, or `-1` |
-| `winAPI.deleteFile(path)` | whether it was removed |
-| `winAPI.copyFile(source, destination, overwrite)` | whether it was copied |
-| `winAPI.moveFile(source, destination)` | whether it was moved |
-| `winAPI.createDirectory(path)` | whether it was created |
-| `winAPI.removeDirectory(path)` | whether it was removed |
-
-Beyond files, the surface also covers **process control** (`getCurrentThreadId`,
-`openProcess`, `terminateProcess`, `getExitCodeProcess`, `createProcess`,
-`waitForSingleObject`, `getPriorityClass`, `setPriorityClass`), the **console
-session** (`getStdHandle`, `getConsoleMode`, `setConsoleMode`, `setConsoleTitle`,
-`getConsoleOutputCP`, `setConsoleOutputCP`, `getConsoleWindow`,
-`getConsoleScreenBufferInfo`), file attributes and paths (`getFileAttributes`,
-`setFileAttributes`, `getFullPathName`, `flushFileBuffers`, `getTempFileName`,
-`setCurrentDirectory`, `getFileType`, `getFileTime`) and the **high-resolution
-timer** (`queryPerformanceCounter`, `queryPerformanceFrequency`). System
-information includes `getSystemTime`, `getSystemInfo`, `getMemoryStatus`,
-`getPowerStatus`, `getVolumeInfo`, `getDiskSpace`, `getACP`, `getOEMCP`,
-`getCommandLine`, `getCurrentProcess`, `getModuleHandle` and
-`getActiveProcessorCount`. The full reference is
-[windows-api.md](windows-api.md).
-
-Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32`. The long
-tail — other DLLs, `user32`, `advapi32`, `*A`/`*W` pairs, structs — is reachable
-today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature
-(see [native-modules.md](native-modules.md)); a curated wrapper for it may come
-later.
-
-The separate built-in `winAPI.*` surface is available on Windows without a
-selector; see [windows-api.md](windows-api.md) for its API and conventions.
+The Win32 API is separate from Linux syscalls and is exposed by the
+native-backed `winAPI-amd64` and `winAPI-arm64` standard-library modules.
+Import the module matching the Windows host, using `importAs` because module
+names contain hyphens. See
+[windows-api.md](windows-api.md) for the full catalog, signatures, return
+conventions and examples.
 
 ## Calling convention
 
@@ -127,7 +53,7 @@ selector; see [windows-api.md](windows-api.md) for its API and conventions.
   build's headers fails with `syscall '<name>' is not available on this
   architecture` instead of dispatching the wrong table.
 
-## Portable `poll`/`epoll`
+## Architecture-dependent polling
 
 `poll(2)` and `epoll_wait(2)` do not exist on AArch64, so the two portable
 wrappers dispatch to whichever the host has, while the explicit `ppoll` /
@@ -139,6 +65,9 @@ wrappers dispatch to whichever the host has, while the explicit `ppoll` /
 | `syscallPpollFileDescriptors` | `ppoll` | `ppoll` |
 | `syscallWaitForEvents` | `epoll_wait` | `epoll_pwait` |
 | `syscallWaitForEventsWithSignalMask` | `epoll_pwait` | `epoll_pwait` |
+
+For full target-specific guidance, see the [amd64](syscalls/linux-amd64.md)
+and [arm64](syscalls/linux-arm64.md) references.
 
 ## Working directories
 

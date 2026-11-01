@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Windows API access - Lynxer</title>
+    <title>Windows API standard libraries - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="embedding.html">embedding</a></li>
 <li><a href="windows.html">windows</a></li>
 <li><a href="windows-api.html" class="active">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="stdlib/sound.html">sound</a></li>
 <li><a href="stdlib/sqldb.html">sqldb</a></li>
 <li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="stdlib/winpipe.html">winpipe</a></li>
 <li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
@@ -131,186 +139,191 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Windows API access</span>
+            <span>Windows API standard libraries</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="windows-api-access">Windows API access</h1>
-<p>On Windows, Lynxer calls the Win32 API through the built-in <code>winAPI.*</code> surface. It is <strong>not a module</strong> — there is no <code>import</code> — and is available only on a Windows host:</p>
-<pre><code>fn main(){
-    println(winAPI.getProcessId());
-    println(winAPI.getComputerName());
-    println(winAPI.getCurrentDirectory());
+<h1 id="windows-api-standard-libraries">Windows API standard libraries</h1>
+<p>On Windows, Lynxer exposes Win32 calls through the native-backed <code>winAPI-amd64</code> and <code>winAPI-arm64</code> standard-library modules. Import the module matching the process architecture with <code>importAs</code>:</p>
+<pre><code>fn setup() {
+    importAs(&quot;winAPI-amd64&quot;, &quot;windowsApi&quot;);
+}
+
+fn main() {
+    println(windowsApi.getProcessId());
+    println(windowsApi.getComputerName());
+    println(windowsApi.getCurrentDirectory());
 }</code></pre>
 <p>Most calls are <code>kernel32</code>; <code>getKnownFolderPath</code> uses <code>shell32</code>/<code>ole32</code> for the Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be installed.</p>
+<p>On Windows arm64, import <code>winAPI-arm64</code> instead. The module checks the host operating system and architecture for each operation. The API catalog below uses the <code>windowsApi</code> alias for either module.</p>
 <h2 id="host-availability">Host availability</h2>
 <ul>
-<li>Calls are gated by the current runtime host; no target selector is needed.</li>
-<li>On non-Windows hosts, calling the namespace reports that the Win32 API requires a Windows runtime.</li>
-<li>The namespace prefix is matched case-insensitively, so <code>winAPI.getProcessId()</code> and <code>winapi.getProcessId()</code> are the same call. A misspelled function reports the closest match, e.g. <code>unknown winAPI function &#x27;getProcesId&#x27;. You meant: getProcessId?</code>.</li>
+<li>Calls require a Windows runtime and validate that the imported module matches the running process; there is no cross-architecture dispatch.</li>
+<li>The legacy <code>winAPI.*</code> built-ins remain available but are deprecated. New programs should import <code>winAPI-amd64</code> or <code>winAPI-arm64</code>.</li>
+<li>A misspelled operation in the legacy surface reports the closest match, e.g. <code>unknown winAPI function &#x27;getProcesId&#x27;. You meant: getProcessId?</code>.</li>
 </ul>
 <h2 id="conventions">Conventions</h2>
 <ul>
-<li>Failures use the standard-library <strong>scalar sentinels</strong>: <code>-1</code> for a handle, a size, a position, a byte count or a free-space figure; <code>false</code> for a predicate; <code>&quot;&quot;</code> for a failed read. <code>winAPI.getLastError()</code> returns the Win32 error code for the most recent call.</li>
-<li>A <strong>handle is an integer</strong>. Everything it refers to must be released with <code>winAPI.closeHandle()</code>.</li>
-<li>Wrong argument types are source-located errors, e.g. <code>winAPI.readFile() failed: expects an integer handle and length</code>.</li>
+<li>Failed Windows operations use the native API's <strong>scalar sentinels</strong>: <code>-1</code> for a handle, size, position, byte count or free-space figure; <code>false</code> for a predicate; <code>&quot;&quot;</code> for a failed read. <code>windowsApi.getLastError()</code> returns the Win32 error code for the most recent call.</li>
+<li>A <strong>handle is an integer</strong>. Everything it refers to must be released with <code>windowsApi.closeHandle()</code>.</li>
+<li>Wrong argument types are source-located errors, e.g. <code>windowsApi.readFile() failed: expects an integer handle and length</code>.</li>
 <li>Text is UTF-8 at the Lynxer boundary; the <code>*W</code> calls are used internally.</li>
 </ul>
 <h2 id="system-information">System information</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.getProcessId()</code></td><td>the current process id</td></tr>
-<tr><td><code>winAPI.getCurrentDirectory()</code></td><td>the current directory</td></tr>
-<tr><td><code>winAPI.getComputerName()</code></td><td>the computer name</td></tr>
-<tr><td><code>winAPI.getTempPath()</code></td><td>the temporary directory (with a trailing separator)</td></tr>
-<tr><td><code>winAPI.getSystemDirectory()</code></td><td>the system directory</td></tr>
-<tr><td><code>winAPI.getWindowsDirectory()</code></td><td>the Windows directory</td></tr>
-<tr><td><code>winAPI.getModuleFileName()</code></td><td>the running executable's full path</td></tr>
-<tr><td><code>winAPI.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
-<tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
-<tr><td><code>winAPI.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getKnownFolderPath(name)</code></td><td>a Known Folder path, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.getUserName()</code></td><td>the current account name</td></tr>
-<tr><td><code>winAPI.isUserAnAdmin()</code></td><td>whether the process has administrator rights</td></tr>
-<tr><td><code>winAPI.getSystemMetrics(index)</code></td><td>a <code>GetSystemMetrics</code> value, or <code>0</code></td></tr>
-<tr><td><code>winAPI.getLogicalDrives()</code></td><td>the drive bitmask</td></tr>
-<tr><td><code>winAPI.getDriveType(root)</code></td><td>the <code>DRIVE_*</code> type, or <code>0</code></td></tr>
-<tr><td><code>winAPI.getOSVersion()</code></td><td><code>major.minor.build</code> from <code>RtlGetVersion</code></td></tr>
-<tr><td><code>winAPI.getLocaleName()</code></td><td>the user's locale name, e.g. <code>en-US</code></td></tr>
-<tr><td><code>winAPI.getTimeZoneName()</code></td><td>the current standard time-zone name</td></tr>
-<tr><td><code>winAPI.getSystemTime()</code></td><td>milliseconds since the Unix epoch (UTC)</td></tr>
-<tr><td><code>winAPI.getSystemInfo()</code></td><td>JSON <code>{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}</code></td></tr>
-<tr><td><code>winAPI.getMemoryStatus()</code></td><td>JSON <code>{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}</code> in bytes / percent</td></tr>
-<tr><td><code>winAPI.getPowerStatus()</code></td><td>JSON <code>{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}</code></td></tr>
-<tr><td><code>winAPI.getVolumeInfo(path)</code></td><td>JSON <code>{label, filesystem, serial, maxComponentLength, flags}</code>, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.getDiskSpace(path)</code></td><td>JSON <code>{free, total, totalFree}</code> in bytes, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.getACP()</code></td><td>the ANSI code page</td></tr>
-<tr><td><code>winAPI.getOEMCP()</code></td><td>the OEM code page</td></tr>
-<tr><td><code>winAPI.getCommandLine()</code></td><td>the full command line</td></tr>
-<tr><td><code>winAPI.getCurrentProcess()</code></td><td>a closable duplicate handle to this process, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getModuleHandle(name)</code></td><td>a module handle (<code>&quot;&quot;</code> for the running image), or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getActiveProcessorCount(group)</code></td><td>active processors in a group, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.formatMessage(code)</code></td><td>the system message for a Win32 error code</td></tr>
-<tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
-<tr><td><code>winAPI.beep(frequency, duration)</code></td><td>whether it played</td></tr>
-<tr><td><code>winAPI.outputDebugString(text)</code></td><td>— (goes to the debugger)</td></tr>
+<tr><td><code>windowsApi.getProcessId()</code></td><td>the current process id</td></tr>
+<tr><td><code>windowsApi.getCurrentDirectory()</code></td><td>the current directory</td></tr>
+<tr><td><code>windowsApi.getComputerName()</code></td><td>the computer name</td></tr>
+<tr><td><code>windowsApi.getTempPath()</code></td><td>the temporary directory (with a trailing separator)</td></tr>
+<tr><td><code>windowsApi.getSystemDirectory()</code></td><td>the system directory</td></tr>
+<tr><td><code>windowsApi.getWindowsDirectory()</code></td><td>the Windows directory</td></tr>
+<tr><td><code>windowsApi.getModuleFileName()</code></td><td>the running executable's full path</td></tr>
+<tr><td><code>windowsApi.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
+<tr><td><code>windowsApi.getLastError()</code></td><td>the last Win32 error code</td></tr>
+<tr><td><code>windowsApi.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getKnownFolderPath(name)</code></td><td>a Known Folder path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.getUserName()</code></td><td>the current account name</td></tr>
+<tr><td><code>windowsApi.isUserAnAdmin()</code></td><td>whether the process has administrator rights</td></tr>
+<tr><td><code>windowsApi.getSystemMetrics(index)</code></td><td>a <code>GetSystemMetrics</code> value, or <code>0</code></td></tr>
+<tr><td><code>windowsApi.getLogicalDrives()</code></td><td>the drive bitmask</td></tr>
+<tr><td><code>windowsApi.getDriveType(root)</code></td><td>the <code>DRIVE_*</code> type, or <code>0</code></td></tr>
+<tr><td><code>windowsApi.getOSVersion()</code></td><td><code>major.minor.build</code> from <code>RtlGetVersion</code></td></tr>
+<tr><td><code>windowsApi.getLocaleName()</code></td><td>the user's locale name, e.g. <code>en-US</code></td></tr>
+<tr><td><code>windowsApi.getTimeZoneName()</code></td><td>the current standard time-zone name</td></tr>
+<tr><td><code>windowsApi.getSystemTime()</code></td><td>milliseconds since the Unix epoch (UTC)</td></tr>
+<tr><td><code>windowsApi.getSystemInfo()</code></td><td>JSON <code>{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}</code></td></tr>
+<tr><td><code>windowsApi.getMemoryStatus()</code></td><td>JSON <code>{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}</code> in bytes / percent</td></tr>
+<tr><td><code>windowsApi.getPowerStatus()</code></td><td>JSON <code>{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}</code></td></tr>
+<tr><td><code>windowsApi.getVolumeInfo(path)</code></td><td>JSON <code>{label, filesystem, serial, maxComponentLength, flags}</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.getDiskSpace(path)</code></td><td>JSON <code>{free, total, totalFree}</code> in bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.getACP()</code></td><td>the ANSI code page</td></tr>
+<tr><td><code>windowsApi.getOEMCP()</code></td><td>the OEM code page</td></tr>
+<tr><td><code>windowsApi.getCommandLine()</code></td><td>the full command line</td></tr>
+<tr><td><code>windowsApi.getCurrentProcess()</code></td><td>a closable duplicate handle to this process, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getModuleHandle(name)</code></td><td>a module handle (<code>&quot;&quot;</code> for the running image), or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getActiveProcessorCount(group)</code></td><td>active processors in a group, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.formatMessage(code)</code></td><td>the system message for a Win32 error code</td></tr>
+<tr><td><code>windowsApi.sleep(milliseconds)</code></td><td>—</td></tr>
+<tr><td><code>windowsApi.beep(frequency, duration)</code></td><td>whether it played</td></tr>
+<tr><td><code>windowsApi.outputDebugString(text)</code></td><td>— (goes to the debugger)</td></tr>
 </table>
 <p><code>getKnownFolderPath</code> accepts <code>desktop</code>, <code>documents</code>, <code>downloads</code>, <code>music</code>, <code>pictures</code>, <code>videos</code>, <code>localAppData</code>, <code>roamingAppData</code>, <code>programData</code>, <code>profile</code>, <code>public</code>, <code>windows</code> and <code>system</code>; an unknown name returns <code>&quot;&quot;</code>, as does a folder the shell cannot resolve. It is the Windows counterpart of the XDG directories exposed by <code>os.configDir</code>/<code>os.dataDir</code>/<code>os.cacheDir</code>.</p>
 <h2 id="environment">Environment</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code> when unset</td></tr>
-<tr><td><code>winAPI.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
-<tr><td><code>winAPI.expandEnvironmentStrings(text)</code></td><td><code>text</code> with <code>%VAR%</code> expanded</td></tr>
+<tr><td><code>windowsApi.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code> when unset</td></tr>
+<tr><td><code>windowsApi.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
+<tr><td><code>windowsApi.expandEnvironmentStrings(text)</code></td><td><code>text</code> with <code>%VAR%</code> expanded</td></tr>
 </table>
 <h2 id="files-and-handles">Files and handles</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.createFile(path, mode)</code></td><td>a handle, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.closeHandle(handle)</code></td><td>whether it closed</td></tr>
-<tr><td><code>winAPI.fileSize(handle)</code></td><td>size in bytes, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.seekFile(handle, offset)</code></td><td>the new absolute position, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.deleteFile(path)</code></td><td>whether it was removed</td></tr>
-<tr><td><code>winAPI.copyFile(source, destination, overwrite)</code></td><td>whether it was copied</td></tr>
-<tr><td><code>winAPI.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
-<tr><td><code>winAPI.createDirectory(path)</code></td><td>whether it was created</td></tr>
-<tr><td><code>winAPI.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
-<tr><td><code>winAPI.getFileAttributes(path)</code></td><td>the attribute bits, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.setFileAttributes(path, attributes)</code></td><td>whether they were set</td></tr>
-<tr><td><code>winAPI.getFullPathName(path)</code></td><td>the absolute path, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.flushFileBuffers(handle)</code></td><td>whether the buffers were flushed</td></tr>
-<tr><td><code>winAPI.getTempFileName(prefix)</code></td><td>a new unique temp file path, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.setCurrentDirectory(path)</code></td><td>whether the working directory changed</td></tr>
-<tr><td><code>winAPI.getFileType(handle)</code></td><td>the <code>FILE_TYPE_*</code> value, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getFileTime(path)</code></td><td>JSON <code>{creation, access, write}</code> in Unix milliseconds, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.createFile(path, mode)</code></td><td>a handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.closeHandle(handle)</code></td><td>whether it closed</td></tr>
+<tr><td><code>windowsApi.fileSize(handle)</code></td><td>size in bytes, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.seekFile(handle, offset)</code></td><td>the new absolute position, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.deleteFile(path)</code></td><td>whether it was removed</td></tr>
+<tr><td><code>windowsApi.copyFile(source, destination, overwrite)</code></td><td>whether it was copied</td></tr>
+<tr><td><code>windowsApi.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
+<tr><td><code>windowsApi.createDirectory(path)</code></td><td>whether it was created</td></tr>
+<tr><td><code>windowsApi.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
+<tr><td><code>windowsApi.getFileAttributes(path)</code></td><td>the attribute bits, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.setFileAttributes(path, attributes)</code></td><td>whether they were set</td></tr>
+<tr><td><code>windowsApi.getFullPathName(path)</code></td><td>the absolute path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.flushFileBuffers(handle)</code></td><td>whether the buffers were flushed</td></tr>
+<tr><td><code>windowsApi.getTempFileName(prefix)</code></td><td>a new unique temp file path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.setCurrentDirectory(path)</code></td><td>whether the working directory changed</td></tr>
+<tr><td><code>windowsApi.getFileType(handle)</code></td><td>the <code>FILE_TYPE_*</code> value, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getFileTime(path)</code></td><td>JSON <code>{creation, access, write}</code> in Unix milliseconds, or <code>&quot;&quot;</code></td></tr>
 </table>
 <p><code>mode</code> is <code>&quot;read&quot;</code> (<code>OPEN_EXISTING</code>), <code>&quot;write&quot;</code> (<code>CREATE_ALWAYS</code>, truncated), <code>&quot;append&quot;</code> (<code>OPEN_ALWAYS</code>, seek to end) or <code>&quot;readwrite&quot;</code> (<code>OPEN_ALWAYS</code>). <code>seekFile</code> positions absolutely from the start of the file.</p>
 <pre><code>fn main(){
-    str path = winAPI.getTempPath() + &quot;demo.txt&quot;;
+    str path = windowsApi.getTempPath() + &quot;demo.txt&quot;;
 
-    int file = winAPI.createFile(path, &quot;write&quot;);
+    int file = windowsApi.createFile(path, &quot;write&quot;);
     if (file &lt; 0) {
-        println(&quot;cannot create: &quot; + winAPI.getLastError());
+        println(&quot;cannot create: &quot; + windowsApi.getLastError());
         return;
     }
-    winAPI.writeFile(file, &quot;hello&quot;);
-    winAPI.closeHandle(file);
+    windowsApi.writeFile(file, &quot;hello&quot;);
+    windowsApi.closeHandle(file);
 
-    int reader = winAPI.createFile(path, &quot;read&quot;);
-    println(winAPI.fileSize(reader));
-    println(winAPI.readFile(reader, 64));
-    winAPI.closeHandle(reader);
-    winAPI.deleteFile(path);
+    int reader = windowsApi.createFile(path, &quot;read&quot;);
+    println(windowsApi.fileSize(reader));
+    println(windowsApi.readFile(reader, 64));
+    windowsApi.closeHandle(reader);
+    windowsApi.deleteFile(path);
 }</code></pre>
 <h2 id="shell-clipboard-and-dialogs">Shell, clipboard and dialogs</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.shellOpen(path)</code></td><td>whether <code>ShellExecuteW</code> accepted the request</td></tr>
-<tr><td><code>winAPI.shellOpenWith(path, arguments, verb)</code></td><td>the same, with an explicit verb such as <code>&quot;edit&quot;</code></td></tr>
-<tr><td><code>winAPI.messageBox(text, title)</code></td><td>the <code>MessageBoxW</code> result</td></tr>
-<tr><td><code>winAPI.clipboardGet()</code></td><td>the clipboard's Unicode text, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.clipboardSet(text)</code></td><td>whether the clipboard was updated</td></tr>
-<tr><td><code>winAPI.notify(title, message)</code></td><td>whether a tray balloon was queued</td></tr>
+<tr><td><code>windowsApi.shellOpen(path)</code></td><td>whether <code>ShellExecuteW</code> accepted the request</td></tr>
+<tr><td><code>windowsApi.shellOpenWith(path, arguments, verb)</code></td><td>the same, with an explicit verb such as <code>&quot;edit&quot;</code></td></tr>
+<tr><td><code>windowsApi.messageBox(text, title)</code></td><td>the <code>MessageBoxW</code> result</td></tr>
+<tr><td><code>windowsApi.clipboardGet()</code></td><td>the clipboard's Unicode text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.clipboardSet(text)</code></td><td>whether the clipboard was updated</td></tr>
+<tr><td><code>windowsApi.notify(title, message)</code></td><td>whether a tray balloon was queued</td></tr>
 </table>
 <p><code>shellOpen</code>/<code>shellOpenWith</code> are fire-and-forget: they return as soon as the shell accepts the request. <code>messageBox</code> blocks until the user dismisses the dialog, so it is unsuitable for unattended programs. <code>notify</code> queues a tray balloon for five seconds and returns immediately; it needs an interactive console window. Clipboard and notification access need a window-station/desktop that permits it; under a service or a headless session they return the failure sentinel instead of raising.</p>
 <h2 id="named-pipes">Named pipes</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.createNamedPipe(name)</code></td><td>a server handle, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.connectNamedPipe(handle)</code></td><td>whether a client connected</td></tr>
-<tr><td><code>winAPI.openNamedPipe(name)</code></td><td>a client handle, or <code>-1</code> after a 5 s wait</td></tr>
-<tr><td><code>winAPI.readNamedPipe(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.writeNamedPipe(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.disconnectNamedPipe(handle)</code></td><td>whether the server disconnected</td></tr>
-<tr><td><code>winAPI.peekNamedPipe(handle)</code></td><td>bytes available, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.createNamedPipe(name)</code></td><td>a server handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.connectNamedPipe(handle)</code></td><td>whether a client connected</td></tr>
+<tr><td><code>windowsApi.openNamedPipe(name)</code></td><td>a client handle, or <code>-1</code> after a 5 s wait</td></tr>
+<tr><td><code>windowsApi.readNamedPipe(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.writeNamedPipe(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.disconnectNamedPipe(handle)</code></td><td>whether the server disconnected</td></tr>
+<tr><td><code>windowsApi.peekNamedPipe(handle)</code></td><td>bytes available, or <code>-1</code></td></tr>
 </table>
-<p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is also accepted. <code>openNamedPipe</code> retries while the server is still creating the pipe, so a client may start before the server. Pipe handles are ordinary handles and are released with <code>winAPI.closeHandle</code>. Reads and writes are blocking.</p>
+<p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is also accepted. <code>openNamedPipe</code> retries while the server is still creating the pipe, so a client may start before the server. Pipe handles are ordinary handles and are released with <code>windowsApi.closeHandle</code>. Reads and writes are blocking.</p>
 <pre><code>fn main(){
-    int server = winAPI.createNamedPipe(&quot;lynxer-demo&quot;);
+    int server = windowsApi.createNamedPipe(&quot;lynxer-demo&quot;);
     // In another process:
-    //   int client = winAPI.openNamedPipe(&quot;lynxer-demo&quot;);
-    winAPI.connectNamedPipe(server);
-    println(winAPI.readNamedPipe(server, 64));
-    winAPI.writeNamedPipe(server, &quot;pong&quot;);
-    winAPI.disconnectNamedPipe(server);
-    winAPI.closeHandle(server);
+    //   int client = windowsApi.openNamedPipe(&quot;lynxer-demo&quot;);
+    windowsApi.connectNamedPipe(server);
+    println(windowsApi.readNamedPipe(server, 64));
+    windowsApi.writeNamedPipe(server, &quot;pong&quot;);
+    windowsApi.disconnectNamedPipe(server);
+    windowsApi.closeHandle(server);
 }</code></pre>
 <h2 id="processes-and-threads">Processes and threads</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.getCurrentThreadId()</code></td><td>the calling thread's id</td></tr>
-<tr><td><code>winAPI.openProcess(processId)</code></td><td>a handle with query/terminate/synchronize access, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.terminateProcess(handle, exitCode)</code></td><td>whether it was terminated</td></tr>
-<tr><td><code>winAPI.getExitCodeProcess(handle)</code></td><td>the exit code, or <code>-1</code> (<code>259</code> while still alive)</td></tr>
-<tr><td><code>winAPI.createProcess(commandLine)</code></td><td>the new process's handle, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.waitForSingleObject(handle, milliseconds)</code></td><td><code>0</code> when signalled, <code>258</code> on timeout, <code>-1</code> on failure</td></tr>
-<tr><td><code>winAPI.getPriorityClass(handle)</code></td><td>the <code>*_PRIORITY_CLASS</code> value, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.setPriorityClass(handle, class)</code></td><td>whether it was set</td></tr>
+<tr><td><code>windowsApi.getCurrentThreadId()</code></td><td>the calling thread's id</td></tr>
+<tr><td><code>windowsApi.openProcess(processId)</code></td><td>a handle with query/terminate/synchronize access, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.terminateProcess(handle, exitCode)</code></td><td>whether it was terminated</td></tr>
+<tr><td><code>windowsApi.getExitCodeProcess(handle)</code></td><td>the exit code, or <code>-1</code> (<code>259</code> while still alive)</td></tr>
+<tr><td><code>windowsApi.createProcess(commandLine)</code></td><td>the new process's handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.waitForSingleObject(handle, milliseconds)</code></td><td><code>0</code> when signalled, <code>258</code> on timeout, <code>-1</code> on failure</td></tr>
+<tr><td><code>windowsApi.getPriorityClass(handle)</code></td><td>the <code>*_PRIORITY_CLASS</code> value, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.setPriorityClass(handle, class)</code></td><td>whether it was set</td></tr>
 </table>
 <p><code>createProcess</code> starts <code>commandLine</code> through <code>CreateProcessW</code> with the inherited environment and no redirection; the thread handle is closed for you, so only the returned process handle needs <code>closeHandle</code>.</p>
 <h2 id="console">Console</h2>
 <p>These talk to the console the process is attached to; under a redirected stream or a non-interactive session they report <code>-1</code>/<code>false</code> rather than failing the call.</p>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.getStdHandle(stream)</code></td><td>the handle for <code>&quot;input&quot;</code>, <code>&quot;output&quot;</code> or <code>&quot;error&quot;</code>, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getConsoleMode(handle)</code></td><td>the console mode, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.setConsoleMode(handle, mode)</code></td><td>whether it was set</td></tr>
-<tr><td><code>winAPI.setConsoleTitle(text)</code></td><td>whether the title was set</td></tr>
-<tr><td><code>winAPI.getConsoleOutputCP()</code></td><td>the console output code page</td></tr>
-<tr><td><code>winAPI.setConsoleOutputCP(codePage)</code></td><td>whether it was set</td></tr>
-<tr><td><code>winAPI.getConsoleWindow()</code></td><td>the console window handle, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getConsoleScreenBufferInfo()</code></td><td>JSON <code>{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>windowsApi.getStdHandle(stream)</code></td><td>the handle for <code>&quot;input&quot;</code>, <code>&quot;output&quot;</code> or <code>&quot;error&quot;</code>, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getConsoleMode(handle)</code></td><td>the console mode, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.setConsoleMode(handle, mode)</code></td><td>whether it was set</td></tr>
+<tr><td><code>windowsApi.setConsoleTitle(text)</code></td><td>whether the title was set</td></tr>
+<tr><td><code>windowsApi.getConsoleOutputCP()</code></td><td>the console output code page</td></tr>
+<tr><td><code>windowsApi.setConsoleOutputCP(codePage)</code></td><td>whether it was set</td></tr>
+<tr><td><code>windowsApi.getConsoleWindow()</code></td><td>the console window handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.getConsoleScreenBufferInfo()</code></td><td>JSON <code>{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}</code>, or <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="timing">Timing</h2>
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.queryPerformanceCounter()</code></td><td>the high-resolution counter, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.queryPerformanceFrequency()</code></td><td>ticks per second, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.queryPerformanceCounter()</code></td><td>the high-resolution counter, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.queryPerformanceFrequency()</code></td><td>ticks per second, or <code>-1</code></td></tr>
 </table>
 <h2 id="the-long-tail">The long tail</h2>
 <p>Anything not in the tables above — other DLLs, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HWND</code>/<code>SOCKET</code> values and the 32-bit <code>__stdcall</code> convention — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
@@ -324,8 +337,10 @@
 <p>A curated wrapper over that — more DLLs and first-class <code>HANDLE</code> values — is tracked in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="syscalls.html">syscalls</a> — the Linux named-syscall standard-library module</li>
+<li><a href="syscalls.html">syscalls</a> — the Linux named-syscall standard-library modules</li>
 <li><a href="windows.html">windows</a> — the Windows port status and what it excludes</li>
+<li><a href="winapi/windows-amd64.html">Windows amd64 WinAPI</a></li>
+<li><a href="winapi/windows-arm64.html">Windows arm64 WinAPI</a></li>
 <li><a href="native-modules.html">native-modules</a> — <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code></li>
 </ul>
     </main>

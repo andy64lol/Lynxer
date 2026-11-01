@@ -2,13 +2,42 @@
 Client half of winapi_pipe.lynx. Launched by the parent; not a standalone
 fixture.
 ////
-fn setup(){}
+fn setup(){ importAs("winAPI-amd64", "winApiAmd64");
+    importAs("winAPI-arm64", "winApiArm64"); }
+
+fn openPipe(str name) -> int {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.openNamedPipe(name);
+    }
+    return winApiArm64.openNamedPipe(name);
+}
+
+fn writePipe(int handle, str text) -> int {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.writeNamedPipe(handle, text);
+    }
+    return winApiArm64.writeNamedPipe(handle, text);
+}
+
+fn readPipe(int handle, int length) -> str {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.readNamedPipe(handle, length);
+    }
+    return winApiArm64.readNamedPipe(handle, length);
+}
+
+fn closePipe(int handle) -> bool {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.closeHandle(handle);
+    }
+    return winApiArm64.closeHandle(handle);
+}
 
 fn main(){
     str name = "lynxer-winapi-fixture-pipe";
-    int client = winAPI.openNamedPipe(name);
+    int client = openPipe(name);
     println("client-open=" + strOf(client > 0));
-    println("client-write=" + strOf(winAPI.writeNamedPipe(client, "ping") is 4));
-    println("client-read=" + winAPI.readNamedPipe(client, 16));
-    winAPI.closeHandle(client);
+    println("client-write=" + strOf(writePipe(client, "ping") is 4));
+    println("client-read=" + readPipe(client, 16));
+    closePipe(client);
 }

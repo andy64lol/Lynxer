@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="embedding.html">embedding</a></li>
 <li><a href="windows.html">windows</a></li>
 <li><a href="windows-api.html">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="stdlib/sound.html">sound</a></li>
 <li><a href="stdlib/sqldb.html">sqldb</a></li>
 <li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="stdlib/winpipe.html">winpipe</a></li>
 <li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
@@ -156,6 +164,7 @@
 <tr><td><code>unary &#x27;-&#x27; requires a number</code></td><td><code>unaryNumberRequired</code></td></tr>
 <tr><td><code>native value result is null</code></td><td><code>nativeValueResultNull</code></td></tr>
 <tr><td><code>Struct &#x27;...&#x27; has no field &#x27;...&#x27;</code></td><td><code>structHasNoField</code></td></tr>
+<tr><td><code>WinAPI built-in calls are deprecated; import the matching ... standard library</code></td><td><code>deprecatedWinApiBuiltin</code></td></tr>
 </table>
 <p>Other diagnostics also receive non-empty lower-camel-case codes. For source errors not in the explicit code table, Lynxer forms the code from the message's static words, omitting quoted names and numeric values.</p>
 <h2 id="lexer">Lexer</h2>
@@ -338,6 +347,7 @@
 <ul>
 <li><code>setup() is optional; no setup() function was declared</code></li>
 <li><code>&#x27;{keyword}&#x27; function declarations are deprecated; use &#x27;fn&#x27;</code></li>
+<li><code>WinAPI built-in calls are deprecated; import the matching winAPI-amd64 or winAPI-arm64 standard library</code></li>
 <li><code>operator &#x27;{operator}&#x27; is deprecated; use &#x27;{replacement}&#x27; instead.</code></li>
 <li><code>tuple assigned from a bracketed list is deprecated; use the &#x27;(int 1, int 2)&#x27; form instead.</code></li>
 <li><code>forever() has no break; it will run until the process is stopped. Add break; or call suppressForeverWarning() in fn setup(){}.</code></li>
@@ -347,7 +357,7 @@
 <li><code>unreachable statement</code></li>
 <li><code>{subject} converts &#x27;{actual}&#x27; to &#x27;{expected}&#x27;; the value may be rejected or lose information at runtime</code></li>
 </ul>
-<p>Deprecation warnings can be suppressed with <code>suppressDeprecationWarning()</code> in <code>setup()</code>. The no-<code>break</code> warning can be suppressed with <code>suppressForeverWarning()</code> in <code>setup()</code>. Lint warnings are not suppressed by these functions.</p>
+<p>Deprecation warnings can be suppressed with <code>suppressDeprecationWarning()</code> in <code>setup()</code> for runtime warnings. Parser-time warnings, including deprecated function declarations, are emitted while parsing and cannot be suppressed by that function. The no-<code>break</code> warning can be suppressed with <code>suppressForeverWarning()</code> in <code>setup()</code>. Lint warnings are not suppressed by these functions.</p>
 <h2 id="cli-and-build">CLI and build</h2>
 <ul>
 <li><code>lynxer: file not found: &#x27;{path}&#x27;</code></li>

@@ -76,6 +76,14 @@ Assigning a bracket list to a `tuple` variable is accepted for compatibility,
 but emits a deprecation warning. `tupleCreate(...)` and `listToTuple(...)` are
 the explicit conversion helpers. See [tuples.md](tuples.md#declaration).
 
+## Legacy WinAPI built-ins
+
+The `winAPI.*` builtin calls remain available for compatibility but emit a
+deprecation warning. Import the native-backed `winAPI-amd64` or `winAPI-arm64`
+standard library with `importAs` and call its functions through the module
+alias instead. The selected module checks the host operating system and
+architecture. See [windows-api.md](windows-api.md).
+
 ## Other legacy syntax
 
 The old `exec({name})` codeblock invocation is replaced by `exec(){{name}}`;

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Linux syscall standard library - Lynxer</title>
+    <title>Linux syscall standard libraries - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html" class="active">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="embedding.html">embedding</a></li>
 <li><a href="windows.html">windows</a></li>
 <li><a href="windows-api.html">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="stdlib/sound.html">sound</a></li>
 <li><a href="stdlib/sqldb.html">sqldb</a></li>
 <li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="stdlib/winpipe.html">winpipe</a></li>
 <li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
@@ -131,83 +139,27 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Linux syscall standard library</span>
+            <span>Linux syscall standard libraries</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="linux-syscall-standard-library">Linux syscall standard library</h1>
-<p>Linux named syscalls are provided by the <code>syscalls</code> standard-library module, not by special language built-ins. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility.</p>
-<pre><code>fn setup(){
-    import(&quot;syscalls&quot;);
-    syscalls.select(&quot;Linux&quot;, &quot;amd64&quot;);
+<h1 id="linux-syscall-standard-libraries">Linux syscall standard libraries</h1>
+<p>Linux named syscalls are provided by native-backed, architecture-specific standard-library modules—not by special language built-ins. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility. Import the module matching the host:</p>
+<pre><code>fn setup() {
+    importAs(&quot;linux-amd64&quot;, &quot;linuxAmd64&quot;);
 }
 
-fn main(){
-    println(syscalls.amd64.syscallGetProcessId());
-    println(syscalls.amd64.syscallYieldProcessor());
+fn main() {
+    println(linuxAmd64.syscallGetProcessId());
+    println(linuxAmd64.syscallYieldProcessor());
 }</code></pre>
-<h2 id="selecting-an-operating-system-and-architecture">Selecting an operating system and architecture</h2>
-<p><code>syscalls.select(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> checks the current host and must run before calling a named syscall.</p>
-<table>
-<tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
-<tr><td><code>Linux</code></td><td>operating system</td><td>the Linux syscall module</td></tr>
-<tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
-<tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
-</table>
-<ul>
-<li>Both keywords must name the <strong>host</strong>. <code>syscalls.select(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so are any selection on a non-Linux host.</li>
-<li><code>syscalls.select(sys.platform(), sys.architecture())</code> checks the host using the values from <a href="stdlib/sys.html">stdlib/sys</a>.</li>
-<li>Selection is scoped to the imported module instance; selecting the same host target again is harmless.</li>
-</ul>
-<p>Calls use the matching architecture namespace, for example <code>syscalls.amd64.syscallRead(...)</code> or <code>syscalls.arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>
-<h2 id="windows-api-calls">Windows API calls</h2>
-<p>The Windows <code>winAPI.*</code> surface is a separate built-in Win32 API, not a Linux syscall module. It is available on Windows hosts without a target selector:</p>
-<pre><code>fn main(){
-    println(winAPI.getProcessId());
-    println(winAPI.getCurrentDirectory());
-    println(winAPI.getComputerName());
-}</code></pre>
-<table>
-<tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.getProcessId()</code></td><td>the current process id</td></tr>
-<tr><td><code>winAPI.getCurrentDirectory()</code></td><td>the current directory</td></tr>
-<tr><td><code>winAPI.getComputerName()</code></td><td>the computer name</td></tr>
-<tr><td><code>winAPI.getTempPath()</code></td><td>the temporary directory</td></tr>
-<tr><td><code>winAPI.getSystemDirectory()</code></td><td>the system directory</td></tr>
-<tr><td><code>winAPI.getWindowsDirectory()</code></td><td>the Windows directory</td></tr>
-<tr><td><code>winAPI.getModuleFileName()</code></td><td>the running executable's path</td></tr>
-<tr><td><code>winAPI.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
-<tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
-<tr><td><code>winAPI.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
-<tr><td><code>winAPI.expandEnvironmentStrings(text)</code></td><td><code>text</code> with <code>%VAR%</code> expanded</td></tr>
-<tr><td><code>winAPI.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.getKnownFolderPath(name)</code></td><td>a Known Folder path, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
-<tr><td><code>winAPI.outputDebugString(text)</code></td><td>—</td></tr>
-<tr><td><code>winAPI.beep(frequency, duration)</code></td><td>whether it played</td></tr>
-</table>
-<p>Files and handles. A handle is an integer (<code>-1</code> on failure) and must be closed with <code>closeHandle</code>; the file calls use the same scalar-sentinel convention as the rest of the stdlib, with <code>getLastError()</code> for the reason:</p>
-<table>
-<tr><th>Function</th><th>Returns</th></tr>
-<tr><td><code>winAPI.createFile(path, mode)</code></td><td>a handle, or <code>-1</code>; <code>mode</code> is <code>read</code>, <code>write</code>, <code>append</code> or <code>readwrite</code></td></tr>
-<tr><td><code>winAPI.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>winAPI.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.closeHandle(handle)</code></td><td>whether it closed</td></tr>
-<tr><td><code>winAPI.fileSize(handle)</code></td><td>size in bytes, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.seekFile(handle, offset)</code></td><td>the new position, or <code>-1</code></td></tr>
-<tr><td><code>winAPI.deleteFile(path)</code></td><td>whether it was removed</td></tr>
-<tr><td><code>winAPI.copyFile(source, destination, overwrite)</code></td><td>whether it was copied</td></tr>
-<tr><td><code>winAPI.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
-<tr><td><code>winAPI.createDirectory(path)</code></td><td>whether it was created</td></tr>
-<tr><td><code>winAPI.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
-</table>
-<p>Beyond files, the surface also covers <strong>process control</strong> (<code>getCurrentThreadId</code>, <code>openProcess</code>, <code>terminateProcess</code>, <code>getExitCodeProcess</code>, <code>createProcess</code>, <code>waitForSingleObject</code>, <code>getPriorityClass</code>, <code>setPriorityClass</code>), the <strong>console session</strong> (<code>getStdHandle</code>, <code>getConsoleMode</code>, <code>setConsoleMode</code>, <code>setConsoleTitle</code>, <code>getConsoleOutputCP</code>, <code>setConsoleOutputCP</code>, <code>getConsoleWindow</code>, <code>getConsoleScreenBufferInfo</code>), file attributes and paths (<code>getFileAttributes</code>, <code>setFileAttributes</code>, <code>getFullPathName</code>, <code>flushFileBuffers</code>, <code>getTempFileName</code>, <code>setCurrentDirectory</code>, <code>getFileType</code>, <code>getFileTime</code>) and the <strong>high-resolution timer</strong> (<code>queryPerformanceCounter</code>, <code>queryPerformanceFrequency</code>). System information includes <code>getSystemTime</code>, <code>getSystemInfo</code>, <code>getMemoryStatus</code>, <code>getPowerStatus</code>, <code>getVolumeInfo</code>, <code>getDiskSpace</code>, <code>getACP</code>, <code>getOEMCP</code>, <code>getCommandLine</code>, <code>getCurrentProcess</code>, <code>getModuleHandle</code> and <code>getActiveProcessorCount</code>. The full reference is <a href="windows-api.html">windows-api</a>.</p>
-<p>Most calls are <code>kernel32</code>; <code>getKnownFolderPath</code> uses <code>shell32</code>/<code>ole32</code>. The long tail — other DLLs, <code>user32</code>, <code>advapi32</code>, <code>*A</code>/<code>*W</code> pairs, structs — is reachable today through <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code> with a <code>cdecl:</code> signature (see <a href="native-modules.html">native-modules</a>); a curated wrapper for it may come later.</p>
-<p>The separate built-in <code>winAPI.*</code> surface is available on Windows without a selector; see <a href="windows-api.html">windows-api</a> for its API and conventions.</p>
+<p>The <code>linux-amd64</code> and <code>linux-arm64</code> modules each reject a mismatched OS or process architecture; there is no runtime selection or cross-target dispatch. See the <a href="syscalls/linux-amd64.html">amd64</a> and <a href="syscalls/linux-arm64.html">arm64</a> references and their module pages (<a href="stdlib/linux-amd64.html">amd64</a>, <a href="stdlib/linux-arm64.html">arm64</a>).</p>
+<p>Each wrapper accepts the syscall's documented arguments, up to the Linux six-argument limit. Arguments are passed as raw integer values, commonly addresses returned by the native-memory built-ins. Successful calls return the kernel result. A kernel failure raises a catchable Lynxer error containing the syscall name and host error text; it does not return the negative <code>errno</code> value. The module adapts a small number of architecture-specific interfaces such as <code>poll</code> and <code>epoll_wait</code>, documented with their wrappers below.</p>
+<h2 id="windows-api-standard-libraries">Windows API standard libraries</h2>
+<p>The Win32 API is separate from Linux syscalls and is exposed by the native-backed <code>winAPI-amd64</code> and <code>winAPI-arm64</code> standard-library modules. Import the module matching the Windows host, using <code>importAs</code> because module names contain hyphens. See <a href="windows-api.html">windows-api</a> for the full catalog, signatures, return conventions and examples.</p>
 <h2 id="calling-convention">Calling convention</h2>
 <ul>
 <li>Arguments are positional <strong>integers</strong>; each named function has the signature shown in the tables below (up to six arguments).</li>
@@ -215,7 +167,7 @@ fn main(){
 <li>The result is the syscall's return value as an integer. A result of <code>-1</code> is raised as a source-located error carrying the Linux <code>errno</code> message, e.g. <code>syscall &#x27;syscallRead&#x27; failed: Bad file descriptor</code>.</li>
 <li>These wrappers require a Linux runtime. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</li>
 </ul>
-<h2 id="portable-pollepoll">Portable <code>poll</code>/<code>epoll</code></h2>
+<h2 id="architecture-dependent-polling">Architecture-dependent polling</h2>
 <p><code>poll(2)</code> and <code>epoll_wait(2)</code> do not exist on AArch64, so the two portable wrappers dispatch to whichever the host has, while the explicit <code>ppoll</code> / <code>epoll_pwait</code> forms are available on <strong>both</strong> architectures:</p>
 <table>
 <tr><th>Standard-library function</th><th>amd64</th><th>aarch64</th></tr>
@@ -224,6 +176,7 @@ fn main(){
 <tr><td><code>syscallWaitForEvents</code></td><td><code>epoll_wait</code></td><td><code>epoll_pwait</code></td></tr>
 <tr><td><code>syscallWaitForEventsWithSignalMask</code></td><td><code>epoll_pwait</code></td><td><code>epoll_pwait</code></td></tr>
 </table>
+<p>For full target-specific guidance, see the <a href="syscalls/linux-amd64.html">amd64</a> and <a href="syscalls/linux-arm64.html">arm64</a> references.</p>
 <h2 id="working-directories">Working directories</h2>
 <table>
 <tr><th>Standard-library function</th><th>Linux syscall</th><th>Arguments</th></tr>

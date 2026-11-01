@@ -229,6 +229,7 @@ const std::vector<std::string>& names() {
     static const std::vector<std::string> all = {
         // Environment, identity and console-free system information.
         "getProcessId",       "getCurrentDirectory", "getComputerName",
+        "architecture",
         "getTempPath",        "getSystemDirectory",  "getWindowsDirectory",
         "getModuleFileName",  "getTickCount",        "getLastError",
         "getEnvironmentVariable", "setEnvironmentVariable", "expandEnvironmentStrings",
@@ -308,6 +309,17 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
             static_cast<std::intptr_t>(integerArg(index)));
     };
 
+    if (name == "architecture") {
+        if (!args.empty()) return wrong("no arguments");
+#if defined(_M_ARM64) || defined(__aarch64__)
+        result = std::string("arm64");
+#elif defined(_M_X64) || defined(__x86_64__)
+        result = std::string("amd64");
+#else
+        result = std::string();
+#endif
+        return true;
+    }
     if (name == "getProcessId") {
         if (!args.empty()) return wrong("no arguments");
         result = static_cast<std::int64_t>(::GetCurrentProcessId());

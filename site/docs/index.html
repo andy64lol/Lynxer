@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="embedding.html">embedding</a></li>
 <li><a href="windows.html">windows</a></li>
 <li><a href="windows-api.html">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="stdlib/sound.html">sound</a></li>
 <li><a href="stdlib/sqldb.html">sqldb</a></li>
 <li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="stdlib/winpipe.html">winpipe</a></li>
 <li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
@@ -139,7 +147,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone Linux and Windows executables, 41 natively backed modules, an AST optimizer, a frozen native-module ABI, a source debugger, a language server and performance benchmarks. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone Linux and Windows executables, 43 natively backed modules, an AST optimizer, a frozen native-module ABI, a source debugger, a language server and performance benchmarks. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -177,7 +185,13 @@
 <table>
 <tr><th>Document</th><th>What it covers</th></tr>
 <tr><td><a href="builtins.html">builtins</a></td><td>Every function the interpreter implements itself</td></tr>
-<tr><td><a href="syscalls.html">syscalls</a></td><td>The named Linux syscall wrappers: OS/architecture gate, namespaces, full list</td></tr>
+<tr><td><a href="syscalls.html">syscalls</a></td><td>Linux syscall overview and links to the OS/architecture references</td></tr>
+<tr><td><a href="stdlib/linux-amd64.html">stdlib/linux-amd64</a></td><td>The native-backed Linux amd64 syscall module</td></tr>
+<tr><td><a href="stdlib/linux-arm64.html">stdlib/linux-arm64</a></td><td>The native-backed Linux arm64 syscall module</td></tr>
+<tr><td><a href="stdlib/winAPI-amd64.html">stdlib/winAPI-amd64</a></td><td>The native-backed Windows amd64 API module</td></tr>
+<tr><td><a href="stdlib/winAPI-arm64.html">stdlib/winAPI-arm64</a></td><td>The native-backed Windows arm64 API module</td></tr>
+<tr><td><a href="syscalls/linux-amd64.html">syscalls/linux-amd64</a></td><td>Linux amd64 syscall details</td></tr>
+<tr><td><a href="syscalls/linux-arm64.html">syscalls/linux-arm64</a></td><td>Linux arm64 syscall details</td></tr>
 <tr><td><a href="async.html">async</a></td><td>Local <code>async</code> sub-functions, <code>await</code>, and the <code>async*</code> builtins</td></tr>
 <tr><td><a href="native-memory.html">native-memory</a></td><td>Typed raw memory, blocks/arrays/views, native struct layouts</td></tr>
 <tr><td><a href="filesystem.html">filesystem</a></td><td>The handle-based <code>filesystem*</code> API</td></tr>
@@ -193,6 +207,9 @@
 <tr><td><a href="removed-features.html">removed-features</a></td><td>Bytecode, Python bridging and other removed features</td></tr>
 <tr><td><a href="limitations.html">limitations</a></td><td>Deliberate constraints and what is not implemented</td></tr>
 <tr><td><a href="windows.html">windows</a></td><td>Windows build status, embedding, and the features excluded from it</td></tr>
+<tr><td><a href="windows-api.html">windows-api</a></td><td>The native-backed Win32 architecture modules</td></tr>
+<tr><td><a href="winapi/windows-amd64.html">winapi/windows-amd64</a></td><td>WinAPI behavior on Windows amd64</td></tr>
+<tr><td><a href="winapi/windows-arm64.html">winapi/windows-arm64</a></td><td>WinAPI behavior on Windows arm64</td></tr>
 </table>
 <h2 id="build-and-run">Build and run</h2>
 <pre><code>make buildLynxer        # interpreter + every native stdlib module
@@ -209,7 +226,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-linux-amd64.yml</code> and <code>build-lynxer-linux-arm64.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 46 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from the <code>lynxer_stdlib</code> package under <code>rust/</code> (<code>json</code> is its own package in the same workspace); <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 50 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from the <code>lynxer_stdlib</code> package under <code>rust/</code> (<code>json</code> is its own package in the same workspace); <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>

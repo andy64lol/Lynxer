@@ -32,7 +32,8 @@ text round-trips. A redirected stream has no console mode and is unaffected.
 
 **Named pipes.** `winpipe` (`stdlib/winpipe.cpp` + `stdlib/winpipe.lynx`) is a
 Windows-only blocking named-pipe module (`create`/`connect`/`open`/`read`/
-`write`/`disconnect`/`peek`/`close`). It complements the low-level `winAPI`
+`write`/`disconnect`/`peek`/`close`). It complements the low-level
+`winAPI-amd64`/`winAPI-arm64`
 pipe calls and gives `server`-style programs a local IPC option beside sockets.
 See [stdlib/winpipe.md](stdlib/winpipe.md).
 
@@ -43,9 +44,9 @@ values, key/value enumeration, and recursive deletion. The `winreg_basic.lynx`
 fixture writes under `HKCU` and cleans up after itself. See
 [stdlib/winreg.md](stdlib/winreg.md).
 
-**Windows API surface.** On Windows, the `winAPI.*` namespace is available
-without selecting a target — mostly `kernel32`, with `shell32`/`ole32` for Known
-Folders: the system information calls
+**Windows API standard libraries.** On Windows, import `winAPI-amd64` or
+`winAPI-arm64` with `importAs` for the process architecture — mostly
+`kernel32`, with `shell32`/`ole32` for Known Folders: the system information calls
 (`getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
 `getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
 `getTickCount`, `getLastError`, `getDiskFreeBytes`), the environment calls
@@ -64,9 +65,10 @@ and file/handle access (`createFile`, `readFile`, `writeFile`, `closeHandle`,
 (`getSystemTime`, `getSystemInfo`, `getMemoryStatus`, `getPowerStatus`,
 `getVolumeInfo`, `getDiskSpace`, `getACP`, `getOEMCP`, `getCommandLine`,
 `getCurrentProcess`, `getModuleHandle`, `getActiveProcessorCount`), and
-`sleep`, `beep` and `outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
-Win32 calls live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`.
-See [syscalls.md](syscalls.md#windows-api-calls).
+`sleep`, `beep` and `outputDebugString`. The `winapi.lynx` fixture exercises the
+standard-library namespaces in both Windows CI architectures. The Win32 calls
+live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`. See
+[windows-api.md](windows-api.md).
 
 `--compile` works unchanged: the payload is appended to the running image and
 read back through `platform::executablePath()` (`GetModuleFileNameW`), and the
@@ -92,11 +94,10 @@ One consequence of the copy-instead-of-symlink install: on POSIX
 These features need work that is being done slowly and are **not** part of the
 Windows build yet:
 
-- **Named Linux syscalls.** The `syscalls` standard-library module and its
-  `amd64.syscall*`/`arm64.syscall*` functions require a Linux runtime; on
-  Windows they are unavailable rather than emulated. Selecting `"Linux"` is
-  refused on a Windows host. The `winAPI.*` surface is independently available
-  on Windows and does not use a target selector.
+- **Named Linux syscalls.** The `linux-amd64` and `linux-arm64` standard-library
+  modules require a matching Linux runtime; on Windows they are unavailable
+  rather than emulated. The `winAPI-amd64` and `winAPI-arm64` modules are
+  independently available on matching Windows hosts.
 - **The `sys` stdlib module.** It is built on Linux system calls and is not
   compiled for Windows.
 - **The managed POSIX built-ins.** The `filesystem*`, `networking*` and
@@ -248,7 +249,7 @@ backend behind `lynxer/platform.*`:
   interpreter. Per-process resource limits remain.
 - **IPC and shell.** The `winpipe` module provides blocking named pipes beside
   sockets; `shellOpen`, clipboard access and tray notifications are available
-  through `winAPI`.
+  through the matching `winAPI-amd64` or `winAPI-arm64` standard library.
 - **Services and tasks.** The `server` module stays a foreground console
   process on Windows (it does not install a Linux unit). Background startup is
   left to Task Scheduler (`schtasks /create`) or an external SCM wrapper; a

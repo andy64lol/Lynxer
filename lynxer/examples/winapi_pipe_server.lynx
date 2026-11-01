@@ -2,15 +2,58 @@
 Server half of winapi_pipe.lynx. Launched by the parent; not a standalone
 fixture.
 ////
-fn setup(){}
+fn setup(){ importAs("winAPI-amd64", "winApiAmd64");
+    importAs("winAPI-arm64", "winApiArm64"); }
+
+fn createPipe(str name) -> int {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.createNamedPipe(name);
+    }
+    return winApiArm64.createNamedPipe(name);
+}
+
+fn connectPipe(int handle) -> bool {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.connectNamedPipe(handle);
+    }
+    return winApiArm64.connectNamedPipe(handle);
+}
+
+fn readPipe(int handle, int length) -> str {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.readNamedPipe(handle, length);
+    }
+    return winApiArm64.readNamedPipe(handle, length);
+}
+
+fn writePipe(int handle, str text) -> int {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.writeNamedPipe(handle, text);
+    }
+    return winApiArm64.writeNamedPipe(handle, text);
+}
+
+fn disconnectPipe(int handle) -> bool {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.disconnectNamedPipe(handle);
+    }
+    return winApiArm64.disconnectNamedPipe(handle);
+}
+
+fn closePipe(int handle) -> bool {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.closeHandle(handle);
+    }
+    return winApiArm64.closeHandle(handle);
+}
 
 fn main(){
     str name = "lynxer-winapi-fixture-pipe";
-    int server = winAPI.createNamedPipe(name);
+    int server = createPipe(name);
     println("server-create=" + strOf(server > 0));
-    println("server-connect=" + strOf(winAPI.connectNamedPipe(server)));
-    println("server-read=" + winAPI.readNamedPipe(server, 16));
-    println("server-write=" + strOf(winAPI.writeNamedPipe(server, "pong") is 4));
-    winAPI.disconnectNamedPipe(server);
-    winAPI.closeHandle(server);
+    println("server-connect=" + strOf(connectPipe(server)));
+    println("server-read=" + readPipe(server, 16));
+    println("server-write=" + strOf(writePipe(server, "pong") is 4));
+    disconnectPipe(server);
+    closePipe(server);
 }

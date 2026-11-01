@@ -1,14 +1,18 @@
-# Windows API access
+# Windows API standard libraries
 
-On Windows, Lynxer calls the Win32 API through the built-in `winAPI.*` surface.
-It is **not a module** — there is no `import` — and is available only on a
-Windows host:
+On Windows, Lynxer exposes Win32 calls through the native-backed
+`winAPI-amd64` and `winAPI-arm64` standard-library modules. Import the module
+matching the process architecture with `importAs`:
 
 ```lynx
-fn main(){
-    println(winAPI.getProcessId());
-    println(winAPI.getComputerName());
-    println(winAPI.getCurrentDirectory());
+fn setup() {
+    importAs("winAPI-amd64", "windowsApi");
+}
+
+fn main() {
+    println(windowsApi.getProcessId());
+    println(windowsApi.getComputerName());
+    println(windowsApi.getCurrentDirectory());
 }
 ```
 
@@ -16,67 +20,70 @@ Most calls are `kernel32`; `getKnownFolderPath` uses `shell32`/`ole32` for the
 Known Folder GUIDs. Both libraries ship with Windows, so nothing extra has to be
 installed.
 
+On Windows arm64, import `winAPI-arm64` instead. The module checks the host
+operating system and architecture for each operation. The API catalog below
+uses the `windowsApi` alias for either module.
+
 ## Host availability
 
-- Calls are gated by the current runtime host; no target selector is needed.
-- On non-Windows hosts, calling the namespace reports that the Win32 API
-  requires a Windows runtime.
-- The namespace prefix is matched case-insensitively, so `winAPI.getProcessId()`
-  and `winapi.getProcessId()` are the same call. A misspelled function reports
-  the closest match, e.g. `unknown winAPI function 'getProcesId'. You meant:
-  getProcessId?`.
+- Calls require a Windows runtime and validate that the imported module
+  matches the running process; there is no cross-architecture dispatch.
+- The legacy `winAPI.*` built-ins remain available but are deprecated. New
+  programs should import `winAPI-amd64` or `winAPI-arm64`.
+- A misspelled operation in the legacy surface reports the closest match, e.g.
+  `unknown winAPI function 'getProcesId'. You meant: getProcessId?`.
 
 ## Conventions
 
-- Failures use the standard-library **scalar sentinels**: `-1` for a handle, a
-  size, a position, a byte count or a free-space figure; `false` for a
-  predicate; `""` for a failed read. `winAPI.getLastError()` returns the Win32
+- Failed Windows operations use the native API's **scalar sentinels**: `-1`
+  for a handle, size, position, byte count or free-space figure; `false` for a
+  predicate; `""` for a failed read. `windowsApi.getLastError()` returns the Win32
   error code for the most recent call.
 - A **handle is an integer**. Everything it refers to must be released with
-  `winAPI.closeHandle()`.
+  `windowsApi.closeHandle()`.
 - Wrong argument types are source-located errors, e.g.
-  `winAPI.readFile() failed: expects an integer handle and length`.
+  `windowsApi.readFile() failed: expects an integer handle and length`.
 - Text is UTF-8 at the Lynxer boundary; the `*W` calls are used internally.
 
 ## System information
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.getProcessId()` | the current process id |
-| `winAPI.getCurrentDirectory()` | the current directory |
-| `winAPI.getComputerName()` | the computer name |
-| `winAPI.getTempPath()` | the temporary directory (with a trailing separator) |
-| `winAPI.getSystemDirectory()` | the system directory |
-| `winAPI.getWindowsDirectory()` | the Windows directory |
-| `winAPI.getModuleFileName()` | the running executable's full path |
-| `winAPI.getTickCount()` | milliseconds since the system started |
-| `winAPI.getLastError()` | the last Win32 error code |
-| `winAPI.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
-| `winAPI.getKnownFolderPath(name)` | a Known Folder path, or `""` |
-| `winAPI.getUserName()` | the current account name |
-| `winAPI.isUserAnAdmin()` | whether the process has administrator rights |
-| `winAPI.getSystemMetrics(index)` | a `GetSystemMetrics` value, or `0` |
-| `winAPI.getLogicalDrives()` | the drive bitmask |
-| `winAPI.getDriveType(root)` | the `DRIVE_*` type, or `0` |
-| `winAPI.getOSVersion()` | `major.minor.build` from `RtlGetVersion` |
-| `winAPI.getLocaleName()` | the user's locale name, e.g. `en-US` |
-| `winAPI.getTimeZoneName()` | the current standard time-zone name |
-| `winAPI.getSystemTime()` | milliseconds since the Unix epoch (UTC) |
-| `winAPI.getSystemInfo()` | JSON `{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}` |
-| `winAPI.getMemoryStatus()` | JSON `{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}` in bytes / percent |
-| `winAPI.getPowerStatus()` | JSON `{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}` |
-| `winAPI.getVolumeInfo(path)` | JSON `{label, filesystem, serial, maxComponentLength, flags}`, or `""` |
-| `winAPI.getDiskSpace(path)` | JSON `{free, total, totalFree}` in bytes, or `""` |
-| `winAPI.getACP()` | the ANSI code page |
-| `winAPI.getOEMCP()` | the OEM code page |
-| `winAPI.getCommandLine()` | the full command line |
-| `winAPI.getCurrentProcess()` | a closable duplicate handle to this process, or `-1` |
-| `winAPI.getModuleHandle(name)` | a module handle (`""` for the running image), or `-1` |
-| `winAPI.getActiveProcessorCount(group)` | active processors in a group, or `-1` |
-| `winAPI.formatMessage(code)` | the system message for a Win32 error code |
-| `winAPI.sleep(milliseconds)` | — |
-| `winAPI.beep(frequency, duration)` | whether it played |
-| `winAPI.outputDebugString(text)` | — (goes to the debugger) |
+| `windowsApi.getProcessId()` | the current process id |
+| `windowsApi.getCurrentDirectory()` | the current directory |
+| `windowsApi.getComputerName()` | the computer name |
+| `windowsApi.getTempPath()` | the temporary directory (with a trailing separator) |
+| `windowsApi.getSystemDirectory()` | the system directory |
+| `windowsApi.getWindowsDirectory()` | the Windows directory |
+| `windowsApi.getModuleFileName()` | the running executable's full path |
+| `windowsApi.getTickCount()` | milliseconds since the system started |
+| `windowsApi.getLastError()` | the last Win32 error code |
+| `windowsApi.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
+| `windowsApi.getKnownFolderPath(name)` | a Known Folder path, or `""` |
+| `windowsApi.getUserName()` | the current account name |
+| `windowsApi.isUserAnAdmin()` | whether the process has administrator rights |
+| `windowsApi.getSystemMetrics(index)` | a `GetSystemMetrics` value, or `0` |
+| `windowsApi.getLogicalDrives()` | the drive bitmask |
+| `windowsApi.getDriveType(root)` | the `DRIVE_*` type, or `0` |
+| `windowsApi.getOSVersion()` | `major.minor.build` from `RtlGetVersion` |
+| `windowsApi.getLocaleName()` | the user's locale name, e.g. `en-US` |
+| `windowsApi.getTimeZoneName()` | the current standard time-zone name |
+| `windowsApi.getSystemTime()` | milliseconds since the Unix epoch (UTC) |
+| `windowsApi.getSystemInfo()` | JSON `{processorArchitecture, pageSize, processorCount, allocationGranularity, processorLevel, processorRevision, activeProcessorMask}` |
+| `windowsApi.getMemoryStatus()` | JSON `{load, total, available, totalPageFile, availablePageFile, totalVirtual, availableVirtual}` in bytes / percent |
+| `windowsApi.getPowerStatus()` | JSON `{acLineStatus, batteryFlag, batteryLifePercent, batteryLifeSeconds, batteryFullLifeSeconds}` |
+| `windowsApi.getVolumeInfo(path)` | JSON `{label, filesystem, serial, maxComponentLength, flags}`, or `""` |
+| `windowsApi.getDiskSpace(path)` | JSON `{free, total, totalFree}` in bytes, or `""` |
+| `windowsApi.getACP()` | the ANSI code page |
+| `windowsApi.getOEMCP()` | the OEM code page |
+| `windowsApi.getCommandLine()` | the full command line |
+| `windowsApi.getCurrentProcess()` | a closable duplicate handle to this process, or `-1` |
+| `windowsApi.getModuleHandle(name)` | a module handle (`""` for the running image), or `-1` |
+| `windowsApi.getActiveProcessorCount(group)` | active processors in a group, or `-1` |
+| `windowsApi.formatMessage(code)` | the system message for a Win32 error code |
+| `windowsApi.sleep(milliseconds)` | — |
+| `windowsApi.beep(frequency, duration)` | whether it played |
+| `windowsApi.outputDebugString(text)` | — (goes to the debugger) |
 
 `getKnownFolderPath` accepts `desktop`, `documents`, `downloads`, `music`,
 `pictures`, `videos`, `localAppData`, `roamingAppData`, `programData`, `profile`,
@@ -88,33 +95,33 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.getEnvironmentVariable(name)` | the variable's value, or `""` when unset |
-| `winAPI.setEnvironmentVariable(name, value)` | whether it was set |
-| `winAPI.expandEnvironmentStrings(text)` | `text` with `%VAR%` expanded |
+| `windowsApi.getEnvironmentVariable(name)` | the variable's value, or `""` when unset |
+| `windowsApi.setEnvironmentVariable(name, value)` | whether it was set |
+| `windowsApi.expandEnvironmentStrings(text)` | `text` with `%VAR%` expanded |
 
 ## Files and handles
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.createFile(path, mode)` | a handle, or `-1` |
-| `winAPI.readFile(handle, length)` | up to `length` bytes, or `""` |
-| `winAPI.writeFile(handle, text)` | bytes written, or `-1` |
-| `winAPI.closeHandle(handle)` | whether it closed |
-| `winAPI.fileSize(handle)` | size in bytes, or `-1` |
-| `winAPI.seekFile(handle, offset)` | the new absolute position, or `-1` |
-| `winAPI.deleteFile(path)` | whether it was removed |
-| `winAPI.copyFile(source, destination, overwrite)` | whether it was copied |
-| `winAPI.moveFile(source, destination)` | whether it was moved |
-| `winAPI.createDirectory(path)` | whether it was created |
-| `winAPI.removeDirectory(path)` | whether it was removed |
-| `winAPI.getFileAttributes(path)` | the attribute bits, or `-1` |
-| `winAPI.setFileAttributes(path, attributes)` | whether they were set |
-| `winAPI.getFullPathName(path)` | the absolute path, or `""` |
-| `winAPI.flushFileBuffers(handle)` | whether the buffers were flushed |
-| `winAPI.getTempFileName(prefix)` | a new unique temp file path, or `""` |
-| `winAPI.setCurrentDirectory(path)` | whether the working directory changed |
-| `winAPI.getFileType(handle)` | the `FILE_TYPE_*` value, or `-1` |
-| `winAPI.getFileTime(path)` | JSON `{creation, access, write}` in Unix milliseconds, or `""` |
+| `windowsApi.createFile(path, mode)` | a handle, or `-1` |
+| `windowsApi.readFile(handle, length)` | up to `length` bytes, or `""` |
+| `windowsApi.writeFile(handle, text)` | bytes written, or `-1` |
+| `windowsApi.closeHandle(handle)` | whether it closed |
+| `windowsApi.fileSize(handle)` | size in bytes, or `-1` |
+| `windowsApi.seekFile(handle, offset)` | the new absolute position, or `-1` |
+| `windowsApi.deleteFile(path)` | whether it was removed |
+| `windowsApi.copyFile(source, destination, overwrite)` | whether it was copied |
+| `windowsApi.moveFile(source, destination)` | whether it was moved |
+| `windowsApi.createDirectory(path)` | whether it was created |
+| `windowsApi.removeDirectory(path)` | whether it was removed |
+| `windowsApi.getFileAttributes(path)` | the attribute bits, or `-1` |
+| `windowsApi.setFileAttributes(path, attributes)` | whether they were set |
+| `windowsApi.getFullPathName(path)` | the absolute path, or `""` |
+| `windowsApi.flushFileBuffers(handle)` | whether the buffers were flushed |
+| `windowsApi.getTempFileName(prefix)` | a new unique temp file path, or `""` |
+| `windowsApi.setCurrentDirectory(path)` | whether the working directory changed |
+| `windowsApi.getFileType(handle)` | the `FILE_TYPE_*` value, or `-1` |
+| `windowsApi.getFileTime(path)` | JSON `{creation, access, write}` in Unix milliseconds, or `""` |
 
 `mode` is `"read"` (`OPEN_EXISTING`), `"write"` (`CREATE_ALWAYS`, truncated),
 `"append"` (`OPEN_ALWAYS`, seek to end) or `"readwrite"` (`OPEN_ALWAYS`).
@@ -122,21 +129,21 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 
 ```lynx
 fn main(){
-    str path = winAPI.getTempPath() + "demo.txt";
+    str path = windowsApi.getTempPath() + "demo.txt";
 
-    int file = winAPI.createFile(path, "write");
+    int file = windowsApi.createFile(path, "write");
     if (file < 0) {
-        println("cannot create: " + winAPI.getLastError());
+        println("cannot create: " + windowsApi.getLastError());
         return;
     }
-    winAPI.writeFile(file, "hello");
-    winAPI.closeHandle(file);
+    windowsApi.writeFile(file, "hello");
+    windowsApi.closeHandle(file);
 
-    int reader = winAPI.createFile(path, "read");
-    println(winAPI.fileSize(reader));
-    println(winAPI.readFile(reader, 64));
-    winAPI.closeHandle(reader);
-    winAPI.deleteFile(path);
+    int reader = windowsApi.createFile(path, "read");
+    println(windowsApi.fileSize(reader));
+    println(windowsApi.readFile(reader, 64));
+    windowsApi.closeHandle(reader);
+    windowsApi.deleteFile(path);
 }
 ```
 
@@ -144,12 +151,12 @@ fn main(){
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.shellOpen(path)` | whether `ShellExecuteW` accepted the request |
-| `winAPI.shellOpenWith(path, arguments, verb)` | the same, with an explicit verb such as `"edit"` |
-| `winAPI.messageBox(text, title)` | the `MessageBoxW` result |
-| `winAPI.clipboardGet()` | the clipboard's Unicode text, or `""` |
-| `winAPI.clipboardSet(text)` | whether the clipboard was updated |
-| `winAPI.notify(title, message)` | whether a tray balloon was queued |
+| `windowsApi.shellOpen(path)` | whether `ShellExecuteW` accepted the request |
+| `windowsApi.shellOpenWith(path, arguments, verb)` | the same, with an explicit verb such as `"edit"` |
+| `windowsApi.messageBox(text, title)` | the `MessageBoxW` result |
+| `windowsApi.clipboardGet()` | the clipboard's Unicode text, or `""` |
+| `windowsApi.clipboardSet(text)` | whether the clipboard was updated |
+| `windowsApi.notify(title, message)` | whether a tray balloon was queued |
 
 `shellOpen`/`shellOpenWith` are fire-and-forget: they return as soon as the
 shell accepts the request. `messageBox` blocks until the user dismisses the
@@ -163,29 +170,29 @@ sentinel instead of raising.
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.createNamedPipe(name)` | a server handle, or `-1` |
-| `winAPI.connectNamedPipe(handle)` | whether a client connected |
-| `winAPI.openNamedPipe(name)` | a client handle, or `-1` after a 5 s wait |
-| `winAPI.readNamedPipe(handle, length)` | up to `length` bytes, or `""` |
-| `winAPI.writeNamedPipe(handle, text)` | bytes written, or `-1` |
-| `winAPI.disconnectNamedPipe(handle)` | whether the server disconnected |
-| `winAPI.peekNamedPipe(handle)` | bytes available, or `-1` |
+| `windowsApi.createNamedPipe(name)` | a server handle, or `-1` |
+| `windowsApi.connectNamedPipe(handle)` | whether a client connected |
+| `windowsApi.openNamedPipe(name)` | a client handle, or `-1` after a 5 s wait |
+| `windowsApi.readNamedPipe(handle, length)` | up to `length` bytes, or `""` |
+| `windowsApi.writeNamedPipe(handle, text)` | bytes written, or `-1` |
+| `windowsApi.disconnectNamedPipe(handle)` | whether the server disconnected |
+| `windowsApi.peekNamedPipe(handle)` | bytes available, or `-1` |
 
 Names are relative to `\\.\pipe\`; a full `\\.\pipe\name` path is also
 accepted. `openNamedPipe` retries while the server is still creating the pipe,
 so a client may start before the server. Pipe handles are ordinary handles and
-are released with `winAPI.closeHandle`. Reads and writes are blocking.
+are released with `windowsApi.closeHandle`. Reads and writes are blocking.
 
 ```lynx
 fn main(){
-    int server = winAPI.createNamedPipe("lynxer-demo");
+    int server = windowsApi.createNamedPipe("lynxer-demo");
     // In another process:
-    //   int client = winAPI.openNamedPipe("lynxer-demo");
-    winAPI.connectNamedPipe(server);
-    println(winAPI.readNamedPipe(server, 64));
-    winAPI.writeNamedPipe(server, "pong");
-    winAPI.disconnectNamedPipe(server);
-    winAPI.closeHandle(server);
+    //   int client = windowsApi.openNamedPipe("lynxer-demo");
+    windowsApi.connectNamedPipe(server);
+    println(windowsApi.readNamedPipe(server, 64));
+    windowsApi.writeNamedPipe(server, "pong");
+    windowsApi.disconnectNamedPipe(server);
+    windowsApi.closeHandle(server);
 }
 ```
 
@@ -193,14 +200,14 @@ fn main(){
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.getCurrentThreadId()` | the calling thread's id |
-| `winAPI.openProcess(processId)` | a handle with query/terminate/synchronize access, or `-1` |
-| `winAPI.terminateProcess(handle, exitCode)` | whether it was terminated |
-| `winAPI.getExitCodeProcess(handle)` | the exit code, or `-1` (`259` while still alive) |
-| `winAPI.createProcess(commandLine)` | the new process's handle, or `-1` |
-| `winAPI.waitForSingleObject(handle, milliseconds)` | `0` when signalled, `258` on timeout, `-1` on failure |
-| `winAPI.getPriorityClass(handle)` | the `*_PRIORITY_CLASS` value, or `-1` |
-| `winAPI.setPriorityClass(handle, class)` | whether it was set |
+| `windowsApi.getCurrentThreadId()` | the calling thread's id |
+| `windowsApi.openProcess(processId)` | a handle with query/terminate/synchronize access, or `-1` |
+| `windowsApi.terminateProcess(handle, exitCode)` | whether it was terminated |
+| `windowsApi.getExitCodeProcess(handle)` | the exit code, or `-1` (`259` while still alive) |
+| `windowsApi.createProcess(commandLine)` | the new process's handle, or `-1` |
+| `windowsApi.waitForSingleObject(handle, milliseconds)` | `0` when signalled, `258` on timeout, `-1` on failure |
+| `windowsApi.getPriorityClass(handle)` | the `*_PRIORITY_CLASS` value, or `-1` |
+| `windowsApi.setPriorityClass(handle, class)` | whether it was set |
 
 `createProcess` starts `commandLine` through `CreateProcessW` with the inherited
 environment and no redirection; the thread handle is closed for you, so only the
@@ -214,21 +221,21 @@ call.
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.getStdHandle(stream)` | the handle for `"input"`, `"output"` or `"error"`, or `-1` |
-| `winAPI.getConsoleMode(handle)` | the console mode, or `-1` |
-| `winAPI.setConsoleMode(handle, mode)` | whether it was set |
-| `winAPI.setConsoleTitle(text)` | whether the title was set |
-| `winAPI.getConsoleOutputCP()` | the console output code page |
-| `winAPI.setConsoleOutputCP(codePage)` | whether it was set |
-| `winAPI.getConsoleWindow()` | the console window handle, or `-1` |
-| `winAPI.getConsoleScreenBufferInfo()` | JSON `{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}`, or `""` |
+| `windowsApi.getStdHandle(stream)` | the handle for `"input"`, `"output"` or `"error"`, or `-1` |
+| `windowsApi.getConsoleMode(handle)` | the console mode, or `-1` |
+| `windowsApi.setConsoleMode(handle, mode)` | whether it was set |
+| `windowsApi.setConsoleTitle(text)` | whether the title was set |
+| `windowsApi.getConsoleOutputCP()` | the console output code page |
+| `windowsApi.setConsoleOutputCP(codePage)` | whether it was set |
+| `windowsApi.getConsoleWindow()` | the console window handle, or `-1` |
+| `windowsApi.getConsoleScreenBufferInfo()` | JSON `{width, height, bufferWidth, bufferHeight, cursorX, cursorY, attributes}`, or `""` |
 
 ## Timing
 
 | Function | Returns |
 | --- | --- |
-| `winAPI.queryPerformanceCounter()` | the high-resolution counter, or `-1` |
-| `winAPI.queryPerformanceFrequency()` | ticks per second, or `-1` |
+| `windowsApi.queryPerformanceCounter()` | the high-resolution counter, or `-1` |
+| `windowsApi.queryPerformanceFrequency()` | ticks per second, or `-1` |
 
 ## The long tail
 
@@ -253,6 +260,8 @@ tracked in [../todo.md](../todo.md).
 
 ## See also
 
-- [syscalls.md](syscalls.md) — the Linux named-syscall standard-library module
+- [syscalls.md](syscalls.md) — the Linux named-syscall standard-library modules
 - [windows.md](windows.md) — the Windows port status and what it excludes
+- [Windows amd64 WinAPI](winapi/windows-amd64.md)
+- [Windows arm64 WinAPI](winapi/windows-arm64.md)
 - [native-modules.md](native-modules.md) — `ffiLoadLibrary`/`ffiLookup`/`ffiCall`

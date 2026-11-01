@@ -34,10 +34,10 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("Language", ["language.md", "functions.md", "deprecated.md", "macros.md", "operators.md", "conditionals.md", "loops.md", "try-catch.md", "types.md", "lists.md", "tuples.md", "codeblocks.md", "modules.md", "importAs.md"]),
     ("Records", ["structs.md", "templates.md", "classes.md", "enums.md", "vargroups.md"]),
     ("Built-ins and modules",
-     ["builtins.md", "syscalls.md", "native-module-abi.md", "native-modules.md", "stdlib-contracts.md", "extending.md"]),
+     ["builtins.md", "syscalls.md", "syscalls/linux-amd64.md", "syscalls/linux-arm64.md", "native-module-abi.md", "native-modules.md", "stdlib-contracts.md", "extending.md"]),
     ("Runtime",
      ["async.md", "native-memory.md", "filesystem.md", "networking.md", "process.md"]),
-    ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md", "embedding.md", "windows.md", "windows-api.md"]),
+    ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md", "embedding.md", "windows.md", "windows-api.md", "winapi/windows-amd64.md", "winapi/windows-arm64.md"]),
 ]
 
 STDLIB_MODULES = [
@@ -45,8 +45,8 @@ STDLIB_MODULES = [
     "image", "ini",
     "js", "json",
     "lua", "markdown", "math", "multiprocessing", "network", "numutils", "os", "path", "pdf", "random", "raylib", "re",
-    "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
-    "turtle", "typing", "uuid", "watch", "winpipe", "winreg", "xml", "yaml",
+    "regex", "server", "shell", "sound", "sqldb", "sys", "linux-amd64", "linux-arm64", "text", "time", "toml", "tui",
+    "turtle", "typing", "uuid", "watch", "winAPI-amd64", "winAPI-arm64", "winpipe", "winreg", "xml", "yaml",
 ]
 
 

@@ -1,0 +1,900 @@
+////
+Windows amd64 native standard library. The module name selects the process architecture.
+////
+
+fn setup() {
+    importAs("winapi_native.so", "nativeWinApi");
+}
+
+fn architecture() -> str {
+    return nativeWinApi.architecture();
+}
+
+fn requireArchitecture(str expected) {
+    str actual = nativeWinApi.architecture();
+    if (actual isnt expected) {
+        raise("winAPI-" + expected + " requires a Windows " + expected +
+              " runtime; this process is " + actual);
+    }
+}
+
+fn getProcessId() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getProcessId", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getProcessId() failed: " + error);
+    }
+    return result;
+}
+
+fn getLastError() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getLastError", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getLastError() failed: " + error);
+    }
+    return result;
+}
+
+fn closeHandle(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("closeHandle", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.closeHandle() failed: " + error);
+    }
+    return result;
+}
+
+fn getCurrentDirectory() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getCurrentDirectory", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getCurrentDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn getComputerName() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getComputerName", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getComputerName() failed: " + error);
+    }
+    return result;
+}
+
+fn getTempPath() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getTempPath", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getTempPath() failed: " + error);
+    }
+    return result;
+}
+
+fn getSystemDirectory() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getSystemDirectory", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getSystemDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn getWindowsDirectory() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getWindowsDirectory", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getWindowsDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn getModuleFileName() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getModuleFileName", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getModuleFileName() failed: " + error);
+    }
+    return result;
+}
+
+fn getTickCount() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getTickCount", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getTickCount() failed: " + error);
+    }
+    return result;
+}
+
+fn getDiskFreeBytes(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getDiskFreeBytes", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getDiskFreeBytes() failed: " + error);
+    }
+    return result;
+}
+
+fn getKnownFolderPath(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getKnownFolderPath", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getKnownFolderPath() failed: " + error);
+    }
+    return result;
+}
+
+fn getUserName() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getUserName", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getUserName() failed: " + error);
+    }
+    return result;
+}
+
+fn isUserAnAdmin() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("isUserAnAdmin", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.isUserAnAdmin() failed: " + error);
+    }
+    return result;
+}
+
+fn getSystemMetrics(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getSystemMetrics", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getSystemMetrics() failed: " + error);
+    }
+    return result;
+}
+
+fn getLogicalDrives() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getLogicalDrives", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getLogicalDrives() failed: " + error);
+    }
+    return result;
+}
+
+fn getDriveType(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getDriveType", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getDriveType() failed: " + error);
+    }
+    return result;
+}
+
+fn getOSVersion() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getOSVersion", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getOSVersion() failed: " + error);
+    }
+    return result;
+}
+
+fn getLocaleName() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getLocaleName", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getLocaleName() failed: " + error);
+    }
+    return result;
+}
+
+fn getTimeZoneName() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getTimeZoneName", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getTimeZoneName() failed: " + error);
+    }
+    return result;
+}
+
+fn getSystemTime() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getSystemTime", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getSystemTime() failed: " + error);
+    }
+    return result;
+}
+
+fn getSystemInfo() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getSystemInfo", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getSystemInfo() failed: " + error);
+    }
+    return result;
+}
+
+fn getMemoryStatus() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getMemoryStatus", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getMemoryStatus() failed: " + error);
+    }
+    return result;
+}
+
+fn getPowerStatus() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getPowerStatus", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getPowerStatus() failed: " + error);
+    }
+    return result;
+}
+
+fn getVolumeInfo(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getVolumeInfo", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getVolumeInfo() failed: " + error);
+    }
+    return result;
+}
+
+fn getDiskSpace(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getDiskSpace", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getDiskSpace() failed: " + error);
+    }
+    return result;
+}
+
+fn getACP() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getACP", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getACP() failed: " + error);
+    }
+    return result;
+}
+
+fn getOEMCP() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getOEMCP", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getOEMCP() failed: " + error);
+    }
+    return result;
+}
+
+fn getCommandLine() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getCommandLine", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getCommandLine() failed: " + error);
+    }
+    return result;
+}
+
+fn getCurrentProcess() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getCurrentProcess", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getCurrentProcess() failed: " + error);
+    }
+    return result;
+}
+
+fn getModuleHandle(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getModuleHandle", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getModuleHandle() failed: " + error);
+    }
+    return result;
+}
+
+fn getActiveProcessorCount(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getActiveProcessorCount", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getActiveProcessorCount() failed: " + error);
+    }
+    return result;
+}
+
+fn formatMessage(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("formatMessage", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.formatMessage() failed: " + error);
+    }
+    return result;
+}
+
+fn sleep(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("sleep", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.sleep() failed: " + error);
+    }
+    return result;
+}
+
+fn beep(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("beep", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.beep() failed: " + error);
+    }
+    return result;
+}
+
+fn outputDebugString(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("outputDebugString", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.outputDebugString() failed: " + error);
+    }
+    return result;
+}
+
+fn getEnvironmentVariable(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getEnvironmentVariable", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getEnvironmentVariable() failed: " + error);
+    }
+    return result;
+}
+
+fn setEnvironmentVariable(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setEnvironmentVariable", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setEnvironmentVariable() failed: " + error);
+    }
+    return result;
+}
+
+fn expandEnvironmentStrings(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("expandEnvironmentStrings", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.expandEnvironmentStrings() failed: " + error);
+    }
+    return result;
+}
+
+fn createFile(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("createFile", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.createFile() failed: " + error);
+    }
+    return result;
+}
+
+fn readFile(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("readFile", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.readFile() failed: " + error);
+    }
+    return result;
+}
+
+fn writeFile(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("writeFile", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.writeFile() failed: " + error);
+    }
+    return result;
+}
+
+fn fileSize(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("fileSize", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.fileSize() failed: " + error);
+    }
+    return result;
+}
+
+fn seekFile(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("seekFile", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.seekFile() failed: " + error);
+    }
+    return result;
+}
+
+fn deleteFile(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("deleteFile", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.deleteFile() failed: " + error);
+    }
+    return result;
+}
+
+fn copyFile(any arg0, any arg1, any arg2) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("copyFile", [arg0, arg1, arg2]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.copyFile() failed: " + error);
+    }
+    return result;
+}
+
+fn moveFile(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("moveFile", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.moveFile() failed: " + error);
+    }
+    return result;
+}
+
+fn createDirectory(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("createDirectory", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.createDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn removeDirectory(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("removeDirectory", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.removeDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn getFileAttributes(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getFileAttributes", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getFileAttributes() failed: " + error);
+    }
+    return result;
+}
+
+fn setFileAttributes(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setFileAttributes", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setFileAttributes() failed: " + error);
+    }
+    return result;
+}
+
+fn getFullPathName(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getFullPathName", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getFullPathName() failed: " + error);
+    }
+    return result;
+}
+
+fn flushFileBuffers(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("flushFileBuffers", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.flushFileBuffers() failed: " + error);
+    }
+    return result;
+}
+
+fn getTempFileName(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getTempFileName", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getTempFileName() failed: " + error);
+    }
+    return result;
+}
+
+fn setCurrentDirectory(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setCurrentDirectory", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setCurrentDirectory() failed: " + error);
+    }
+    return result;
+}
+
+fn getFileType(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getFileType", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getFileType() failed: " + error);
+    }
+    return result;
+}
+
+fn getFileTime(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getFileTime", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getFileTime() failed: " + error);
+    }
+    return result;
+}
+
+fn shellOpen(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("shellOpen", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.shellOpen() failed: " + error);
+    }
+    return result;
+}
+
+fn shellOpenWith(any arg0, any arg1, any arg2) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("shellOpenWith", [arg0, arg1, arg2]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.shellOpenWith() failed: " + error);
+    }
+    return result;
+}
+
+fn messageBox(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("messageBox", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.messageBox() failed: " + error);
+    }
+    return result;
+}
+
+fn clipboardGet() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("clipboardGet", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.clipboardGet() failed: " + error);
+    }
+    return result;
+}
+
+fn clipboardSet(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("clipboardSet", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.clipboardSet() failed: " + error);
+    }
+    return result;
+}
+
+fn notify(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("notify", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.notify() failed: " + error);
+    }
+    return result;
+}
+
+fn createNamedPipe(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("createNamedPipe", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.createNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn connectNamedPipe(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("connectNamedPipe", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.connectNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn openNamedPipe(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("openNamedPipe", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.openNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn readNamedPipe(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("readNamedPipe", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.readNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn writeNamedPipe(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("writeNamedPipe", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.writeNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn disconnectNamedPipe(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("disconnectNamedPipe", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.disconnectNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn peekNamedPipe(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("peekNamedPipe", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.peekNamedPipe() failed: " + error);
+    }
+    return result;
+}
+
+fn getCurrentThreadId() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getCurrentThreadId", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getCurrentThreadId() failed: " + error);
+    }
+    return result;
+}
+
+fn openProcess(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("openProcess", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.openProcess() failed: " + error);
+    }
+    return result;
+}
+
+fn terminateProcess(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("terminateProcess", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.terminateProcess() failed: " + error);
+    }
+    return result;
+}
+
+fn getExitCodeProcess(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getExitCodeProcess", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getExitCodeProcess() failed: " + error);
+    }
+    return result;
+}
+
+fn createProcess(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("createProcess", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.createProcess() failed: " + error);
+    }
+    return result;
+}
+
+fn waitForSingleObject(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("waitForSingleObject", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.waitForSingleObject() failed: " + error);
+    }
+    return result;
+}
+
+fn getPriorityClass(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getPriorityClass", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getPriorityClass() failed: " + error);
+    }
+    return result;
+}
+
+fn setPriorityClass(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setPriorityClass", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setPriorityClass() failed: " + error);
+    }
+    return result;
+}
+
+fn getStdHandle(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getStdHandle", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getStdHandle() failed: " + error);
+    }
+    return result;
+}
+
+fn getConsoleMode(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getConsoleMode", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getConsoleMode() failed: " + error);
+    }
+    return result;
+}
+
+fn setConsoleMode(any arg0, any arg1) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setConsoleMode", [arg0, arg1]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setConsoleMode() failed: " + error);
+    }
+    return result;
+}
+
+fn setConsoleTitle(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setConsoleTitle", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setConsoleTitle() failed: " + error);
+    }
+    return result;
+}
+
+fn getConsoleOutputCP() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getConsoleOutputCP", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getConsoleOutputCP() failed: " + error);
+    }
+    return result;
+}
+
+fn setConsoleOutputCP(any arg0) {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("setConsoleOutputCP", [arg0]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.setConsoleOutputCP() failed: " + error);
+    }
+    return result;
+}
+
+fn getConsoleWindow() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getConsoleWindow", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getConsoleWindow() failed: " + error);
+    }
+    return result;
+}
+
+fn getConsoleScreenBufferInfo() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("getConsoleScreenBufferInfo", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getConsoleScreenBufferInfo() failed: " + error);
+    }
+    return result;
+}
+
+fn queryPerformanceCounter() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("queryPerformanceCounter", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.queryPerformanceCounter() failed: " + error);
+    }
+    return result;
+}
+
+fn queryPerformanceFrequency() {
+    requireArchitecture("amd64");
+    any result = nativeWinApi.call("queryPerformanceFrequency", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.queryPerformanceFrequency() failed: " + error);
+    }
+    return result;
+}
+

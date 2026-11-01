@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 
-// The `winAPI.*` surface: Win32 calls available on Windows hosts. Names are
+// The deprecated `winAPI.*` compatibility surface: Win32 calls available on
+// Windows hosts. New code uses the native-backed architecture modules. Names are
 // the camelCase Win32 forms: `winAPI.getProcessId()`,
 // `winAPI.getCurrentDirectory()`, ...
 //

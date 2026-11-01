@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="../builtins.html">builtins</a></li>
 <li><a href="../syscalls.html">syscalls</a></li>
+<li><a href="../syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="../syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="../native-module-abi.html">native-module-abi</a></li>
 <li><a href="../native-modules.html">native-modules</a></li>
 <li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="../embedding.html">embedding</a></li>
 <li><a href="../windows.html">windows</a></li>
 <li><a href="../windows-api.html">windows-api</a></li>
+<li><a href="../winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="../winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="index.html" class="active">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="sound.html">sound</a></li>
 <li><a href="sqldb.html">sqldb</a></li>
 <li><a href="sys.html">sys</a></li>
+<li><a href="linux-amd64.html">linux-amd64</a></li>
+<li><a href="linux-arm64.html">linux-arm64</a></li>
 <li><a href="text.html">text</a></li>
 <li><a href="time.html">time</a></li>
 <li><a href="toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
+<li><a href="winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="winpipe.html">winpipe</a></li>
 <li><a href="winreg.html">winreg</a></li>
 <li><a href="xml.html">xml</a></li>
@@ -139,7 +147,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="standard-library">Standard library</h1>
-<p>Lynxer ships 46 modules. Each has a <code>.lynx</code> wrapper and a native backend behind the shared native-module ABI; pick one below or from the sidebar.</p>
+<p>Lynxer ships 50 modules. Each has a <code>.lynx</code> wrapper and a native backend behind the shared native-module ABI; pick one below or from the sidebar.</p>
 <ul>
 <li><a href="cli.html"><code>cli</code></a> — Command-line helpers: arguments, environment, terminal queries, process execution and Click/Typer-style command…</li>
 <li><a href="colorlib.html"><code>colorlib</code></a> — ANSI colour and text-style helpers for terminal output.</li>
@@ -175,6 +183,8 @@
 <li><a href="sound.html"><code>sound</code></a> — The <code>sound</code> module provides audio playback functionality using Rust's <code>rodio</code> and <code>cpal</code> crates.</li>
 <li><a href="sqldb.html"><code>sqldb</code></a> — The <code>sqldb</code> module provides SQLite database functionality using Rust's <code>rusqlite</code> crate.</li>
 <li><a href="sys.html"><code>sys</code></a> — Runtime, process and platform information.</li>
+<li><a href="linux-amd64.html"><code>linux-amd64</code></a> — The <code>linux-amd64</code> module exposes raw Linux syscall wrappers for Linux amd64. The module name selects the target; no…</li>
+<li><a href="linux-arm64.html"><code>linux-arm64</code></a> — The <code>linux-arm64</code> module exposes raw Linux syscall wrappers for Linux arm64. The module name selects the target; no…</li>
 <li><a href="text.html"><code>text</code></a> — String helpers built on the core string builtins.</li>
 <li><a href="time.html"><code>time</code></a> — Date and time helpers.</li>
 <li><a href="toml.html"><code>toml</code></a> — TOML parsing and serialization.</li>
@@ -183,6 +193,8 @@
 <li><a href="typing.html"><code>typing</code></a> — Type inspection, conversion, range, string, number and sequence helpers.</li>
 <li><a href="uuid.html"><code>uuid</code></a> — UUID generation, parsing and formatting.</li>
 <li><a href="watch.html"><code>watch</code></a> — Filesystem change events over inotify (Linux), kqueue <code>EVFILT_VNODE</code> (macOS and the BSDs) or <code>ReadDirectoryChangesW</code>…</li>
+<li><a href="winAPI-amd64.html"><code>winAPI-amd64</code></a> — The <code>winAPI-amd64</code> module exposes the supported Windows API through native code on Windows amd64. Import it under a…</li>
+<li><a href="winAPI-arm64.html"><code>winAPI-arm64</code></a> — The <code>winAPI-arm64</code> module exposes the supported Windows API through native code on Windows arm64. Import it under a…</li>
 <li><a href="winpipe.html"><code>winpipe</code></a> — Blocking Windows named pipes.</li>
 <li><a href="winreg.html"><code>winreg</code></a> — Windows registry reader/writer.</li>
 <li><a href="xml.html"><code>xml</code></a> — XML parsing and serialization.</li>

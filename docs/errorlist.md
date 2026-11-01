@@ -30,6 +30,7 @@ of the code.
 | `unary '-' requires a number` | `unaryNumberRequired` |
 | `native value result is null` | `nativeValueResultNull` |
 | `Struct '...' has no field '...'` | `structHasNoField` |
+| `WinAPI built-in calls are deprecated; import the matching ... standard library` | `deprecatedWinApiBuiltin` |
 
 Other diagnostics also receive non-empty lower-camel-case codes. For source
 errors not in the explicit code table, Lynxer forms the code from the
@@ -227,6 +228,7 @@ module references, and are not necessarily Lynxer diagnostics.
 
 - `setup() is optional; no setup() function was declared`
 - `'{keyword}' function declarations are deprecated; use 'fn'`
+- `WinAPI built-in calls are deprecated; import the matching winAPI-amd64 or winAPI-arm64 standard library`
 - `operator '{operator}' is deprecated; use '{replacement}' instead.`
 - `tuple assigned from a bracketed list is deprecated; use the '(int 1, int 2)' form instead.`
 - `forever() has no break; it will run until the process is stopped. Add break; or call suppressForeverWarning() in fn setup(){}.`
@@ -237,7 +239,9 @@ module references, and are not necessarily Lynxer diagnostics.
 - `{subject} converts '{actual}' to '{expected}'; the value may be rejected or lose information at runtime`
 
 Deprecation warnings can be suppressed with `suppressDeprecationWarning()` in
-`setup()`. The no-`break` warning can be suppressed with
+`setup()` for runtime warnings. Parser-time warnings, including deprecated
+function declarations, are emitted while parsing and cannot be suppressed by
+that function. The no-`break` warning can be suppressed with
 `suppressForeverWarning()` in `setup()`. Lint warnings are not suppressed by
 these functions.
 

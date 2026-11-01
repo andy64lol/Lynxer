@@ -57,6 +57,8 @@
 <h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="builtins.html" class="active">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
@@ -76,6 +78,8 @@
 <li><a href="embedding.html">embedding</a></li>
 <li><a href="windows.html">windows</a></li>
 <li><a href="windows-api.html">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
 </ul>
 <h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="stdlib/index.html">All modules</a></li>
@@ -113,6 +117,8 @@
 <li><a href="stdlib/sound.html">sound</a></li>
 <li><a href="stdlib/sqldb.html">sqldb</a></li>
 <li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
@@ -121,6 +127,8 @@
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
 <li><a href="stdlib/winpipe.html">winpipe</a></li>
 <li><a href="stdlib/winreg.html">winreg</a></li>
 <li><a href="stdlib/xml.html">xml</a></li>
@@ -141,7 +149,7 @@
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
 <p>Inside a module, the legacy <code>global.name(...)</code> form always resolves to a <em>core builtin</em>, never to the module's own function of that name. Ordinary functions use their bare name, including when referenced as values — see <a href="modules.html#calling-module-members">modules</a>.</p>
-<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code> and <code>nativeSemaphore*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. Linux named syscalls are provided by the <a href="syscalls.html"><code>syscalls</code> standard-library module</a>, not by built-ins.</p>
+<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code> and <code>nativeSemaphore*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. Linux named syscalls are provided by the architecture-specific <a href="syscalls.html"><code>linux-amd64</code> and <code>linux-arm64</code> standard-library modules</a>, not by built-ins. Legacy <code>winAPI.*</code> operations remain available with a deprecation warning; new code should use the native-backed <code>winAPI-amd64</code> or <code>winAPI-arm64</code> module.</p>
 <h2 id="input-output-and-conversion">Input, output and conversion</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
@@ -380,16 +388,15 @@ ffiCloseLibrary(lib);</code></pre>
 <p><code>memoryProtect</code> is POSIX-only and fails with a source-located error elsewhere. Making a page read-only or <code>none</code> also affects unrelated bytes that share it, so callers must keep an allocation's pages to themselves.</p>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
-<p>Named Linux syscalls are standard-library functions, not built-ins. Import the <code>syscalls</code> module and select the host architecture before calling them:</p>
-<pre><code>fn setup(){
-    import(&quot;syscalls&quot;);
-    syscalls.select(&quot;Linux&quot;, &quot;amd64&quot;);
+<p>Named Linux syscalls are standard-library functions, not built-ins. Import the module for the host architecture before calling them:</p>
+<pre><code>fn setup() {
+    importAs(&quot;linux-amd64&quot;, &quot;linuxAmd64&quot;);
 }
 
-fn main(){
-    syscalls.amd64.syscallRead(fd, buffer, 16);
+fn main() {
+    linuxAmd64.syscallRead(fd, buffer, 16);
 }</code></pre>
-<p>See <a href="syscalls.html">syscalls</a> for the full Linux syscall standard-library API, target selection, architecture behavior, raw argument conventions and security considerations.</p>
+<p>See <a href="syscalls.html">syscalls</a> for the full Linux syscall standard-library API, the architecture-specific modules, raw argument conventions and security considerations.</p>
 <p><code>lynxer/examples/syscall_extended.lynx</code> and <code>syscall_io_uring.lynx</code> pin the wiring; <code>lowlevel_syscalls.lynx</code> and <code>lowlevel_arch.lynx</code> are architecture agnostic (they carry a <code>__ARCH__</code> token the test harness fills in), while <code>amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> cover the <code>poll</code>/<code>epoll</code> split per target.</p>
 <h2 id="managed-filesystem">Managed filesystem</h2>
 <p>A small handle-based filesystem API, separate from the <code>fileIO</code>, <code>os</code> and <code>path</code> stdlib modules. Handles are non-negative integers; the interpreter owns the descriptor behind one, and an unknown or already-closed handle is a runtime error rather than a silent failure. Failures preserve the operation and the original errno in the message, for example <code>filesystemOpen() failed: [2] No such file or directory</code>. Descriptors a program leaves open are closed when the process exits.</p>

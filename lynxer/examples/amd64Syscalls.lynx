@@ -8,21 +8,20 @@ value is a property, so the expected output in amd64Syscalls.expected is stable.
 ////
 
 fn setup() {
-    import("syscalls");
-    syscalls.select("Linux", "amd64");
+    importAs("linux-amd64", "linuxSyscalls");
 }
 
 fn main() {
     println("== pipe ==");
     int buffer = memoryAllocate(64);
     int pipeFds = memoryAllocate(16);
-    println("pipe created ", syscalls.amd64.syscallCreatePipe(pipeFds, 0) is 0);
+    println("pipe created ", linuxSyscalls.syscallCreatePipe(pipeFds, 0) is 0);
     int readFd = memoryReadInt32(pipeFds, 0);
     int writeFd = memoryReadInt32(pipeFds, 4);
     println("descriptors valid ", readFd >= 0 and writeFd >= 0);
 
     memoryWriteByte(buffer, 0, 65);   // 'A'
-    println("write 1 byte ", syscalls.amd64.syscallWrite(writeFd, buffer, 1) is 1);
+    println("write 1 byte ", linuxSyscalls.syscallWrite(writeFd, buffer, 1) is 1);
 
     // struct pollfd { int fd; short events; short revents; } -- 8 bytes, the
     // same layout on amd64 and arm64. POLLIN is 1.
@@ -30,7 +29,7 @@ fn main() {
     memoryWriteInt32(pollFds, 0, readFd);
     memoryWriteInt16(pollFds, 4, 1);
     memoryWriteInt16(pollFds, 6, 0);
-    println("poll ready ", syscalls.amd64.syscallPollFileDescriptors(pollFds, 1, 0) is 1);
+    println("poll ready ", linuxSyscalls.syscallPollFileDescriptors(pollFds, 1, 0) is 1);
     println("poll POLLIN ", memoryReadInt16(pollFds, 6) is 1);
 
     // Raw ppoll(2) with a zero timespec and a null signal mask; sigsetsize is
@@ -39,19 +38,19 @@ fn main() {
     memoryWriteInt64(timespec, 0, 0);   // tv_sec
     memoryWriteInt64(timespec, 8, 0);   // tv_nsec
     println("ppoll ready ",
-            syscalls.amd64.syscallPpollFileDescriptors(pollFds, 1, timespec, 0, 8) is 1);
+            linuxSyscalls.syscallPpollFileDescriptors(pollFds, 1, timespec, 0, 8) is 1);
 
     println("== event poll ==");
-    int epoll = syscalls.amd64.syscallCreateEventPoll(0);
+    int epoll = linuxSyscalls.syscallCreateEventPoll(0);
     println("epoll created ", epoll > 0);
     int events = memoryAllocate(64);
-    println("epoll wait empty ", syscalls.amd64.syscallWaitForEvents(epoll, events, 1, 0, 0) is 0);
+    println("epoll wait empty ", linuxSyscalls.syscallWaitForEvents(epoll, events, 1, 0, 0) is 0);
     println("epoll_pwait empty ",
-            syscalls.amd64.syscallWaitForEventsWithSignalMask(epoll, events, 1, 0, 0) is 0);
+            linuxSyscalls.syscallWaitForEventsWithSignalMask(epoll, events, 1, 0, 0) is 0);
 
-    syscalls.amd64.syscallClose(epoll);
-    syscalls.amd64.syscallClose(readFd);
-    syscalls.amd64.syscallClose(writeFd);
+    linuxSyscalls.syscallClose(epoll);
+    linuxSyscalls.syscallClose(readFd);
+    linuxSyscalls.syscallClose(writeFd);
     memoryFree(events);
     memoryFree(timespec);
     memoryFree(pollFds);

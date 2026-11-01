@@ -13,8 +13,7 @@ or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
 fn setup(){
-    import("syscalls");
-    syscalls.select("__OS__", "__ARCH__");
+    importAs("linux-__ARCH__", "linuxSyscalls");
 }
 
 fn recognized(str message) -> bool {
@@ -24,17 +23,17 @@ fn recognized(str message) -> bool {
 fn main(){
     // A NULL params pointer: io_uring_setup rejects it with EFAULT.
     try {
-        syscalls.__ARCH__.syscallSetupIoUring(4, 0);
+        linuxSyscalls.syscallSetupIoUring(4, 0);
         println("setup NO ERROR");
     } catch(str e) { println("setup ", recognized(e)); }
 
     // A negative ring descriptor is always EBADF.
     try {
-        syscalls.__ARCH__.syscallEnterIoUring(-1, 0, 0, 0, 0, 0);
+        linuxSyscalls.syscallEnterIoUring(-1, 0, 0, 0, 0, 0);
         println("enter NO ERROR");
     } catch(str e) { println("enter ", recognized(e)); }
     try {
-        syscalls.__ARCH__.syscallRegisterIoUring(-1, 0, 0, 0);
+        linuxSyscalls.syscallRegisterIoUring(-1, 0, 0, 0);
         println("register NO ERROR");
     } catch(str e) { println("register ", recognized(e)); }
 }

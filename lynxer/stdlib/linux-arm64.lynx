@@ -1,0 +1,540 @@
+////
+Linux arm64 syscall standard library. The module name selects the host architecture.
+////
+
+fn setup() {
+    importAs("syscalls_native.so", "nativeSyscalls");
+    if (nativeSyscalls.platform() isnt "linux") {
+        raise("linux-arm64 requires a Linux runtime");
+    }
+    if (nativeSyscalls.architecture() isnt "arm64") {
+        raise("linux-arm64 requires a Linux arm64 runtime; this process is " +
+              nativeSyscalls.architecture());
+    }
+}
+
+fn invoke(str name, int count, int a0 = 0, int a1 = 0, int a2 = 0,
+          int a3 = 0, int a4 = 0, int a5 = 0) -> int {
+    int result = nativeSyscalls.call(name, count, a0, a1, a2, a3, a4, a5);
+    if (result is -1) {
+        raise(nativeSyscalls.lastError());
+    }
+    return result;
+}
+
+fn syscallGetCurrentDirectory(int buffer, int size) -> int {
+    return invoke("syscallGetCurrentDirectory", 2, buffer, size, 0, 0, 0, 0);
+}
+
+fn syscallChangeDirectory(int path) -> int {
+    return invoke("syscallChangeDirectory", 1, path, 0, 0, 0, 0, 0);
+}
+
+fn syscallRead(int fd, int buffer, int count) -> int {
+    return invoke("syscallRead", 3, fd, buffer, count, 0, 0, 0);
+}
+
+fn syscallWrite(int fd, int buffer, int count) -> int {
+    return invoke("syscallWrite", 3, fd, buffer, count, 0, 0, 0);
+}
+
+fn syscallPositionedRead64(int fd, int buffer, int count, int offset) -> int {
+    return invoke("syscallPositionedRead64", 4, fd, buffer, count, offset, 0, 0);
+}
+
+fn syscallPositionedWrite64(int fd, int buffer, int count, int offset) -> int {
+    return invoke("syscallPositionedWrite64", 4, fd, buffer, count, offset, 0, 0);
+}
+
+fn syscallOpenAt(int dirfd, int path, int flags, int mode) -> int {
+    return invoke("syscallOpenAt", 4, dirfd, path, flags, mode, 0, 0);
+}
+
+fn syscallOpenAt2(int dirfd, int path, int resolve, int size) -> int {
+    return invoke("syscallOpenAt2", 4, dirfd, path, resolve, size, 0, 0);
+}
+
+fn syscallClose(int fd) -> int {
+    return invoke("syscallClose", 1, fd, 0, 0, 0, 0, 0);
+}
+
+fn syscallReadVector(int fd, int iov, int count) -> int {
+    return invoke("syscallReadVector", 3, fd, iov, count, 0, 0, 0);
+}
+
+fn syscallWriteVector(int fd, int iov, int count) -> int {
+    return invoke("syscallWriteVector", 3, fd, iov, count, 0, 0, 0);
+}
+
+fn syscallSeekFile(int fd, int offset, int whence) -> int {
+    return invoke("syscallSeekFile", 3, fd, offset, whence, 0, 0, 0);
+}
+
+fn syscallGetFileStatus(int fd, int status) -> int {
+    return invoke("syscallGetFileStatus", 2, fd, status, 0, 0, 0, 0);
+}
+
+fn syscallGetFileStatusAt(int dirfd, int path, int status, int flags) -> int {
+    return invoke("syscallGetFileStatusAt", 4, dirfd, path, status, flags, 0, 0);
+}
+
+fn syscallGetExtendedFileStatus(int dirfd, int path, int flags, int mask, int status) -> int {
+    return invoke("syscallGetExtendedFileStatus", 5, dirfd, path, flags, mask, status, 0);
+}
+
+fn syscallTruncateFile(int fd, int length) -> int {
+    return invoke("syscallTruncateFile", 2, fd, length, 0, 0, 0, 0);
+}
+
+fn syscallFallocateFile(int fd, int mode, int offset, int length) -> int {
+    return invoke("syscallFallocateFile", 4, fd, mode, offset, length, 0, 0);
+}
+
+fn syscallCheckFileAccessAt(int dirfd, int path, int mode, int flags) -> int {
+    return invoke("syscallCheckFileAccessAt", 4, dirfd, path, mode, flags, 0, 0);
+}
+
+fn syscallCheckFileAccessAt2(int dirfd, int path, int mode, int flags) -> int {
+    return invoke("syscallCheckFileAccessAt2", 4, dirfd, path, mode, flags, 0, 0);
+}
+
+fn syscallCopyFileRange(int fdin, int offin, int fdout, int offout, int length, int flags) -> int {
+    return invoke("syscallCopyFileRange", 6, fdin, offin, fdout, offout, length, flags);
+}
+
+fn syscallSynchronizeFile(int fd) -> int {
+    return invoke("syscallSynchronizeFile", 1, fd, 0, 0, 0, 0, 0);
+}
+
+fn syscallSynchronizeFileData(int fd) -> int {
+    return invoke("syscallSynchronizeFileData", 1, fd, 0, 0, 0, 0, 0);
+}
+
+fn syscallSynchronizeFilesystem(int fd) -> int {
+    return invoke("syscallSynchronizeFilesystem", 1, fd, 0, 0, 0, 0, 0);
+}
+
+fn syscallDuplicateFileDescriptor(int fd) -> int {
+    return invoke("syscallDuplicateFileDescriptor", 1, fd, 0, 0, 0, 0, 0);
+}
+
+fn syscallDuplicateFileDescriptorAt(int fd, int newfd, int flags) -> int {
+    return invoke("syscallDuplicateFileDescriptorAt", 3, fd, newfd, flags, 0, 0, 0);
+}
+
+fn syscallCreatePipe(int pipefd, int flags) -> int {
+    return invoke("syscallCreatePipe", 2, pipefd, flags, 0, 0, 0, 0);
+}
+
+fn syscallControlFileDescriptor(int fd, int command, int argument) -> int {
+    return invoke("syscallControlFileDescriptor", 3, fd, command, argument, 0, 0, 0);
+}
+
+fn syscallGetDirectoryEntries(int fd, int buffer, int count) -> int {
+    return invoke("syscallGetDirectoryEntries", 3, fd, buffer, count, 0, 0, 0);
+}
+
+fn syscallReadSymbolicLink(int dirfd, int path, int buffer, int size) -> int {
+    return invoke("syscallReadSymbolicLink", 4, dirfd, path, buffer, size, 0, 0);
+}
+
+fn syscallControlInputOutput(int fd, int request, int argument) -> int {
+    return invoke("syscallControlInputOutput", 3, fd, request, argument, 0, 0, 0);
+}
+
+fn syscallCreateDirectoryAt(int dirfd, int path, int mode) -> int {
+    return invoke("syscallCreateDirectoryAt", 3, dirfd, path, mode, 0, 0, 0);
+}
+
+fn syscallRemoveFileAt(int dirfd, int path, int flags) -> int {
+    return invoke("syscallRemoveFileAt", 3, dirfd, path, flags, 0, 0, 0);
+}
+
+fn syscallRenameFileAt(int oldfd, int oldpath, int newfd, int newpath) -> int {
+    return invoke("syscallRenameFileAt", 4, oldfd, oldpath, newfd, newpath, 0, 0);
+}
+
+fn syscallCreateHardLinkAt(int olddirfd, int oldpath, int newdirfd, int newpath, int flags) -> int {
+    return invoke("syscallCreateHardLinkAt", 5, olddirfd, oldpath, newdirfd, newpath, flags, 0);
+}
+
+fn syscallCreateSymbolicLinkAt(int target, int newdirfd, int linkpath) -> int {
+    return invoke("syscallCreateSymbolicLinkAt", 3, target, newdirfd, linkpath, 0, 0, 0);
+}
+
+fn syscallChangeFilePermissions(int dirfd, int path, int mode) -> int {
+    return invoke("syscallChangeFilePermissions", 3, dirfd, path, mode, 0, 0, 0);
+}
+
+fn syscallChangeFileDescriptorPermissions(int fd, int mode) -> int {
+    return invoke("syscallChangeFileDescriptorPermissions", 2, fd, mode, 0, 0, 0, 0);
+}
+
+fn syscallChangeFileOwner(int dirfd, int path, int owner, int group, int flags) -> int {
+    return invoke("syscallChangeFileOwner", 5, dirfd, path, owner, group, flags, 0);
+}
+
+fn syscallChangeFileDescriptorOwner(int fd, int owner, int group) -> int {
+    return invoke("syscallChangeFileDescriptorOwner", 3, fd, owner, group, 0, 0, 0);
+}
+
+fn syscallMemoryMap(int address, int length, int protection, int flags, int fd, int offset) -> int {
+    return invoke("syscallMemoryMap", 6, address, length, protection, flags, fd, offset);
+}
+
+fn syscallMemoryUnmap(int address, int length) -> int {
+    return invoke("syscallMemoryUnmap", 2, address, length, 0, 0, 0, 0);
+}
+
+fn syscallMemoryProtect(int address, int length, int protection) -> int {
+    return invoke("syscallMemoryProtect", 3, address, length, protection, 0, 0, 0);
+}
+
+fn syscallMemoryAdvise(int address, int length, int advice) -> int {
+    return invoke("syscallMemoryAdvise", 3, address, length, advice, 0, 0, 0);
+}
+
+fn syscallMemoryRemap(int oldaddress, int oldsize, int newsize, int flags, int newaddress) -> int {
+    return invoke("syscallMemoryRemap", 5, oldaddress, oldsize, newsize, flags, newaddress, 0);
+}
+
+fn syscallSynchronizeMemory(int address, int length, int flags) -> int {
+    return invoke("syscallSynchronizeMemory", 3, address, length, flags, 0, 0, 0);
+}
+
+fn syscallAdjustProgramBreak(int address) -> int {
+    return invoke("syscallAdjustProgramBreak", 1, address, 0, 0, 0, 0, 0);
+}
+
+fn syscallExecuteProgram(int path, int argv, int envp) -> int {
+    return invoke("syscallExecuteProgram", 3, path, argv, envp, 0, 0, 0);
+}
+
+fn syscallExecuteProgramAt(int fd, int path, int argv, int envp, int flags) -> int {
+    return invoke("syscallExecuteProgramAt", 5, fd, path, argv, envp, flags, 0);
+}
+
+fn syscallLockMemory(int address, int length) -> int {
+    return invoke("syscallLockMemory", 2, address, length, 0, 0, 0, 0);
+}
+
+fn syscallUnlockMemory(int address, int length) -> int {
+    return invoke("syscallUnlockMemory", 2, address, length, 0, 0, 0, 0);
+}
+
+fn syscallCreateMemoryFileDescriptor(int name, int flags) -> int {
+    return invoke("syscallCreateMemoryFileDescriptor", 2, name, flags, 0, 0, 0, 0);
+}
+
+fn syscallSetMemoryPolicy(int address, int length, int mode, int nodemask, int maxnode, int flags) -> int {
+    return invoke("syscallSetMemoryPolicy", 6, address, length, mode, nodemask, maxnode, flags);
+}
+
+fn syscallExitProcess(int status) -> int {
+    return invoke("syscallExitProcess", 1, status, 0, 0, 0, 0, 0);
+}
+
+fn syscallExitAllThreads(int status) -> int {
+    return invoke("syscallExitAllThreads", 1, status, 0, 0, 0, 0, 0);
+}
+
+fn syscallWaitForProcess(int pid, int status, int options, int rusage) -> int {
+    return invoke("syscallWaitForProcess", 4, pid, status, options, rusage, 0, 0);
+}
+
+fn syscallWaitForProcessId(int idtype, int id, int info, int options, int rusage) -> int {
+    return invoke("syscallWaitForProcessId", 5, idtype, id, info, options, rusage, 0);
+}
+
+fn syscallGetProcessId() -> int {
+    return invoke("syscallGetProcessId", 0, 0, 0, 0, 0, 0, 0);
+}
+
+fn syscallGetParentProcessId() -> int {
+    return invoke("syscallGetParentProcessId", 0, 0, 0, 0, 0, 0, 0);
+}
+
+fn syscallSendSignal(int pid, int signal) -> int {
+    return invoke("syscallSendSignal", 2, pid, signal, 0, 0, 0, 0);
+}
+
+fn syscallOpenProcessFileDescriptor(int pid, int flags) -> int {
+    return invoke("syscallOpenProcessFileDescriptor", 2, pid, flags, 0, 0, 0, 0);
+}
+
+fn syscallSendSignalToProcessFileDescriptor(int pidfd, int signal, int info, int flags) -> int {
+    return invoke("syscallSendSignalToProcessFileDescriptor", 4, pidfd, signal, info, flags, 0, 0);
+}
+
+fn syscallCreateThread(int flags, int stack, int parent_tid, int child_tid, int tls) -> int {
+    return invoke("syscallCreateThread", 5, flags, stack, parent_tid, child_tid, tls, 0);
+}
+
+fn syscallCreateThread3(int args, int size) -> int {
+    return invoke("syscallCreateThread3", 2, args, size, 0, 0, 0, 0);
+}
+
+fn syscallGetThreadId() -> int {
+    return invoke("syscallGetThreadId", 0, 0, 0, 0, 0, 0, 0);
+}
+
+fn syscallWaitOnMemory(int address, int operation, int value, int timeout, int address2, int value3) -> int {
+    return invoke("syscallWaitOnMemory", 6, address, operation, value, timeout, address2, value3);
+}
+
+fn syscallSetThreadIdAddress(int address) -> int {
+    return invoke("syscallSetThreadIdAddress", 1, address, 0, 0, 0, 0, 0);
+}
+
+fn syscallSetRobustThreadList(int head, int length) -> int {
+    return invoke("syscallSetRobustThreadList", 2, head, length, 0, 0, 0, 0);
+}
+
+fn syscallGetRobustThreadList(int pid, int head, int length) -> int {
+    return invoke("syscallGetRobustThreadList", 3, pid, head, length, 0, 0, 0);
+}
+
+fn syscallGetThreadAffinity(int pid, int size, int mask) -> int {
+    return invoke("syscallGetThreadAffinity", 3, pid, size, mask, 0, 0, 0);
+}
+
+fn syscallSetThreadAffinity(int pid, int size, int mask) -> int {
+    return invoke("syscallSetThreadAffinity", 3, pid, size, mask, 0, 0, 0);
+}
+
+fn syscallGetThreadPriority(int which, int who) -> int {
+    return invoke("syscallGetThreadPriority", 2, which, who, 0, 0, 0, 0);
+}
+
+fn syscallSetThreadPriority(int which, int who, int priority) -> int {
+    return invoke("syscallSetThreadPriority", 3, which, who, priority, 0, 0, 0);
+}
+
+fn syscallYieldProcessor() -> int {
+    return invoke("syscallYieldProcessor", 0, 0, 0, 0, 0, 0, 0);
+}
+
+fn syscallGetClockTime(int clock, int timespec) -> int {
+    return invoke("syscallGetClockTime", 2, clock, timespec, 0, 0, 0, 0);
+}
+
+fn syscallGetClockResolution(int clock, int resolution) -> int {
+    return invoke("syscallGetClockResolution", 2, clock, resolution, 0, 0, 0, 0);
+}
+
+fn syscallGetTimeOfDay(int timeval, int timezone) -> int {
+    return invoke("syscallGetTimeOfDay", 2, timeval, timezone, 0, 0, 0, 0);
+}
+
+fn syscallSleep(int request, int remainder) -> int {
+    return invoke("syscallSleep", 2, request, remainder, 0, 0, 0, 0);
+}
+
+fn syscallSleepClock(int clock, int flags, int request, int remainder) -> int {
+    return invoke("syscallSleepClock", 4, clock, flags, request, remainder, 0, 0);
+}
+
+fn syscallCreateTimerFileDescriptor(int clock, int flags) -> int {
+    return invoke("syscallCreateTimerFileDescriptor", 2, clock, flags, 0, 0, 0, 0);
+}
+
+fn syscallControlTimerFileDescriptor(int fd, int flags, int newvalue, int oldvalue) -> int {
+    return invoke("syscallControlTimerFileDescriptor", 4, fd, flags, newvalue, oldvalue, 0, 0);
+}
+
+fn syscallGetRandomBytes(int buffer, int count, int flags) -> int {
+    return invoke("syscallGetRandomBytes", 3, buffer, count, flags, 0, 0, 0);
+}
+
+fn syscallControlSignal(int signal, int action, int oldaction, int size) -> int {
+    return invoke("syscallControlSignal", 4, signal, action, oldaction, size, 0, 0);
+}
+
+fn syscallControlSignalMask(int how, int set, int oldset, int size) -> int {
+    return invoke("syscallControlSignalMask", 4, how, set, oldset, size, 0, 0);
+}
+
+fn syscallCreateSignalFileDescriptor(int fd, int mask, int size, int flags) -> int {
+    return invoke("syscallCreateSignalFileDescriptor", 4, fd, mask, size, flags, 0, 0);
+}
+
+fn syscallCreateSocket(int domain, int type, int protocol) -> int {
+    return invoke("syscallCreateSocket", 3, domain, type, protocol, 0, 0, 0);
+}
+
+fn syscallCreateSocketPair(int domain, int type, int protocol, int sockets) -> int {
+    return invoke("syscallCreateSocketPair", 4, domain, type, protocol, sockets, 0, 0);
+}
+
+fn syscallBindSocket(int socket, int address, int length) -> int {
+    return invoke("syscallBindSocket", 3, socket, address, length, 0, 0, 0);
+}
+
+fn syscallListenSocket(int socket, int backlog) -> int {
+    return invoke("syscallListenSocket", 2, socket, backlog, 0, 0, 0, 0);
+}
+
+fn syscallAcceptConnection(int socket, int address, int length) -> int {
+    return invoke("syscallAcceptConnection", 3, socket, address, length, 0, 0, 0);
+}
+
+fn syscallAcceptConnection4(int socket, int address, int length, int flags) -> int {
+    return invoke("syscallAcceptConnection4", 4, socket, address, length, flags, 0, 0);
+}
+
+fn syscallConnectSocket(int socket, int address, int length) -> int {
+    return invoke("syscallConnectSocket", 3, socket, address, length, 0, 0, 0);
+}
+
+fn syscallSendData(int socket, int buffer, int length, int flags, int address, int addressLength) -> int {
+    return invoke("syscallSendData", 6, socket, buffer, length, flags, address, addressLength);
+}
+
+fn syscallReceiveData(int socket, int buffer, int length, int flags, int address, int addressLength) -> int {
+    return invoke("syscallReceiveData", 6, socket, buffer, length, flags, address, addressLength);
+}
+
+fn syscallSendMessage(int socket, int message, int flags) -> int {
+    return invoke("syscallSendMessage", 3, socket, message, flags, 0, 0, 0);
+}
+
+fn syscallReceiveMessage(int socket, int message, int flags) -> int {
+    return invoke("syscallReceiveMessage", 3, socket, message, flags, 0, 0, 0);
+}
+
+fn syscallSendMessages(int socket, int messages, int count, int flags) -> int {
+    return invoke("syscallSendMessages", 4, socket, messages, count, flags, 0, 0);
+}
+
+fn syscallReceiveMessages(int socket, int messages, int count, int flags) -> int {
+    return invoke("syscallReceiveMessages", 4, socket, messages, count, flags, 0, 0);
+}
+
+fn syscallShutdownSocket(int socket, int how) -> int {
+    return invoke("syscallShutdownSocket", 2, socket, how, 0, 0, 0, 0);
+}
+
+fn syscallGetSocketAddress(int socket, int address, int length) -> int {
+    return invoke("syscallGetSocketAddress", 3, socket, address, length, 0, 0, 0);
+}
+
+fn syscallGetPeerAddress(int socket, int address, int length) -> int {
+    return invoke("syscallGetPeerAddress", 3, socket, address, length, 0, 0, 0);
+}
+
+fn syscallSetSocketOption(int socket, int level, int option, int value, int length) -> int {
+    return invoke("syscallSetSocketOption", 5, socket, level, option, value, length, 0);
+}
+
+fn syscallGetSocketOption(int socket, int level, int option, int value, int length) -> int {
+    return invoke("syscallGetSocketOption", 5, socket, level, option, value, length, 0);
+}
+
+fn syscallPollFileDescriptors(int fds, int count, int timeout_ms) -> int {
+    return invoke("syscallPollFileDescriptors", 3, fds, count, timeout_ms, 0, 0, 0);
+}
+
+fn syscallPpollFileDescriptors(int fds, int count, int timespec, int sigmask, int sigsetsize) -> int {
+    return invoke("syscallPpollFileDescriptors", 5, fds, count, timespec, sigmask, sigsetsize, 0);
+}
+
+fn syscallCreateEventPoll(int flags) -> int {
+    return invoke("syscallCreateEventPoll", 1, flags, 0, 0, 0, 0, 0);
+}
+
+fn syscallControlEventPoll(int epoll, int operation, int fd, int event) -> int {
+    return invoke("syscallControlEventPoll", 4, epoll, operation, fd, event, 0, 0);
+}
+
+fn syscallWaitForEvents(int epoll, int events, int maxevents, int timeout, int sigmask) -> int {
+    return invoke("syscallWaitForEvents", 5, epoll, events, maxevents, timeout, sigmask, 0);
+}
+
+fn syscallWaitForEventsWithSignalMask(int epoll, int events, int maxevents, int timeout, int sigmask) -> int {
+    return invoke("syscallWaitForEventsWithSignalMask", 5, epoll, events, maxevents, timeout, sigmask, 0);
+}
+
+fn syscallWaitForEvents2(int epoll, int events, int maxevents, int timeout, int sigmask, int size) -> int {
+    return invoke("syscallWaitForEvents2", 6, epoll, events, maxevents, timeout, sigmask, size);
+}
+
+fn syscallCreateEventFileDescriptor(int initval, int flags) -> int {
+    return invoke("syscallCreateEventFileDescriptor", 2, initval, flags, 0, 0, 0, 0);
+}
+
+fn syscallInitializeInodeNotifications(int flags) -> int {
+    return invoke("syscallInitializeInodeNotifications", 1, flags, 0, 0, 0, 0, 0);
+}
+
+fn syscallAddInodeNotificationWatch(int inotify, int path, int mask) -> int {
+    return invoke("syscallAddInodeNotificationWatch", 3, inotify, path, mask, 0, 0, 0);
+}
+
+fn syscallRemoveInodeNotificationWatch(int inotify, int watch) -> int {
+    return invoke("syscallRemoveInodeNotificationWatch", 2, inotify, watch, 0, 0, 0, 0);
+}
+
+fn syscallGetSystemInformation(int info) -> int {
+    return invoke("syscallGetSystemInformation", 1, info, 0, 0, 0, 0, 0);
+}
+
+fn syscallGetUnixSystemName(int name) -> int {
+    return invoke("syscallGetUnixSystemName", 1, name, 0, 0, 0, 0, 0);
+}
+
+fn syscallGetSystemTimes(int buffer, int arg1 = 0, int arg2 = 0,
+                         int arg3 = 0, int arg4 = 0, int arg5 = 0) -> int {
+    return invoke("syscallGetSystemTimes", 1, buffer, 0, 0, 0, 0, 0);
+}
+
+fn syscallGetResourceUsage(int who, int usage) -> int {
+    return invoke("syscallGetResourceUsage", 2, who, usage, 0, 0, 0, 0);
+}
+
+fn syscallGetResourceLimit(int resource, int limit) -> int {
+    return invoke("syscallGetResourceLimit", 2, resource, limit, 0, 0, 0, 0);
+}
+
+fn syscallSetResourceLimit(int resource, int limit) -> int {
+    return invoke("syscallSetResourceLimit", 2, resource, limit, 0, 0, 0, 0);
+}
+
+fn syscallGetCapabilities(int header, int data) -> int {
+    return invoke("syscallGetCapabilities", 2, header, data, 0, 0, 0, 0);
+}
+
+fn syscallSetCapabilities(int header, int data) -> int {
+    return invoke("syscallSetCapabilities", 2, header, data, 0, 0, 0, 0);
+}
+
+fn syscallControlProcess(int option, int arg2, int arg3, int arg4, int arg5) -> int {
+    return invoke("syscallControlProcess", 5, option, arg2, arg3, arg4, arg5, 0);
+}
+
+fn syscallSetupIoUring(int entries, int params) -> int {
+    return invoke("syscallSetupIoUring", 2, entries, params, 0, 0, 0, 0);
+}
+
+fn syscallEnterIoUring(int fd, int to_submit, int min_complete, int flags, int sig, int sigsz) -> int {
+    return invoke("syscallEnterIoUring", 6, fd, to_submit, min_complete, flags, sig, sigsz);
+}
+
+fn syscallRegisterIoUring(int fd, int opcode, int arg, int nr_args) -> int {
+    return invoke("syscallRegisterIoUring", 4, fd, opcode, arg, nr_args, 0, 0);
+}
+
+fn syscallCreateLandlockRuleset(int attr, int size, int flags) -> int {
+    return invoke("syscallCreateLandlockRuleset", 3, attr, size, flags, 0, 0, 0);
+}
+
+fn syscallAddLandlockRule(int ruleset, int type, int attr, int flags) -> int {
+    return invoke("syscallAddLandlockRule", 4, ruleset, type, attr, flags, 0, 0);
+}
+
+fn syscallRestrictLandlockSelf(int ruleset, int flags) -> int {
+    return invoke("syscallRestrictLandlockSelf", 2, ruleset, flags, 0, 0, 0, 0);
+}
+
+fn syscallControlSeccomp(int operation, int flags, int args) -> int {
+    return invoke("syscallControlSeccomp", 3, operation, flags, args, 0, 0, 0);
+}

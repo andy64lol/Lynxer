@@ -9,8 +9,7 @@ or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
 fn setup(){
-    import("syscalls");
-    syscalls.select("__OS__", "__ARCH__");
+    importAs("linux-__ARCH__", "linuxSyscalls");
 }
 
 fn main(){
@@ -29,29 +28,29 @@ fn main(){
     println("host little-endian ", memoryReadByte(buffer, 0) is 4);
 
     println("== naming and clocks ==");
-    println("yield 0 ", syscalls.__ARCH__.syscallYieldProcessor() is 0);
-    println("tid positive ", syscalls.__ARCH__.syscallGetThreadId() > 0);
-    println("pid positive ", syscalls.__ARCH__.syscallGetProcessId() > 0);
-    println("ppid non-negative ", syscalls.__ARCH__.syscallGetParentProcessId() >= 0);
-    println("clock_gettime ", syscalls.__ARCH__.syscallGetClockTime(1, buffer) is 0);
-    println("clock_getres ", syscalls.__ARCH__.syscallGetClockResolution(1, buffer) is 0);
+    println("yield 0 ", linuxSyscalls.syscallYieldProcessor() is 0);
+    println("tid positive ", linuxSyscalls.syscallGetThreadId() > 0);
+    println("pid positive ", linuxSyscalls.syscallGetProcessId() > 0);
+    println("ppid non-negative ", linuxSyscalls.syscallGetParentProcessId() >= 0);
+    println("clock_gettime ", linuxSyscalls.syscallGetClockTime(1, buffer) is 0);
+    println("clock_getres ", linuxSyscalls.syscallGetClockResolution(1, buffer) is 0);
 
     println("== pipe round trip ==");
     int pipe = memoryAllocate(16);
-    println("pipe created ", syscalls.__ARCH__.syscallCreatePipe(pipe, 0) is 0);
+    println("pipe created ", linuxSyscalls.syscallCreatePipe(pipe, 0) is 0);
     int readFd = memoryReadInt32(pipe, 0);
     int writeFd = memoryReadInt32(pipe, 4);
     println("descriptors non-negative ", readFd >= 0 and writeFd >= 0);
 
     memoryWriteByte(buffer, 32, 104);   // 'h'
     memoryWriteByte(buffer, 33, 105);   // 'i'
-    println("write 2 bytes ", syscalls.__ARCH__.syscallWrite(writeFd, buffer + 32, 2) is 2);
-    println("read 2 bytes ", syscalls.__ARCH__.syscallRead(readFd, buffer + 40, 2) is 2);
+    println("write 2 bytes ", linuxSyscalls.syscallWrite(writeFd, buffer + 32, 2) is 2);
+    println("read 2 bytes ", linuxSyscalls.syscallRead(readFd, buffer + 40, 2) is 2);
     println("bytes match ", memoryReadByte(buffer, 40) is 104 and
                               memoryReadByte(buffer, 41) is 105);
 
-    syscalls.__ARCH__.syscallClose(readFd);
-    syscalls.__ARCH__.syscallClose(writeFd);
+    linuxSyscalls.syscallClose(readFd);
+    linuxSyscalls.syscallClose(writeFd);
     memoryFree(pipe);
     memoryFree(buffer);
     println("done");

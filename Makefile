@@ -84,6 +84,9 @@ LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuf
 endif
 LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
 
+$(LYNXER_DIR)/stdlib/winapi_native.so: $(LYNXER_DIR)/stdlib/winapi_native.cpp $(LYNXER_DIR)/winapi.cpp $(LYNXER_DIR)/winapi.hpp $(LYNXER_DIR)/runtime.hpp $(LYNXER_DIR)/ffi_abi.h
+	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic $(if $(LYNXER_ON_WINDOWS),,-fPIC) -shared $< -o $@ $(LYNXER_MODULE_LDFLAGS) $(if $(LYNXER_ON_WINDOWS),$(LYNXER_PLATFORM_LIBS),)
+
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
 LYNXER_RUST_DIR := $(LYNXER_DIR)/rust
 LYNXER_RUST_TARGET_DIR := $(LYNXER_DIR)/build/rust
@@ -297,7 +300,7 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug email encoding fileIO game graphics html image js json lua markdown math \
-	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys syscalls text time toml tui turtle typing uuid watch xml yaml
+	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys linux-amd64 linux-arm64 text time toml tui turtle typing uuid watch winAPI-amd64 winAPI-arm64 xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport importAll importAll_collision importAll_local_collision functions_fn macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
  stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch stdlib_numutils \
@@ -332,8 +335,8 @@ LYNXER_NATIVE_STDLIB_FIXTURE :=
 LYNXER_PROGRAM_ARGS_FIXTURE :=
 LYNXER_STDLIB_TEST_ALL :=
 LYNXER_LOWLEVEL_FIXTURES :=
-# The winAPI fixture selects the Windows target, which only a Windows host
-# accepts, so it runs there and nowhere else.
+# The WinAPI fixtures require the Windows runtime and use the matching
+# architecture namespace, so they run in the Windows jobs only.
 LYNXER_WINAPI_FIXTURE := $(LYNXER_DIR)/examples/winapi.lynx
 LYNXER_WINAPI_PIPE_FIXTURE := $(LYNXER_DIR)/examples/winapi_pipe.lynx
 # `winreg` is a Windows-only module, so its fixture has the same gate.
@@ -367,8 +370,7 @@ CLYX_TMP := $(LYNXER_DIR)/.lynxer
 LYNXER_INSTALL_PREFIX := $(CLYX_TMP)_install_prefix
 LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/$(notdir $(LYNXER_TARGET))
 # Canonical syscall target of this host. Portable syscall fixtures carry
-# __OS__/__ARCH__ tokens (syscalls.select("__OS__", "__ARCH__") and
-# syscalls.__ARCH__.syscall*); they are replaced before each fixture run.
+# an __ARCH__ token in the architecture-specific module import.
 #
 # The architecture comes from the C++ compiler's target triple rather than
 # `uname -m`: in MSYS2's CLANGARM64 environment the MSYS2 runtime is x86_64, so

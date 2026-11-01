@@ -7098,6 +7098,14 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
     // Win32 calls are available only on Windows hosts.
     if (dot != std::string::npos &&
         lowerAscii(resolved.substr(0, dot)) == "winapi") {
+        const std::string deprecation =
+            "WinAPI built-in calls are deprecated; import the matching "
+            "winAPI-amd64 or winAPI-arm64 standard library";
+        if (!environment.deprecationWarningSuppressed()) {
+            std::cerr << line << ':' << column << ": warning["
+                      << diagnosticCodeForMessage(deprecation) << "]: "
+                      << deprecation << '\n';
+        }
         const std::string function = resolved.substr(dot + 1);
         if (winapi::supportedNames().empty()) {
             fail("winAPI functions require a Windows runtime", line, column);

@@ -17,8 +17,11 @@ and `nativeSemaphore*` builtins; the
 unsupported set is listed under [Unsupported names](#unsupported-names) and is
 defined by `unsupportedTable()` in `lynxer/builtins.cpp`. On a build without
 POSIX support, the `filesystem*`/`process*`/`networking*`/`sound*` families join
-the unsupported set. Linux named syscalls are provided by the
-[`syscalls` standard-library module](syscalls.md), not by built-ins.
+the unsupported set. Linux named syscalls are provided by the architecture-specific
+[`linux-amd64` and `linux-arm64` standard-library modules](syscalls.md), not
+by built-ins. Legacy `winAPI.*` operations remain available with a deprecation
+warning; new code should use the native-backed `winAPI-amd64` or
+`winAPI-arm64` module.
 
 ## Input, output and conversion
 
@@ -314,21 +317,20 @@ crashes. 64-bit writes preserve the full signed and unsigned range (see
 ## Syscalls
 
 Named Linux syscalls are standard-library functions, not built-ins. Import the
-`syscalls` module and select the host architecture before calling them:
+module for the host architecture before calling them:
 
 ```lynx
-fn setup(){
-    import("syscalls");
-    syscalls.select("Linux", "amd64");
+fn setup() {
+    importAs("linux-amd64", "linuxAmd64");
 }
 
-fn main(){
-    syscalls.amd64.syscallRead(fd, buffer, 16);
+fn main() {
+    linuxAmd64.syscallRead(fd, buffer, 16);
 }
 ```
 
 See [syscalls.md](syscalls.md) for the full Linux syscall standard-library API,
-target selection, architecture behavior, raw argument conventions and security
+the architecture-specific modules, raw argument conventions and security
 considerations.
 
 `lynxer/examples/syscall_extended.lynx` and `syscall_io_uring.lynx` pin the

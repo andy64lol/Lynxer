@@ -1,5 +1,5 @@
 ////
-Named-pipe regression fixture for the `winAPI` surface.
+Named-pipe regression fixture for the `winapi` standard-library module.
 
 Windows-only: it starts the server and client helpers through
 `multiprocessing`. The client retries while the server is still creating the
@@ -10,10 +10,19 @@ fn setup(){
     import("os");
     import("text");
     import("multiprocessing");
+    importAs("winAPI-amd64", "winApiAmd64");
+    importAs("winAPI-arm64", "winApiArm64");
+}
+
+fn moduleFileName() -> str {
+    if (winApiAmd64.architecture() is "amd64") {
+        return winApiAmd64.getModuleFileName();
+    }
+    return winApiArm64.getModuleFileName();
 }
 
 fn main(){
-    str exe = winAPI.getModuleFileName();
+    str exe = moduleFileName();
     str directory = os.absPath("lynxer/examples");
     str server = os.joinPath(directory, "winapi_pipe_server.lynx");
     str client = os.joinPath(directory, "winapi_pipe_client.lynx");

@@ -12,27 +12,26 @@ or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
 fn setup() {
-    import("syscalls");
-    syscalls.select("__OS__", "__ARCH__");
+    importAs("linux-__ARCH__", "linuxSyscalls");
 }
 
 fn main() {
-    println("yield ", syscalls.__ARCH__.syscallYieldProcessor());
-    println("tid positive ", syscalls.__ARCH__.syscallGetThreadId() > 0);
+    println("yield ", linuxSyscalls.syscallYieldProcessor());
+    println("tid positive ", linuxSyscalls.syscallGetThreadId() > 0);
 
     int buffer = memoryAllocate(256);
-    int length = syscalls.__ARCH__.syscallGetCurrentDirectory(buffer, 256);
+    int length = linuxSyscalls.syscallGetCurrentDirectory(buffer, 256);
     println("cwd length positive ", length > 0);
     println("cwd absolute ", memoryReadByte(buffer, 0) is 47);
 
-    int randomBytes = syscalls.__ARCH__.syscallGetRandomBytes(buffer, 16, 0);
+    int randomBytes = linuxSyscalls.syscallGetRandomBytes(buffer, 16, 0);
     println("random bytes ", randomBytes);
 
-    println("clock resolution rc ", syscalls.__ARCH__.syscallGetClockResolution(1, buffer));
+    println("clock resolution rc ", linuxSyscalls.syscallGetClockResolution(1, buffer));
 
     // The failure path is a raised, source-located error rather than a sentinel.
     try {
-        syscalls.__ARCH__.syscallRead(-1, buffer, 16);
+        linuxSyscalls.syscallRead(-1, buffer, 16);
         println("bad descriptor raised false");
     } catch (str error) {
         println("bad descriptor raised true");
