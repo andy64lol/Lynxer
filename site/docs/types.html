@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -156,7 +157,7 @@
 <tr><td><code>codeblock</code></td><td>a stored block</td><td>see <a href="language.html#codeblocks">language</a></td></tr>
 <tr><td><code>function</code></td><td>a Lynxer function value</td><td>can be stored, returned, passed, and called; see <a href="functions.html#function-values">functions</a></td></tr>
 <tr><td><code>functionAddress</code></td><td>a native function address</td><td>integer handle</td></tr>
-<tr><td><code>struct</code> / <code>class</code> / <code>enum</code> name</td><td>a value of that named type</td><td>see the dedicated pages</td></tr>
+<tr><td><code>struct</code> / <code>template</code> / <code>class</code> / <code>enum</code> name</td><td>a value of that named type</td><td>see the dedicated pages</td></tr>
 </table>
 <p><code>none</code> is a <strong>value</strong>, not a declarator type: write <code>any x = none;</code>. It may be used as a return annotation (<code>-&gt; none</code>), where it accepts only the no-value result. See <a href="#return-annotations">Return annotations</a>.</p>
 <p>An ordinary function can introduce an inferred type parameter with <code>type T of value</code> in its parameter list. Each call infers <code>T</code> from <code>value</code>; within a call, later parameters using <code>T</code>, local variables declared as <code>T</code>, and the return annotation can use that type. See <a href="functions.html#parameters-and-defaults">function parameters</a> for an example and restrictions.</p>
@@ -208,7 +209,7 @@ func label(str name) -&gt; str { return &quot;hi &quot; + name; }</code></pre>
 <li><code>: type</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
 <li>Omit the annotation (or write <code>-&gt; any</code>) to leave the result unchecked.</li>
 <li>When a return type is set, the value is validated with the same rules as a typed parameter, and a mismatch is a source-located runtime error.</li>
-<li><code>-&gt; none</code> is accepted: the function must return nothing (a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>). Class methods take <strong>no</strong> return annotation at all; see <a href="classes.html">classes</a>.</li>
+<li><code>-&gt; none</code> is accepted: the function must return nothing (a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>). Template and class methods take <strong>no</strong> return annotation at all; see <a href="templates.html">templates</a> and <a href="classes.html">classes</a>.</li>
 </ul>
     </main>
 </div>

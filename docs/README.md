@@ -35,7 +35,8 @@ standard-library improvements.
 | [tuples.md](tuples.md) | Immutable ordered sequences |
 | [codeblocks.md](codeblocks.md) | Inline codeblock arguments |
 | [structs.md](structs.md) | Data-only records |
-| [classes.md](classes.md) | Fields, `local` methods, constructors, and `extends` inheritance |
+| [templates.md](templates.md) | Header constructors, `build ... named`, fields, methods, and `extending` inheritance |
+| [classes.md](classes.md) | Deprecated class form: `init`, `new`, `extends`, `super` |
 | [enums.md](enums.md) | Tagged unions and `switch` patterns |
 | [vargroups.md](vargroups.md) | Records with defaulted fields |
 | [modules.md](modules.md) | `import`, search order, module member access |

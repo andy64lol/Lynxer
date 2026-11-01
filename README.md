@@ -13,11 +13,11 @@ no VM, no bytecode. The same interpreter can also compile a program into a singl
 executable.
 
 ```c
-global setup(){
+fn setup(){
     str name = input("What's your name? ");
 }
 
-global main(){
+fn main(){
     println("Hello, ", name, "!");
 }
 ```
@@ -44,7 +44,7 @@ provide the interpreter, `--compile`, the embedding runtime, and
 - a native interpreter and an AST optimizer;
 - 46 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
-- class inheritance with `extends` and `super(...)`, first-class functions and closures, inferred generic parameters, and scoped named lambdas;
+- template inheritance with `extending` and `build ... named`, plus the legacy class form with `extends` and `super(...)`, first-class functions and closures, inferred generic parameters, and scoped named lambdas;
 - static analysis via `--lint`, a source debugger via `--debug`, and a language server in `lynxer/lsp.py`;
 - single-file executables via `--compile` and C ABI shared libraries via `--emit-library`;
 - performance benchmarks via `make benchLynxer`;
@@ -119,7 +119,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
-| [Functions](docs/functions.md) | `global`, `func`, `local`, and named `lambda` declarations, inferred generic parameters, and caller-supplied codeblocks |
+| [Functions](docs/functions.md) | `fn` declarations, deprecated function keywords, nested and module functions, inferred generic parameters, and caller-supplied codeblocks |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
 | [Errors](docs/try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
@@ -132,7 +132,8 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [Extending](docs/extending.md) | Adding a module: wrapper, backend, fixture, contract |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
 | [Structs](docs/structs.md) | Data-only named types with positional constructors |
-| [Classes](docs/classes.md) | Instances, constructors, fields, methods, and `extends` inheritance |
+| [Templates](docs/templates.md) | Header constructors, `build ... named`, fields, methods, and `extending` inheritance |
+| [Classes](docs/classes.md) | Deprecated class form: `init`, `new`, `extends`, and `super` |
 | [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
 | [Limitations](docs/limitations.md) | Planned implementation gaps |
 

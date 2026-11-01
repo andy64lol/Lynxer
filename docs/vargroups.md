@@ -78,4 +78,5 @@ global main(){
 ## See also
 
 - [structs.md](structs.md) — positional constructor, no defaults, no methods.
-- [classes.md](classes.md) — fields plus methods.
+- [templates.md](templates.md) — fields, header constructors, and methods.
+- [classes.md](classes.md) — the deprecated class form.

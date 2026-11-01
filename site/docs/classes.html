@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html" class="active">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -136,6 +137,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="classes">Classes</h1>
+<blockquote><strong>Deprecated.</strong> <code>class</code> is the legacy object form. New code should use <a href="templates.html"><code>template</code></a>: constructor parameters live in the declaration header, construction uses <code>build T(args) named x;</code>, and inheritance uses <code>extending</code>. The <code>class</code> form remains fully supported for compatibility, including <code>new</code>, <code>extends</code>, and <code>super(...)</code>.</blockquote>
 <p>A <code>class</code> is a named type with typed fields and <code>local</code> methods, constructed with <code>new</code>. A class can extend one previously declared class. Declare classes between <code>global setup()</code> and <code>global main()</code>.</p>
 <h2 id="declaration">Declaration</h2>
 <pre><code>class Counter {
@@ -244,6 +246,7 @@ global main(){
 }</code></pre>
 <h2 id="see-also">See also</h2>
 <ul>
+<li><a href="templates.html">templates</a> — the current object form, with header constructors, <code>build ... named</code>, and <code>extending</code>.</li>
 <li><a href="structs.html">structs</a> — data-only records, positionally constructed.</li>
 <li><a href="vargroups.html">vargroups</a> — records with defaulted fields.</li>
 <li><a href="enums.html">enums</a> — tagged unions.</li>

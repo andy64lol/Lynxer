@@ -149,7 +149,7 @@ Config::Config() {
     setDefault("warning.forever_no_break",
                "forever() has no break; it will run until the process is "
                "stopped. Add break; or call suppressForeverWarning() in "
-               "global setup(){}.");
+               "fn setup(){}.");
 
     const std::string directory = executableDirectoryImpl();
     if (loadConfigFile(directory + "/lynxer.config", values_)) {

@@ -5,12 +5,13 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace lynxer {
 
 // Program-level named types (structs, classes, enums). Declared between
-// global setup() and global main(); the parser fills the registry and the
+// fn setup() and fn main(); the parser fills the registry and the
 // runtime consults it for named-type assignments, construction, and method
 // dispatch.
 struct NamedField {
@@ -44,6 +45,11 @@ struct ClassDef {
     std::string parent;
     std::vector<ClassFieldDef> fields;
     std::vector<ClassMethod> methods;
+    // A `template` is stored in the same registry as a legacy `class`; the
+    // flag only changes how construction binds arguments. Header parameters
+    // are also materialized as fields, so `this.name` works inside methods.
+    bool isTemplate = false;
+    std::vector<std::pair<std::string, std::string>> constructorParams;
 };
 
 struct EnumVariant {

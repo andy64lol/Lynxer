@@ -25,7 +25,7 @@ how values are converted. For a runnable overview see
 | `codeblock` | a stored block | see [language.md](language.md#codeblocks) |
 | `function` | a Lynxer function value | can be stored, returned, passed, and called; see [functions.md](functions.md#function-values) |
 | `functionAddress` | a native function address | integer handle |
-| `struct` / `class` / `enum` name | a value of that named type | see the dedicated pages |
+| `struct` / `template` / `class` / `enum` name | a value of that named type | see the dedicated pages |
 
 `none` is a **value**, not a declarator type: write `any x = none;`. It may be
 used as a return annotation (`-> none`), where it accepts only the no-value
@@ -105,5 +105,6 @@ func label(str name) -> str { return "hi " + name; }
 - When a return type is set, the value is validated with the same rules as a
   typed parameter, and a mismatch is a source-located runtime error.
 - `-> none` is accepted: the function must return nothing (a returned value
-  fails with `value cannot be assigned to type 'none'`). Class methods take
-  **no** return annotation at all; see [classes.md](classes.md).
+  fails with `value cannot be assigned to type 'none'`). Template and class
+  methods take **no** return annotation at all; see [templates.md](templates.md)
+  and [classes.md](classes.md).

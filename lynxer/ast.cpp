@@ -488,10 +488,11 @@ void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries) {
 
 std::vector<ImportRecord> collectImports(const std::string& source,
                                          const std::string& display,
-                                         bool requireEntryPoints) {
+                                         bool requireEntryPoints,
+                                         bool emitDeprecationWarnings) {
     Lexer lexer(source, display);
     Parser parser(lexer.scan(), display);
-    parser.parseProgram(requireEntryPoints);
+    parser.parseProgram(requireEntryPoints, true, emitDeprecationWarnings);
     return parser.imports();
 }
 
@@ -1123,6 +1124,41 @@ Value DotAccessExpression::evaluate(Environment& environment) const {
 }
 
 Value MethodCallExpression::evaluate(Environment& environment) const {
+    std::function<bool(const Expression&, std::string&)> qualify =
+        [&](const Expression& node, std::string& result) {
+            if (const auto* root =
+                    dynamic_cast<const VariableExpression*>(&node)) {
+                result = root->name();
+                return true;
+            }
+            const auto* access = dynamic_cast<const DotAccessExpression*>(&node);
+            if (access == nullptr || !qualify(access->object(), result)) {
+                return false;
+            }
+            result += "." + access->fieldName();
+            return true;
+        };
+    std::string qualified;
+    if (qualify(*object_, qualified)) {
+        const std::size_t separator = qualified.find('.');
+        const std::string root = qualified.substr(0, separator);
+        const bool moduleNamespace =
+            environment.moduleNamespace(root) != nullptr;
+        const bool namedFunction =
+            !environment.hasVariable(root) &&
+            environment.findFunction(root) != nullptr;
+        if (moduleNamespace || namedFunction) {
+            qualified += "." + method_;
+            std::vector<Value> arguments;
+            arguments.reserve(arguments_.size());
+            for (const auto& argument : arguments_) {
+                arguments.push_back(argument->evaluate(environment));
+            }
+            return environment.callUserFunction(qualified, arguments, {},
+                                                line_, column_);
+        }
+    }
+
     // global.<builtin>(...) keeps its builtin-call meaning.
     if (const auto* variable = dynamic_cast<const VariableExpression*>(object_.get())) {
         if (variable->name() == "global") {
@@ -1275,6 +1311,39 @@ Value NewExpression::evaluate(Environment& environment) const {
                     *existing = std::move(field);
                 }
             }
+        }
+        if (classDef->isTemplate) {
+            if (arguments.size() != classDef->constructorParams.size()) {
+                const std::size_t expected =
+                    classDef->constructorParams.size();
+                throw SourceError(
+                    "template '" + typeName_ + "' expects " +
+                        std::to_string(expected) +
+                        (expected == 1 ? " argument, received "
+                                       : " arguments, received ") +
+                        std::to_string(arguments.size()),
+                    line_, column_);
+            }
+            for (std::size_t index = 0;
+                 index < classDef->constructorParams.size(); ++index) {
+                const auto& parameter = classDef->constructorParams[index];
+                auto field = std::find_if(
+                    record->fields.begin(), record->fields.end(),
+                    [&parameter](const RecordField& current) {
+                        return current.name == parameter.second;
+                    });
+                if (field == record->fields.end()) {
+                    throw SourceError(
+                        "template '" + typeName_ +
+                            "' has no field for parameter '" +
+                            parameter.second + "'",
+                        line_, column_);
+                }
+                field->value = Environment::convertForType(
+                    std::move(arguments[index]), parameter.first, line_,
+                    column_);
+            }
+            return record;
         }
         if (const ClassMethod* constructor =
                 findClassMethod(classDef, "init")) {
@@ -2197,6 +2266,41 @@ std::recursive_mutex& interpreterLock() {
     return lock;
 }
 
+const Function* findFunctionPath(
+    const std::unordered_map<std::string, Function>& functions,
+    std::string requested) {
+    if (requested.rfind("global.", 0) == 0) {
+        requested.erase(0, 7);
+    } else if (requested.rfind("local.", 0) == 0) {
+        requested.erase(0, 6);
+    }
+    const std::size_t separator = requested.find('.');
+    const auto root = functions.find(requested.substr(0, separator));
+    if (root == functions.end()) {
+        return nullptr;
+    }
+    const Function* function = &root->second;
+    std::size_t start = separator;
+    while (start != std::string::npos) {
+        const std::size_t end = requested.find('.', start + 1);
+        const std::string component =
+            requested.substr(start + 1, end == std::string::npos
+                                             ? std::string::npos
+                                             : end - start - 1);
+        const auto nested = std::find_if(
+            function->nestedFunctions.begin(), function->nestedFunctions.end(),
+            [&component](const std::shared_ptr<Function>& candidate) {
+                return candidate != nullptr && candidate->name == component;
+            });
+        if (nested == function->nestedFunctions.end()) {
+            return nullptr;
+        }
+        function = nested->get();
+        start = end;
+    }
+    return function;
+}
+
 }  // namespace
 
 void lockInterpreter() { interpreterLock().lock(); }
@@ -2226,6 +2330,13 @@ void prepareProgram(const std::unordered_map<std::string, Function>& functions,
                      const std::vector<Value>& args,
                      const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
                      Environment& env, int line, int column) -> Value {
+            if (requested.find('.') != std::string::npos) {
+                if (const Function* qualified =
+                        findFunctionPath(functions, requested)) {
+                    return invokeFunction(*qualified, args, blocks, env, line,
+                                          column);
+                }
+            }
             std::string name = requested;
             const std::size_t dot = name.rfind('.');
             if (dot != std::string::npos) {
@@ -2244,7 +2355,7 @@ void prepareProgram(const std::unordered_map<std::string, Function>& functions,
         });
 }
 
-// Runs `global setup()` if the program defines it. `setup` returns are ignored
+// Runs `setup()` if the program defines it. `setup` returns are ignored
 // and setup parameters must carry defaults, matching the lifecycle entry point.
 void runSetup(const std::unordered_map<std::string, Function>& functions,
               Environment& environment) {
@@ -2256,7 +2367,7 @@ void runSetup(const std::unordered_map<std::string, Function>& functions,
             for (const Parameter& parameter : setup->second.parameters) {
                 if (parameter.defaultValue == nullptr) {
                     throw SourceError(
-                        "global setup() parameters must have defaults", 0, 0);
+                        "setup() parameters must have defaults", 0, 0);
                 }
                 Value value = parameter.defaultValue->evaluate(environment);
                 value = Environment::convertForType(
@@ -2486,7 +2597,7 @@ void ImportStatement::execute(Environment& environment) const {
         Parser parser(lexer.scan(), resolved);
         functions =
             std::make_shared<std::unordered_map<std::string, Function>>(
-                parser.parseProgram(true, false));
+                parser.parseProgram(false, false, false));
     } catch (const SourceError& error) {
         throw withModuleSource(error, resolved);
     }
@@ -2525,7 +2636,7 @@ void ImportStatement::execute(Environment& environment) const {
             for (const auto& parameter : setup->second.parameters) {
                 if (parameter.defaultValue == nullptr) {
                     throw SourceError(
-                        "global setup() parameters must have defaults", line_,
+                        "setup() parameters must have defaults", line_,
                         column_);
                 }
                 moduleEnvironment->setVariableRawCurrent(
@@ -2557,25 +2668,34 @@ void ImportStatement::execute(Environment& environment) const {
                         variable.second.value, variable.second.constant});
     }
     environment.registerModuleNamespace(namespaceName, namespaceValue);
-    for (const auto& entry : *functions) {
-        if (entry.first == "setup" || entry.first == "main") {
-            continue;
-        }
+    std::function<void(const Function&, const std::string&)> registerFunction;
+    registerFunction = [&](const Function& function,
+                           const std::string& qualifiedName) {
+        const Function* target = &function;
         environment.registerModuleFunction(
-            namespaceName + "." + entry.first,
-            [moduleEnvironment, functions, functionName = entry.first,
-             resolved](
+            namespaceName + "." + qualifiedName,
+            [moduleEnvironment, functions, target, resolved](
                 const std::string&, const std::vector<Value>& args,
                 const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
                 Environment&, int line, int column) {
                 try {
-                    return invokeFunction(functions->at(functionName), args,
-                                          blocks, *moduleEnvironment, line,
-                                          column);
+                    return invokeFunction(*target, args, blocks,
+                                          *moduleEnvironment, line, column);
                 } catch (const SourceError& error) {
                     throw withModuleSource(error, resolved);
                 }
             });
+        for (const auto& nested : function.nestedFunctions) {
+            if (nested != nullptr) {
+                registerFunction(*nested,
+                                 qualifiedName + "." + nested->name);
+            }
+        }
+    };
+    for (const auto& entry : *functions) {
+        if (entry.first != "setup" && entry.first != "main") {
+            registerFunction(entry.second, entry.first);
+        }
     }
 }
 
@@ -2770,7 +2890,7 @@ void ForeverStatement::execute(Environment& environment) const {
             "warning.forever_no_break",
             "forever() has no break; it will run until the process is "
             "stopped. Add break; or call suppressForeverWarning() in "
-            "global setup(){}.");
+            "fn setup(){}.");
         std::cerr << "Warning: " << message << '\n';
     }
     for (;;) {

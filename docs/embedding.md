@@ -11,7 +11,7 @@ Lynxer.
 An exported function is declared at the top level with a quoted C signature:
 
 ```lynx
-global setup(){ /* optional; runs at library init */ }
+fn setup(){ /* optional; runs at library init */ }
 
 export "cdecl:int64(int64,int64)" add(int a, int b) -> int { return a + b; }
 export "cdecl:double(double)"     scale(float x)  -> float { return x * 2.0; }
@@ -22,8 +22,8 @@ export "cdecl:void(int64)"        sink(int n)      -> none  { println(n); }
 
 - `export "<signature>" name(params) -> type { ... }` at the top level; `main()`
   is neither required nor run (a library is not a program).
-- `setup()` is optional. If present it must stay the first declaration and runs
-  once, before the first exported call; it may call exports by name.
+- `setup()` is optional. If present it runs once, before the first exported
+  call; it may call exports by name.
 - The exported C symbol is exactly the Lynxer function name. Avoid names that
   collide with libc or with another loaded library (`read`, `open`, `main`, …).
 - The signature string uses the same `cdecl:` grammar as native modules, with

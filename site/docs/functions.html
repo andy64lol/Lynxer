@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -136,68 +137,38 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="functions">Functions</h1>
-<p>Lynxer has three function declaration forms plus scoped named lambdas. They differ in <strong>where</strong> they are written and <strong>how</strong> they are called. Parameters, return annotations and caller-supplied <a href="codeblocks.html">codeblocks</a> work the same for all four.</p>
-<table>
-<tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
-<tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code>, or a bare name in the same file</td></tr>
-<tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
-<tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
-<tr><td>Named lambda</td><td><code>lambda name(...)</code></td><td>inside a function body</td><td>its name in the declaring scope</td></tr>
-</table>
-<p><code>global func name(...)</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27; &#x27;</code>); use <code>func name(...)</code> for a file-level function.</p>
-<h2 id="global-functions">Global functions</h2>
-<p><code>global</code> is the default, exported declaration. Declare it top-level, between <code>global setup()</code> and <code>global main()</code>:</p>
-<pre><code>global setup(){}
+<p><code>fn</code> is the function declaration keyword. At file scope it declares a same-module function; inside another function it declares a nested function. Parameters, return annotations and caller-supplied <a href="codeblocks.html">codeblocks</a> work the same at either location.</p>
+<pre><code>fn setup() {
+    // Optional initialization.
+}
 
-global double(int value) -&gt; int {
+fn calculate(int value) -&gt; int {
     return value * 2;
 }
 
-global main(){
-    println(double(21));        // 42, bare name in the same file
-    println(global.double(21)); // 42, fully qualified
-}</code></pre>
-<ul>
-<li>A global function is callable by its bare name in its own file and by <code>global.name(...)</code> everywhere, including from an importer as <code>global.module.name(...)</code>.</li>
-<li><code>global setup()</code> and <code>global main()</code> are global functions with extra rules: <code>setup</code> must be the first declaration, <code>main</code> the last, and either may take defaulted parameters. See <a href="language.html#program-structure">language</a> and <code>overrideMain</code> in <a href="language.html#overridemain">language</a>.</li>
-<li>Entry-point functions may <strong>not</strong> declare codeblock parameters.</li>
-</ul>
-<h2 id="file-level-functions-func">File-level functions (<code>func</code>)</h2>
-<p>A <code>func</code> belongs to its source file. Declare it top-level, between <code>global setup()</code> and <code>global main()</code>:</p>
-<pre><code>global setup(){}
-
-func double(int value) -&gt; int {
-    return value * 2;
-}
-
-global main(){
-    println(double(21));   // 42
-}</code></pre>
-<ul>
-<li><code>func</code> names are <strong>file-scoped</strong>: two imported files may each define a <code>double</code> helper without colliding.</li>
-<li>In the defining file, call it by bare name. From an importer, call it through the module: <code>global.moduleName.double(21)</code> (see <a href="modules.html">modules</a>).</li>
-<li><code>func</code> declarations must be top-level and may not follow <code>global main()</code> (<code>declarations may not follow global main()</code>).</li>
-</ul>
-<h2 id="local-functions">Local functions</h2>
-<p>A <code>local</code> function is declared inside another function body and is not visible outside it:</p>
-<pre><code>global setup(){}
-
-global main(){
-    local square(int n) -&gt; int {
-        return n * n;
+fn parent() {
+    fn nested() {
+        println(&quot;nested function&quot;);
     }
-    println(square(4));        // 16, bare name
-    println(local.square(5));  // 25, qualified
+    nested();
+}
+
+fn main() {
+    println(calculate(21)); // 42
+    parent.nested();
 }</code></pre>
-<ul>
-<li>A local function is not exported and cannot be called from another function.</li>
-<li>It may close over the top-level variables that are in scope where it runs.</li>
-</ul>
+<p><code>main()</code> is required; <code>setup()</code> is optional. When <code>setup()</code> is absent the compiler warns, and when <code>main()</code> is absent it reports an error. Both are ordinary <code>fn</code> declarations with entry-point roles, and declarations may appear in any order. Entry-point functions may take defaulted parameters but may not declare codeblock parameters. See <a href="language.html#program-structure">language</a> and <code>overrideMain</code> in <a href="language.html#overridemain">language</a>.</p>
+<p>Imported functions use their module namespace, including aliases:</p>
+<pre><code>importAs(&quot;math&quot;, &quot;m&quot;);
+println(m.calculate(21));</code></pre>
+<p>Nested names use hierarchical dot notation, with no fixed depth: <code>parent.child.grandchild()</code>.</p>
+<h2 id="deprecated-declaration-keywords">Deprecated declaration keywords</h2>
+<p>The old <code>global</code>, <code>local</code> and <code>func</code> declarations remain accepted for backwards compatibility, but each produces a deprecation warning recommending <code>fn</code>. Replace the declaration keyword with <code>fn</code>; call functions directly in the current module, through an imported module namespace, or through their nested function path. The old <code>global.</code> and <code>local.</code> function prefixes are also unnecessary for ordinary function calls.</p>
 <h2 id="named-lambdas">Named lambdas</h2>
 <p>A named <code>lambda</code> is declared inside a function and called by its name in that scope. It accepts typed parameters and an optional <code>-&gt; type</code> return annotation:</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main() {
+fn main() {
     str greeting = &quot;Hello&quot;;
 
     lambda greet(str name) -&gt; str {
@@ -206,32 +177,32 @@ global main() {
 
     println(greet(&quot;Andy&quot;)); // Hello, Andy!
 
-    global nested() {
+    fn nested() {
         println(greet(&quot;Andy&quot;)); // out-of-scope error if nested() is called
     }
 }</code></pre>
 <p>Lambdas are scoped declarations, not global or exported functions. A lambda is available in the function scope where it is declared; nested function scopes cannot see its name. It can read variables from its enclosing function while that scope is active. Control-flow blocks do not create nested scopes in Lynxer; see <a href="language.html#scoping">language</a>. Lambdas support the same typed and inferred generic parameters as other ordinary functions.</p>
 <h2 id="function-values">Function values</h2>
 <p>Named functions, local functions, and lambdas can be used as values. Use the <code>function</code> type for a checked declaration, or <code>any</code> when the value may also be something else:</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global addOne(int value) -&gt; int {
+fn addOne(int value) -&gt; int {
     return value + 1;
 }
 
-global apply(function operation, int value) -&gt; int {
+fn apply(function operation, int value) -&gt; int {
     return operation(value);
 }
 
-global makeAdder(int base) -&gt; function {
-    local add(int value) -&gt; int {
+fn makeAdder(int base) -&gt; function {
+    fn add(int value) -&gt; int {
         return base + value;
     }
     return add;
 }
 
-global main() {
-    function increment = global.addOne;
+fn main() {
+    function increment = addOne;
     println(apply(increment, 4)); // 5
 
     function addTen = makeAdder(10);
@@ -245,40 +216,40 @@ global main() {
 <li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
 <li><code>type T of value</code> introduces a type parameter named <code>T</code>, inferred from the argument <code>value</code>. Use <code>T</code> to require matching argument types and to type the return value:</li>
 </ul>
-<p>```lynx global setup(){}</p>
-<p>global keep(type T of first, T second) -&gt; T { return second; }</p>
-<p>global main() { int number = keep(1, 2); str word = keep("one", "two"); println(number); // 2 println(word);   // two } ```</p>
-<p><code>T</code> can also be used for local declarations. Each call infers its own type; within one call, arguments using the same <code>T</code> must have the same Lynxer type. The generic parameter itself cannot have a default value; exported C functions and class methods do not support inferred generic parameters.</p>
+<p>```lynx fn setup(){}</p>
+<p>fn keep(type T of first, T second) -&gt; T { return second; }</p>
+<p>fn main() { int number = keep(1, 2); str word = keep("one", "two"); println(number); // 2 println(word);   // two } ```</p>
+<p><code>T</code> can also be used for local declarations. Each call infers its own type; within one call, arguments using the same <code>T</code> must have the same Lynxer type. The generic parameter itself cannot have a default value; exported C functions and template/class methods do not support inferred generic parameters.</p>
 <ul>
-<li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
+<li>Template and class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="templates.html">templates</a> and <a href="classes.html">classes</a>).</li>
 </ul>
 <h2 id="return-annotations">Return annotations</h2>
 <p>Only the arrow form is accepted:</p>
-<pre><code>global f(int x) -&gt; int { return x + 1; }</code></pre>
+<pre><code>fn f(int x) -&gt; int { return x + 1; }</code></pre>
 <ul>
 <li><code>: int</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
 <li>Omit the annotation, or use <code>-&gt; any</code>, to leave the result unchecked.</li>
 <li><code>-&gt; none</code> is accepted: the function must return nothing, and a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>.</li>
 <li>A mismatched return is a source-located runtime error.</li>
-<li>Named types (a <code>struct</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
+<li>Named types (a <code>struct</code>, <code>template</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
 </ul>
 <h2 id="caller-supplied-codeblocks">Caller-supplied codeblocks</h2>
-<p>Any of the three forms may declare caller-supplied blocks <strong>after</strong> its parameter list and before its body. Write each block name in its own <code>{...}</code>:</p>
+<p>Any function may declare caller-supplied blocks <strong>after</strong> its parameter list and before its body. Write each block name in its own <code>{...}</code>:</p>
 <pre><code>&lt;kind&gt; name(&lt;params&gt;){&lt;blockName&gt;}{&lt;blockName&gt;}... { &lt;body&gt; }</code></pre>
 <p>The body invokes a block with <code>exec(){{&lt;blockName&gt;}}</code>. A caller supplies a block with <code>(){ ... }</code> or, for a named <a href="codeblocks.html">codeblock</a> variable, <code>(){{var}}</code>:</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global runTwice(){first}{second}{
+fn runTwice(){first}{second}{
     exec(){{first}}
     exec(){{second}}
 }
 
-func mapTwice(int value){apply}{
+fn mapTwice(int value){apply}{
     exec(value){{apply}}
     exec(value){{apply}}
 }
 
-global main(){
+fn main(){
     runTwice(){
         println(&quot;one&quot;);
     }{
@@ -291,10 +262,10 @@ global main(){
     mapTwice(4){{triple}}   // 12 printed twice
 }</code></pre>
 <ul>
-<li>The codeblock-parameter syntax is identical for <code>global</code>, <code>func</code> and <code>local</code> declarations; the parser treats all three the same way.</li>
-<li>Caller-supplied blocks also work on file-level <code>func</code> declarations; the <code>macros</code> example fixture covers both macro-spliced and direct <code>func</code> calls.</li>
+<li>The codeblock-parameter syntax is identical for top-level and nested <code>fn</code> declarations.</li>
+<li>Caller-supplied blocks also work on imported module functions.</li>
 <li>Callers may mix inline blocks (<code>(){ ... }</code>) and named references (<code>(){{var}}</code>) in the same call.</li>
-<li><code>func</code> and <code>local</code> blocks are supplied the same way; a <code>func</code> reached through an import takes blocks at the call site too: <code>global.module.runTwice(){...}{...}</code>.</li>
+<li>An imported function takes blocks at the call site too: <code>module.runTwice(){...}{...}</code>.</li>
 <li>Entry-point functions (<code>setup</code>/<code>main</code>) may not declare codeblock parameters.</li>
 <li>A codeblock name must be unique across the source file and may not repeat a regular parameter name of the same function.</li>
 </ul>
@@ -306,8 +277,9 @@ global main(){
 <li><a href="language.html#functions">language</a> — functions in the context of program structure.</li>
 <li><a href="codeblocks.html">codeblocks</a> — stored and caller-supplied codeblocks.</li>
 <li><a href="async.html">async</a> — local <code>async</code> sub-functions and <code>await</code>.</li>
-<li><a href="classes.html">classes</a> — <code>local</code> methods on a class.</li>
-<li><a href="modules.html">modules</a> — calling exported <code>global</code> and <code>func</code> names across files.</li>
+<li><a href="templates.html">templates</a> — header constructors, <code>build ... named</code>, and fields.</li>
+<li><a href="classes.html">classes</a> — the deprecated class form.</li>
+<li><a href="modules.html">modules</a> — calling functions through imported module names.</li>
 </ul>
     </main>
 </div>

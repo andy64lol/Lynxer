@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -139,7 +140,7 @@
 <p>Lynxer can build a shared library that exposes a program's functions as <strong>real C symbols</strong>, so C, C++, Python <code>ctypes</code>, and other native consumers can call Lynxer code. This is the reverse of the <a href="native-module-abi.html">native-module ABI</a>: there, Lynxer calls C; here C calls Lynxer.</p>
 <h2 id="declaring-exports">Declaring exports</h2>
 <p>An exported function is declared at the top level with a quoted C signature:</p>
-<pre><code>global setup(){ /* optional; runs at library init */ }
+<pre><code>fn setup(){ /* optional; runs at library init */ }
 
 export &quot;cdecl:int64(int64,int64)&quot; add(int a, int b) -&gt; int { return a + b; }
 export &quot;cdecl:double(double)&quot;     scale(float x)  -&gt; float { return x * 2.0; }
@@ -148,7 +149,7 @@ export &quot;cdecl:bytes(bytes)&quot;       echo(bytes b)    -&gt; bytes { retur
 export &quot;cdecl:void(int64)&quot;        sink(int n)      -&gt; none  { println(n); }</code></pre>
 <ul>
 <li><code>export &quot;&lt;signature&gt;&quot; name(params) -&gt; type { ... }</code> at the top level; <code>main()</code> is neither required nor run (a library is not a program).</li>
-<li><code>setup()</code> is optional. If present it must stay the first declaration and runs once, before the first exported call; it may call exports by name.</li>
+<li><code>setup()</code> is optional. If present it runs once, before the first exported call; it may call exports by name.</li>
 <li>The exported C symbol is exactly the Lynxer function name. Avoid names that collide with libc or with another loaded library (<code>read</code>, <code>open</code>, <code>main</code>, …).</li>
 <li>The signature string uses the same <code>cdecl:</code> grammar as native modules, with the same aliases: <code>int8/16/32/64</code>, <code>uint8/16/32/64</code>, <code>uintptr</code> are all <code>int64</code>; <code>double</code> is <code>float64</code>.</li>
 </ul>

@@ -664,6 +664,8 @@ const std::vector<ValidationCase>& validationCases() {
         {"invalid-address", "global setup(){}\nglobal main(){ memoryReadInt32(12345, 0); }", "invalid native memory address"},
         {"enum-switch", "global setup(){}\nenum s = [ Ok(int v), Err(str m) ]{}\nglobal main(){ any e = s.Ok(5); int seen = 0; switch(e){ case(s.Ok(v)){ seen = v; } default(){ seen = -1; } } assert(seen is 5); }", ""},
         {"default-parameter", "global setup(){}\nfunc add(int a, int b = 2) -> int { return a + b; }\nglobal main(){ assert(add(1) is 3); }", ""},
+        {"fn-nested", "fn outer(){ fn child(){ fn grandchild() -> int { return 42; } } }\nfn main(){ assert(outer.child.grandchild() is 42); }", ""},
+        {"missing-main", "fn setup(){}", "program must define fn main()"},
         {"try-catch", "global setup(){}\nglobal main(){ int caught = 0; try { int z = 1 /% 0; } catch (str e) { caught = 1; } assert(caught is 1); }", ""},
         {"typing-guard", "global setup(){}\nglobal main(){ int n = 1.5; }", "cannot be assigned"},
     };
@@ -678,7 +680,9 @@ int validateInterpreter() {
             const std::string source(test.source);
             Lexer lexer(source, test.name);
             Parser parser(lexer.scan(), test.name);
-            auto functions = parser.parseProgram();
+            auto functions = parser.parseProgram(
+                /*requireEntryPoints=*/true, /*resetTypeRegistry=*/true,
+                /*emitDeprecationWarnings=*/false);
             if (optimizerEnabled()) {
                 optimizeProgram(functions, optimizationStats());
             }
@@ -728,7 +732,9 @@ int runProgram(const std::string& display, const std::string& source) {
     try {
         Lexer lexer(source, display);
         Parser parser(lexer.scan(), display);
-        auto functions = parser.parseProgram();
+        auto functions = parser.parseProgram(
+            /*requireEntryPoints=*/true, /*resetTypeRegistry=*/true,
+            /*emitDeprecationWarnings=*/false);
         if (optimizerEnabled()) {
             optimizeProgram(functions, optimizationStats());
         }
@@ -794,9 +800,10 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
     struct Pending {
         std::string path;
         std::string source;
+        bool requireEntryPoints = false;
     };
     std::vector<Pending> queue;
-    queue.push_back(Pending{mainPath, mainSource});
+    queue.push_back(Pending{mainPath, mainSource, requireEntryPoints});
     collectedSources[mainPath] = true;
 
     // Explicit inputs are embedded first so they take part in the same
@@ -874,7 +881,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
         module.name = given;
         module.source = content.str();
         collectedSources[resolved] = true;
-        queue.push_back(Pending{resolved, module.source});
+        queue.push_back(Pending{resolved, module.source, false});
         archive.modules.push_back(std::move(module));
     }
 
@@ -890,7 +897,8 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
         std::vector<ImportRecord> imports;
         try {
             imports = collectImports(current.source, current.path,
-                                     requireEntryPoints);
+                                     current.requireEntryPoints,
+                                     current.requireEntryPoints);
         } catch (const SourceError& importError) {
             std::cerr << "lynxer: " << current.path << ':' << importError.line
                       << ':' << importError.column << ": " << importError.what()
@@ -942,7 +950,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
             module.name = import.path;
             module.source = content.str();
             collectedSources[resolved] = true;
-            queue.push_back(Pending{resolved, module.source});
+            queue.push_back(Pending{resolved, module.source, false});
             archive.modules.push_back(std::move(module));
         }
     }

@@ -14,3 +14,5 @@ global start(){
     println(add(3, 4));
     println(local.square(5));
 }
+
+fn main(){}

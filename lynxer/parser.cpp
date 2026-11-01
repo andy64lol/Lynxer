@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <sstream>
 #include <unordered_set>
@@ -551,12 +552,17 @@ std::vector<std::string> Parser::parseCodeblockSignature() {
 Function Parser::parseFunction(const std::string& kind, bool topLevel) {
     const Token keyword = expectText(kind, "expected function declaration");
     const Token name = expect(TokenKind::Identifier, "expected function name");
+    if (emitDeprecationWarnings_ &&
+        (kind == "global" || kind == "func")) {
+        warn("'" + kind + "' function declarations are deprecated; use 'fn'",
+             keyword);
+    }
     expectText("(", "expected '(' after function name");
     Function function;
     function.name = name.text;
     function.sourceLine = name.line;
     function.sourceColumn = name.column;
-    function.isGlobal = kind == "global";
+    function.isGlobal = kind == "global" || (kind == "fn" && topLevel);
     function.isFileFunction = kind == "func";
     const auto outerGenericTypes = genericTypeNames_;
     function.parameters = parseFunctionParameters();
@@ -602,7 +608,9 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
     }
     const std::string savedConstructorParent = currentConstructorParent_;
     currentConstructorParent_.clear();
+    functionStack_.push_back(&function);
     function.statements = parseBlock("function body");
+    functionStack_.pop_back();
     currentConstructorParent_ = savedConstructorParent;
     genericTypeNames_ = outerGenericTypes;
     (void)keyword;
@@ -654,7 +662,9 @@ Function Parser::parseExport() {
     }
     exports_.push_back(
         {function.name, signatureToken.text, name.line, name.column});
+    functionStack_.push_back(&function);
     function.statements = parseBlock("function body");
+    functionStack_.pop_back();
     return function;
 }
 
@@ -668,6 +678,10 @@ StatementPtr Parser::parseLambda() {
 
 StatementPtr Parser::parseScopedFunction(const std::string& kind) {
     const Token keyword = expectText(kind, "expected '" + kind + "' function");
+    if (emitDeprecationWarnings_ && kind == "local") {
+        warn("'local' function declarations are deprecated; use 'fn'",
+             keyword);
+    }
     const Token name = expect(TokenKind::Identifier, "expected function name");
     expectText("(", "expected '(' after function name");
     auto function = std::make_shared<Function>();
@@ -708,11 +722,21 @@ StatementPtr Parser::parseScopedFunction(const std::string& kind) {
     }
     const std::string savedConstructorParent = currentConstructorParent_;
     currentConstructorParent_.clear();
+    functionStack_.push_back(function.get());
     function->statements = parseBlock(kind + " function body");
+    functionStack_.pop_back();
     currentConstructorParent_ = savedConstructorParent;
     genericTypeNames_ = outerGenericTypes;
     (void)keyword;
+    registerNestedFunction(function);
     return std::make_unique<FunctionDeclarationStatement>(std::move(function));
+}
+
+void Parser::registerNestedFunction(
+    const std::shared_ptr<Function>& function) {
+    if (!functionStack_.empty()) {
+        functionStack_.back()->nestedFunctions.push_back(function);
+    }
 }
 
 void Parser::parseStructDefinition() {
@@ -738,31 +762,82 @@ void Parser::parseStructDefinition() {
 
 void Parser::parseClassDefinition() {
     expectText("class", "expected 'class'");
-    const Token name = expect(TokenKind::Identifier, "expected class name");
+    parseClassOrTemplate(false);
+}
+
+void Parser::parseTemplateDefinition() {
+    expectText("template", "expected 'template'");
+    parseClassOrTemplate(true);
+}
+
+void Parser::parseClassOrTemplate(bool isTemplate) {
+    const Token name = expect(TokenKind::Identifier,
+                              isTemplate ? "expected template name"
+                                         : "expected class name");
     if (TypeRegistry::instance().hasNamedType(name.text)) {
         fail("duplicate named type '" + name.text + "'", name);
     }
-    std::string parent;
-    if (matchKeyword("extends")) {
-        const Token parentName = expect(
-            TokenKind::Identifier, "expected parent class name after 'extends'");
-        if (TypeRegistry::instance().findClass(parentName.text) == nullptr) {
-            fail("unknown parent class '" + parentName.text +
-                     "' (declare it before '" + name.text + "')",
-                 parentName);
-        }
-        parent = parentName.text;
-    }
-    expectText("{", "expected '{' before class body");
     ClassDef definition;
     definition.name = name.text;
-    definition.parent = std::move(parent);
+    definition.isTemplate = isTemplate;
+
+    std::unordered_set<std::string> parameterNames;
+    if (isTemplate) {
+        expectText("(", "expected '(' after template name");
+        definition.constructorParams = parseParameters();
+        for (const auto& parameter : definition.constructorParams) {
+            if (!parameterNames.insert(parameter.second).second) {
+                fail("duplicate template parameter '" + parameter.second + "'",
+                     name);
+            }
+        }
+    }
+
+    const char* inheritanceKeyword = isTemplate ? "extending" : "extends";
+    if (matchKeyword(inheritanceKeyword)) {
+        const Token parentName = expect(
+            TokenKind::Identifier,
+            isTemplate ? "expected parent template name after 'extending'"
+                       : "expected parent class name after 'extends'");
+        const ClassDef* parent =
+            TypeRegistry::instance().findClass(parentName.text);
+        if (parent == nullptr) {
+            fail(std::string("unknown parent ") +
+                     (isTemplate ? "template" : "class") + " '" +
+                     parentName.text + "' (declare it before '" + name.text +
+                     "')",
+                 parentName);
+        }
+        if (parent->isTemplate != isTemplate) {
+            fail(std::string(isTemplate ? "template" : "class") + " '" +
+                     name.text + "' cannot extend " +
+                     (parent->isTemplate ? "template" : "class") + " '" +
+                     parentName.text + "'; use '" +
+                     (parent->isTemplate ? "template" : "class") +
+                     "' instead",
+                 parentName);
+        }
+        definition.parent = parentName.text;
+    }
+
+    expectText("{", isTemplate ? "expected '{' before template body"
+                               : "expected '{' before class body");
     while (!checkText("}")) {
-        if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
+        if ((checkText("local") || checkText("fn")) &&
+            peekAt(1).kind == TokenKind::Identifier &&
             peekAt(2).text == "(") {
-            advance();
+            const Token methodKeyword = advance();
+            if (emitDeprecationWarnings_ && methodKeyword.text == "local") {
+                warn("'local' function declarations are deprecated; use 'fn'",
+                     methodKeyword);
+            }
             const Token method =
                 expect(TokenKind::Identifier, "expected method name");
+            if (isTemplate && method.text == "init") {
+                fail("a template declares its constructor parameters in its "
+                     "header; 'init' methods are not allowed",
+                     method);
+            }
             expectText("(", "expected '(' after method name");
             ClassMethod classMethod;
             classMethod.name = method.text;
@@ -784,18 +859,46 @@ void Parser::parseClassDefinition() {
             constant = true;
             advance();
         }
-        const std::string type = parseTypeName("expected class field type");
+        const std::string type = parseTypeName(
+            isTemplate ? "expected template field type"
+                       : "expected class field type");
         const Token field =
-            expect(TokenKind::Identifier, "expected class field name");
+            expect(TokenKind::Identifier,
+                   isTemplate ? "expected template field name"
+                              : "expected class field name");
+        if (isTemplate && parameterNames.count(field.text) != 0) {
+            fail("template parameter '" + field.text +
+                     "' is already a field; remove the duplicate declaration",
+                 field);
+        }
         ExpressionPtr initializer;
         if (match("=")) {
             initializer = parseExpression();
         }
-        expectText(";", "expected ';' after class field");
+        expectText(";", isTemplate ? "expected ';' after template field"
+                                   : "expected ';' after class field");
         definition.fields.push_back(
             {type, field.text, constant, std::move(initializer)});
     }
-    expectText("}", "expected '}' after class definition");
+    expectText("}", isTemplate ? "expected '}' after template definition"
+                               : "expected '}' after class definition");
+
+    if (isTemplate) {
+        // Header parameters become fields, so methods can read `this.<name>`
+        // and construction can bind each argument by name.
+        std::vector<ClassFieldDef> fields;
+        fields.reserve(definition.constructorParams.size() +
+                       definition.fields.size());
+        for (const auto& parameter : definition.constructorParams) {
+            fields.push_back(
+                {parameter.first, parameter.second, false, nullptr});
+        }
+        for (ClassFieldDef& field : definition.fields) {
+            fields.push_back(std::move(field));
+        }
+        definition.fields = std::move(fields);
+    }
+
     TypeRegistry::instance().addClass(std::move(definition));
 }
 
@@ -852,108 +955,102 @@ void Parser::parseEnumDefinition() {
 }
 
 std::unordered_map<std::string, Function> Parser::parseProgram(
-    bool requireEntryPoints, bool resetTypeRegistry) {
+    bool requireEntryPoints, bool resetTypeRegistry,
+    bool emitDeprecationWarnings) {
+    emitDeprecationWarnings_ = emitDeprecationWarnings;
     expandMacros();
     if (resetTypeRegistry) {
         TypeRegistry::reset();
     }
     std::unordered_map<std::string, Function> functions;
-    bool sawSetup = false;
-    bool sawMain = false;
-    bool sawAnyDeclaration = false;
     while (!check(TokenKind::End)) {
         if (checkText("export")) {
             const Token name = peekAt(2);
-            if (sawMain) {
-                fail("declarations may not follow global main()", current());
-            }
             Function function = parseExport();
             if (functions.find(function.name) != functions.end()) {
                 fail("duplicate function '" + function.name + "'", name);
             }
             programOrder_.push_back(function.name);
             functions.emplace(function.name, std::move(function));
-            sawAnyDeclaration = true;
             continue;
         }
         if (checkText("struct")) {
-            if (sawMain) {
-                fail("declarations may not follow global main()", current());
-            }
             parseStructDefinition();
-            sawAnyDeclaration = true;
+            continue;
+        }
+        if (checkText("template") &&
+            peekAt(1).kind == TokenKind::Identifier) {
+            parseTemplateDefinition();
             continue;
         }
         if (checkText("class")) {
-            if (sawMain) {
-                fail("declarations may not follow global main()", current());
-            }
             parseClassDefinition();
-            sawAnyDeclaration = true;
             continue;
         }
         if (checkText("enum")) {
-            if (sawMain) {
-                fail("declarations may not follow global main()", current());
-            }
             parseEnumDefinition();
-            sawAnyDeclaration = true;
             continue;
         }
-        if (checkText("func")) {
+        if (checkText("fn") || checkText("func") || checkText("global")) {
+            const std::string kind = current().text;
             const Token name = peekAt(1);
-            if (sawMain) {
-                fail("declarations may not follow global main()", current());
-            }
-            Function function = parseFunction("func", true);
+            Function function = parseFunction(kind, true);
             if (functions.find(function.name) != functions.end()) {
                 fail("duplicate function '" + function.name + "'", name);
             }
             programOrder_.push_back(function.name);
             functions.emplace(function.name, std::move(function));
-            sawAnyDeclaration = true;
             continue;
         }
-        if (!checkText("global")) {
-            fail("expected top-level function declaration", current());
-        }
-        const Token name = peekAt(1);
-        if (name.text == "setup") {
-            if (sawSetup || sawAnyDeclaration || sawMain) {
-                fail("global setup() must be the first declaration", name);
-            }
-            Function function = parseFunction("global", true);
-            if (function.name != "setup") {
-                fail("global setup() must be the first declaration", name);
-            }
-            programOrder_.push_back(function.name);
-            functions.emplace(function.name, std::move(function));
-            sawSetup = true;
-            sawAnyDeclaration = true;
-            continue;
-        }
-        Function function = parseFunction("global", true);
-        if (functions.find(function.name) != functions.end()) {
-            fail("duplicate function '" + function.name + "'", name);
-        }
-        if (function.name == "main") {
-            sawMain = true;
-        } else if (sawMain) {
-            fail("declarations may not follow global main()", name);
-        }
-        programOrder_.push_back(function.name);
-        functions.emplace(function.name, std::move(function));
-        sawAnyDeclaration = true;
+        fail("expected top-level function declaration", current());
     }
-    if (functions.find("setup") == functions.end()) {
-        if (requireEntryPoints) {
-            fail("program must define global setup()", current());
+    if (requireEntryPoints) {
+        if (functions.find("setup") == functions.end()) {
+            warn("setup() is optional; no setup() function was declared",
+                 current());
+        }
+        if (functions.find("main") == functions.end()) {
+            fail("program must define fn main()", current());
         }
     }
     return functions;
 }
 
 StatementPtr Parser::parseStatement() {
+    if (checkText("build") && peekAt(1).kind == TokenKind::Identifier) {
+        advance();
+        const Token type =
+            expect(TokenKind::Identifier, "expected template name after 'build'");
+        const ClassDef* definition =
+            TypeRegistry::instance().findClass(type.text);
+        if (definition == nullptr) {
+            if (TypeRegistry::instance().findStruct(type.text) != nullptr ||
+                TypeRegistry::instance().findEnum(type.text) != nullptr) {
+                fail("'build' requires a template; '" + type.text +
+                         "' is not a template",
+                     type);
+            }
+            fail("unknown template '" + type.text + "'", type);
+        }
+        if (!definition->isTemplate) {
+            fail("'build' requires a template; '" + type.text +
+                     "' is not a template",
+                 type);
+        }
+        expectText("(", "expected '(' after template name");
+        std::vector<ExpressionPtr> arguments = parseArguments();
+        if (!matchKeyword("named")) {
+            fail("expected 'named' after build arguments", current());
+        }
+        const Token variable =
+            expect(TokenKind::Identifier, "expected variable name after 'named'");
+        expectText(";", "expected ';' after build statement");
+        return std::make_unique<DeclarationStatement>(
+            type.text, variable.text,
+            std::make_unique<NewExpression>(type.text, std::move(arguments),
+                                            type.line, type.column),
+            type.line, type.column);
+    }
     if (checkText("super") && peekAt(1).text == "(") {
         const Token keyword = advance();
         if (currentConstructorParent_.empty()) {
@@ -977,6 +1074,13 @@ StatementPtr Parser::parseStatement() {
         peekAt(2).text == "(") {
         return parseLocalFunction();
     }
+    if (checkText("fn") && peekAt(1).kind == TokenKind::Identifier &&
+        peekAt(2).text == "(") {
+        Function function = parseFunction("fn", false);
+        auto owned = std::make_shared<Function>(std::move(function));
+        registerNestedFunction(owned);
+        return std::make_unique<FunctionDeclarationStatement>(std::move(owned));
+    }
     if (checkText("lambda") && peekAt(1).kind == TokenKind::Identifier &&
         peekAt(2).text == "(") {
         return parseLambda();
@@ -985,6 +1089,7 @@ StatementPtr Parser::parseStatement() {
         peekAt(2).text == "(") {
         Function function = parseFunction("async", false);
         auto owned = std::make_shared<Function>(std::move(function));
+        registerNestedFunction(owned);
         return std::make_unique<FunctionDeclarationStatement>(
             std::move(owned));
     }
@@ -997,6 +1102,7 @@ StatementPtr Parser::parseStatement() {
         peekAt(2).text == "(") {
         Function function = parseFunction("global", false);
         auto owned = std::make_shared<Function>(std::move(function));
+        registerNestedFunction(owned);
         return std::make_unique<FunctionDeclarationStatement>(std::move(owned));
     }
     if (checkText("return")) {
@@ -2332,6 +2438,14 @@ Token Parser::advance() {
         ++index_;
     }
     return token;
+}
+
+void Parser::warn(const std::string& message, const Token& token) const {
+    if (!sourcePath_.empty()) {
+        std::cerr << sourcePath_ << ':';
+    }
+    std::cerr << token.line << ':' << token.column << ": warning: " << message
+              << '\n';
 }
 
 void Parser::fail(const std::string& message, const Token& token) const {

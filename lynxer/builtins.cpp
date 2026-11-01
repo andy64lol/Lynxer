@@ -1935,7 +1935,7 @@ Value builtinSleep(const std::vector<Value>& args, Environment&, int line,
 Value builtinForeverDelay(const std::vector<Value>& args, Environment& env,
                           int line, int column) {
     if (!env.setupInProgress()) {
-        fail("foreverDelay() may only be called inside global setup(){}", line,
+        fail("foreverDelay() may only be called inside fn setup(){}", line,
              column);
     }
     if (args.size() != 1 || !isNumber(args[0])) {
@@ -2044,7 +2044,7 @@ Value builtinSyscalls(const std::vector<Value>& args, Environment& env, int line
 Value builtinOverrideMain(const std::vector<Value>& args, Environment& env,
                           int line, int column) {
     if (!env.setupInProgress()) {
-        fail("overrideMain() may only be called inside global setup(){}", line,
+        fail("overrideMain() may only be called inside fn setup(){}", line,
              column);
     }
     if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {

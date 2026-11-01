@@ -95,8 +95,14 @@ Word forms are canonical: `and`, `or`, `not`, `is`, `isnt`, `nand`, `nor`,
 ```lynx
 struct Point { int x; int y; }
 vargroup Player { str name = "Ada"; int score = 0; }
-class Counter { int value = 0; local inc() -> int { this.value += 1; return this.value; } }
+template Counter(int value) {
+    local inc() { this.value += 1; return this.value; }
+}
+template Dog(str name) extending Animal { }
+class LegacyCounter { int value = 0; local inc() { return this.value; } }  // deprecated
 enum status = [ Ready, Failed(str reason) ]{}
+
+build Counter(0) named counter;   // declare a template instance
 ```
 
 ## Modules

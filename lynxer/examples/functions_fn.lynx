@@ -1,0 +1,30 @@
+fn setup() {
+    importAs("functions_fn_module.lynx", "lib");
+}
+
+fn topLevel() -> int {
+    return 21;
+}
+
+fn parent() {
+    fn child() {
+        fn grandchild(int value) -> int {
+            return value + 1;
+        }
+    }
+}
+
+fn captured(int value) -> int {
+    fn child() -> int {
+        return value;
+    }
+    return child();
+}
+
+fn main() {
+    println(topLevel());
+    println(parent.child.grandchild(41));
+    println(captured(42));
+    println(lib.multiply(6, 7));
+    println(lib.parent.child.grandchild(41));
+}

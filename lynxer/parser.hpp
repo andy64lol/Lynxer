@@ -17,7 +17,8 @@ public:
         : tokens_(std::move(tokens)), sourcePath_(std::move(sourcePath)) {}
 
     std::unordered_map<std::string, Function> parseProgram(
-        bool requireEntryPoints = true, bool resetTypeRegistry = true);
+        bool requireEntryPoints = true, bool resetTypeRegistry = true,
+        bool emitDeprecationWarnings = true);
 
     // Every import declared while parsing, in source order.
     const std::vector<ImportRecord>& imports() const { return imports_; }
@@ -33,6 +34,8 @@ public:
 private:
     void parseStructDefinition();
     void parseClassDefinition();
+    void parseTemplateDefinition();
+    void parseClassOrTemplate(bool isTemplate);
     void parseEnumDefinition();
     void expandMacros();
     std::vector<std::pair<std::string, std::string>> parseParameters();
@@ -42,6 +45,7 @@ private:
     StatementPtr parseLocalFunction();
     StatementPtr parseLambda();
     StatementPtr parseScopedFunction(const std::string& kind);
+    void registerNestedFunction(const std::shared_ptr<Function>& function);
     bool looksLikeCodeblockSignature() const;
     std::vector<std::string> parseCodeblockSignature();
     StatementPtr parseCodeblockDeclaration();
@@ -146,6 +150,8 @@ private:
 
     Token advance();
 
+    void warn(const std::string& message, const Token& token) const;
+
     [[noreturn]] void fail(const std::string& message, const Token& token) const;
 
     [[noreturn]] void fail(const std::string& message, int line, int column) const {
@@ -155,10 +161,12 @@ private:
     std::vector<Token> tokens_;
     std::string sourcePath_;
     std::size_t index_ = 0;
+    bool emitDeprecationWarnings_ = true;
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
     std::unordered_set<std::string> genericTypeNames_;
     std::string currentConstructorParent_;
+    std::vector<Function*> functionStack_;
     std::vector<ImportRecord> imports_;
     std::vector<std::string> programOrder_;
     std::vector<ExportRecord> exports_;

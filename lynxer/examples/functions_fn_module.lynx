@@ -1,0 +1,11 @@
+fn multiply(int left, int right) -> int {
+    return left * right;
+}
+
+fn parent() {
+    fn child() {
+        fn grandchild(int value) -> int {
+            return value + 1;
+        }
+    }
+}

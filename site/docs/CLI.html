@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -164,7 +165,7 @@ lynxer --no-opt program.lynx    # run without the AST optimizer</code></pre>
 <h2 id="printing-the-ast">Printing the AST</h2>
 <pre><code>lynxer --ast program.lynx</code></pre>
 <p><code>--ast</code> lexes and parses the file and prints the resulting tree without running it: the header <code>Lynxer AST</code> / <code>===========</code>, then a position-free, indented dump of every top-level function and its statements. Source line/column are omitted. A syntax error is reported with its source location and exits <code>1</code>; the flag requires exactly one file argument.</p>
-<p>The tree uses Lynxer's own node and field names, so it is not byte-comparable to an earlier implementation's <code>--ast</code>. Named-type declarations (<code>struct</code>, <code>class</code>, <code>enum</code>) are parse-time metadata held in the type registry rather than part of the returned program, so <code>--ast</code> shows the executable AST only.</p>
+<p>The tree uses Lynxer's own node and field names, so it is not byte-comparable to an earlier implementation's <code>--ast</code>. Named-type declarations (<code>struct</code>, <code>template</code>, <code>class</code>, <code>enum</code>) are parse-time metadata held in the type registry rather than part of the returned program, so <code>--ast</code> shows the executable AST only.</p>
 <h2 id="formatting">Formatting</h2>
 <pre><code>lynxer --format program.lynx
 lynxer --format-oneline program.lynx</code></pre>

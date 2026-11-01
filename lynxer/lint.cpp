@@ -1,9 +1,9 @@
 #include "lint.hpp"
 
-#include "builtins.hpp"
 #include "types.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <unordered_set>
 
@@ -138,6 +138,51 @@ void checkAssignment(Context& context, const std::string& expected,
 std::string infer(Context& context, const Expression& expression);
 void analyzeStatements(Context& context, const StatementList& statements);
 
+std::string checkFunctionCall(Context& context, const Function& function,
+                              const std::vector<std::string>& argumentTypes) {
+    std::size_t required = 0;
+    for (const Parameter& parameter : function.parameters) {
+        if (parameter.defaultValue == nullptr) {
+            ++required;
+        }
+    }
+    if (argumentTypes.size() < required ||
+        argumentTypes.size() > function.parameters.size()) {
+        report(context, LintDiagnostic::Severity::Error,
+               context.currentLine, context.currentColumn,
+               "function '" + function.name + "' expects " +
+                   std::to_string(required) + " to " +
+                   std::to_string(function.parameters.size()) +
+                   " arguments, received " +
+                   std::to_string(argumentTypes.size()));
+    }
+    std::unordered_map<std::string, std::string> genericTypes;
+    const std::size_t count =
+        std::min(argumentTypes.size(), function.parameters.size());
+    for (std::size_t index = 0; index < count; ++index) {
+        const Parameter& parameter = function.parameters[index];
+        const std::string& actual = argumentTypes[index];
+        std::string expected = parameter.type;
+        if (parameter.infersGenericType) {
+            if (!actual.empty()) {
+                genericTypes[expected] = actual;
+            }
+            continue;
+        }
+        const auto generic = genericTypes.find(expected);
+        if (generic != genericTypes.end()) {
+            expected = generic->second;
+        }
+        checkAssignment(context, expected, actual, context.currentLine,
+                        context.currentColumn,
+                        "argument " + std::to_string(index + 1) + " to '" +
+                            function.name + "'");
+    }
+    const auto resultType = genericTypes.find(function.returnType);
+    return resultType == genericTypes.end() ? function.returnType
+                                             : resultType->second;
+}
+
 std::string infer(Context& context, const Expression& expression) {
     if (const auto* literal = dynamic_cast<const LiteralExpression*>(&expression)) {
         return typeNameOf(literal->value());
@@ -213,47 +258,7 @@ std::string infer(Context& context, const Expression& expression) {
                 name == "printf" || name == "write") return "none";
             return "";
         }
-        std::size_t required = 0;
-        for (const Parameter& parameter : function->parameters) {
-            if (parameter.defaultValue == nullptr) {
-                ++required;
-            }
-        }
-        if (argumentTypes.size() < required ||
-            argumentTypes.size() > function->parameters.size()) {
-            report(context, LintDiagnostic::Severity::Error,
-                   context.currentLine, context.currentColumn,
-                   "function '" + function->name + "' expects " +
-                       std::to_string(required) + " to " +
-                       std::to_string(function->parameters.size()) +
-                       " arguments, received " +
-                       std::to_string(argumentTypes.size()));
-        }
-        std::unordered_map<std::string, std::string> genericTypes;
-        const std::size_t count =
-            std::min(argumentTypes.size(), function->parameters.size());
-        for (std::size_t index = 0; index < count; ++index) {
-            const Parameter& parameter = function->parameters[index];
-            const std::string& actual = argumentTypes[index];
-            std::string expected = parameter.type;
-            if (parameter.infersGenericType) {
-                if (!actual.empty()) {
-                    genericTypes[expected] = actual;
-                }
-                continue;
-            }
-            const auto generic = genericTypes.find(expected);
-            if (generic != genericTypes.end()) {
-                expected = generic->second;
-            }
-            checkAssignment(context, expected, actual,
-                            context.currentLine, context.currentColumn,
-                            "argument " + std::to_string(index + 1) +
-                                " to '" + function->name + "'");
-        }
-        const auto resultType = genericTypes.find(function->returnType);
-        return resultType == genericTypes.end() ? function->returnType
-                                                 : resultType->second;
+        return checkFunctionCall(context, *function, argumentTypes);
     }
     if (const auto* list =
             dynamic_cast<const ListLiteralExpression*>(&expression)) {
@@ -299,11 +304,39 @@ std::string infer(Context& context, const Expression& expression) {
     }
     if (const auto* method =
             dynamic_cast<const MethodCallExpression*>(&expression)) {
-        const std::string receiver = infer(context, method->receiver());
         std::vector<std::string> argumentTypes;
         for (const auto& argument : method->arguments()) {
             argumentTypes.push_back(infer(context, *argument));
         }
+        std::function<bool(const Expression&, std::string&)> qualify =
+            [&](const Expression& node, std::string& result) {
+                if (const auto* root =
+                        dynamic_cast<const VariableExpression*>(&node)) {
+                    result = root->name();
+                    return true;
+                }
+                const auto* access =
+                    dynamic_cast<const DotAccessExpression*>(&node);
+                if (access == nullptr ||
+                    !qualify(access->object(), result)) {
+                    return false;
+                }
+                result += "." + access->fieldName();
+                return true;
+            };
+        std::string qualified;
+        if (qualify(method->receiver(), qualified)) {
+            const std::string root = qualified.substr(0, qualified.find('.'));
+            if (findVariable(context, root) == nullptr) {
+                qualified += "." + method->methodName();
+                if (const Function* function =
+                        findFunction(context, qualified)) {
+                    return checkFunctionCall(context, *function,
+                                             argumentTypes);
+                }
+            }
+        }
+        const std::string receiver = infer(context, method->receiver());
         const ClassDef* definition =
             TypeRegistry::instance().findClass(receiver);
         const ClassMethod* target = findClassMethod(definition,
@@ -356,6 +389,32 @@ std::string infer(Context& context, const Expression& expression) {
         }
         if (const ClassDef* definition =
                 TypeRegistry::instance().findClass(created->typeName())) {
+            if (definition->isTemplate) {
+                if (argumentTypes.size() !=
+                    definition->constructorParams.size()) {
+                    const std::size_t expected =
+                        definition->constructorParams.size();
+                    report(context, LintDiagnostic::Severity::Error,
+                           context.currentLine, context.currentColumn,
+                           "template '" + created->typeName() + "' expects " +
+                               std::to_string(expected) +
+                               (expected == 1 ? " argument, received "
+                                              : " arguments, received ") +
+                               std::to_string(argumentTypes.size()));
+                }
+                for (std::size_t index = 0;
+                     index < std::min(argumentTypes.size(),
+                                      definition->constructorParams.size());
+                     ++index) {
+                    checkAssignment(
+                        context, definition->constructorParams[index].first,
+                        argumentTypes[index], context.currentLine,
+                        context.currentColumn,
+                        "argument " + std::to_string(index + 1) +
+                            " to template '" + created->typeName() + "'");
+                }
+                return created->typeName();
+            }
             if (const ClassMethod* constructor =
                     findClassMethod(definition, "init")) {
                 if (argumentTypes.size() != constructor->params.size()) {
@@ -717,8 +776,19 @@ std::vector<LintDiagnostic> analyzeLint(
     Context context;
     context.scopes.emplace_back();
     context.diagnostics = &diagnostics;
+    std::function<void(const Function&, const std::string&)> addFunctionTree;
+    addFunctionTree = [&](const Function& function,
+                          const std::string& qualifiedName) {
+        context.functions[qualifiedName] = &function;
+        for (const auto& nested : function.nestedFunctions) {
+            if (nested != nullptr) {
+                addFunctionTree(*nested,
+                                qualifiedName + "." + nested->name);
+            }
+        }
+    };
     for (const auto& entry : functions) {
-        context.functions[entry.first] = &entry.second;
+        addFunctionTree(entry.second, entry.first);
     }
     for (const auto& entry : functions) {
         analyzeFunction(context, entry.second);

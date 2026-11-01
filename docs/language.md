@@ -6,39 +6,46 @@ behaviour that is deliberately constrained or not implemented, see
 [limitations.md](limitations.md).
 
 Related pages: [functions.md](functions.md), [types.md](types.md),
-[lists.md](lists.md), [structs.md](structs.md), [classes.md](classes.md),
-[enums.md](enums.md), [vargroups.md](vargroups.md), [modules.md](modules.md),
-and [builtins.md](builtins.md).
+[lists.md](lists.md), [structs.md](structs.md), [templates.md](templates.md),
+[classes.md](classes.md), [enums.md](enums.md), [vargroups.md](vargroups.md),
+[modules.md](modules.md), and [builtins.md](builtins.md).
 
 ## A first program
 
 ```lynx
-global setup() {
+fn setup() {
     println("ready");
 }
 
-global main() {
+fn main() {
     println("Hello, Lynxer!");
 }
 ```
 
 Requires the interpreter (see [install.md](install.md)) and runs with
-`lynxer hello.lynx`. If `setup` or `main` is missing, the parser reports it
-with a source location, for example
-`lynxer: hello.lynx:2:2: program must define global setup()`.
+`lynxer hello.lynx`. `setup()` is optional and its absence produces a warning;
+`main()` is required and its absence is an error.
 
 ## Program structure
 
-A file is a sequence of top-level declarations, in this order:
+A file is a sequence of top-level declarations. Functions use `fn`, and may
+appear before or after either entry point:
 
-1. **`global setup()`** — must be the **first** declaration. The interpreter
-   raises `global setup() must be the first declaration` otherwise.
-2. **Anything else** — file-level `func`s, `global` functions, `struct`,
-   `class` and `enum` definitions before `main`. A class's parent must be
-   declared before the child class.
-3. **`global main()`** — the default entry point, and the last declaration.
-   A declaration after `main` fails with
-   `declarations may not follow global main()`.
+```lynx
+fn calculate(int value) -> int {
+    return value * 2;
+}
+
+fn main() {
+    println(calculate(21));
+}
+```
+
+`fn setup()` is an optional initialization entry point; `fn main()` is
+mandatory. Other declarations, including functions, may follow `main()`. A
+template's or class's parent must still be declared before the child.
+The legacy `global`, `local` and `func` function keywords continue to parse
+with deprecation warnings; use `fn` for new code.
 
 Executable code outside a function body is a syntax error
 (`expected top-level function declaration`).
@@ -47,30 +54,30 @@ Executable code outside a function body is a syntax error
 before the body runs:
 
 ```lynx
-global setup(int retries = 3) {
+fn setup(int retries = 3) {
     println("retries ", retries);   // retries 3
 }
 
-global main() {
+fn main() {
     println("main");
 }
 ```
 
 ### `overrideMain`
 
-When `setup()` calls `overrideMain("name")`, the named global function runs
-instead of `main`, and `main` becomes optional:
+When `setup()` calls `overrideMain("name")`, the named function runs instead
+of `main`. The program must still declare `main()`:
 
 ```lynx
-global setup() {
+fn setup() {
     overrideMain("start");
 }
 
-global start() {
+fn start() {
     println("started");   // printed
 }
 
-global main() {
+fn main() {
     println("unused");
 }
 ```
@@ -200,7 +207,8 @@ The complete type list, ranges, and conversion rules live in
 [types.md](types.md). The scalar names are `int`, `float`, `num`, `bool`,
 `str`, `char`, `numBool`, `bit`, `byte`, `int8`/`int16`/`int32`/`int64`,
 `uint8`/`uint16`/`uint32`/`uint64`, `float32`/`float64`, plus `any`, `none`,
-`list`, `tuple`, `codeblock`, and the named `struct`/`class`/`enum` types.
+`list`, `tuple`, `codeblock`, and the named `struct`/`template`/`class`/`enum`
+types.
 
 ## Operators
 
@@ -250,35 +258,33 @@ checked against the function's return annotation, if any.
 
 ## Functions
 
-See [functions.md](functions.md) for a full page on each form. There are three
-function declaration forms and a scoped named lambda form:
+See [functions.md](functions.md) for the full reference. `fn` is used for
+top-level and nested functions; named lambdas remain available:
 
 | Form | Written | Where | Called from |
 |------|---------|-------|-------------|
-| Global function | `global name(...)` | between `setup` and `main` | `global.name(...)` or a bare name in the same file |
-| File-level function | `func name(...)` | between `setup` and `main` | a bare name in the same file; `global.module.name(...)` from an importer |
-| Local function | `local name(...)` | inside another function body | a bare name, or `local.name(...)` |
+| Function | `fn name(...)` | file or nested function scope | bare name, module namespace, or nested dot path |
 | Named lambda | `lambda name(...)` | inside a function body | its name in the declaring scope |
 
-`global func name(...)` is **not** valid syntax; use `func name(...)` for a
-file-level function.
+`global`, `local` and `func` remain accepted as deprecated declaration
+keywords; use `fn` instead.
 
 ```lynx
-func double(int n) -> int {
+fn double(int n) -> int {
     return n * 2;
 }
 
-global add(int a, int b = 1) -> int {
+fn add(int a, int b = 1) -> int {
     return a + b;
 }
 
-global main() {
-    local square(int n) -> int {
+fn main() {
+    fn square(int n) -> int {
         return n * n;
     }
-    println(double(4));        // 8
-    println(global.add(2));    // 3
-    println(square(3));        // 9
+    println(double(4)); // 8
+    println(add(2));    // 3
+    println(square(3)); // 9
 }
 ```
 
@@ -299,8 +305,9 @@ passed as arguments; see [function values](functions.md#function-values).
   return annotation; each call infers `T` from `value`. See
   [functions.md](functions.md#parameters-and-defaults) for an example and
   restrictions.
-- Class methods are the exception: their parameters are typed but may **not**
-  have defaults (see [classes.md](classes.md)).
+- Template and class methods are the exception: their parameters are typed but
+  may **not** have defaults (see [templates.md](templates.md) and
+  [classes.md](classes.md)).
 
 ### Return annotations
 
@@ -315,7 +322,8 @@ global f(int x) -> int { return x + 1; }
 - `-> none` is accepted: the function must return nothing, and a returned value
   fails with `value cannot be assigned to type 'none'`.
 - A mismatched return is a source-located runtime error.
-- Named types (a `struct`, `class`, or `enum`) may be used as the annotation.
+- Named types (a `struct`, `template`, `class`, or `enum`) may be used as the
+  annotation.
 
 ### Codeblocks
 
@@ -403,8 +411,8 @@ Only string literals written directly in the call are interpolated. A string
 held in a variable is printed unchanged:
 
 ```lynx
-str template = "n is {n}";
-printlnf(template); // n is {n}
+str pattern = "n is {n}";
+printlnf(pattern); // n is {n}
 ```
 
 ## Modules
@@ -417,7 +425,9 @@ body — most often `setup()` — not at file scope. Both arguments must be stri
 ## Aggregate types
 
 - [structs.md](structs.md) — data-only records built with `new`.
-- [classes.md](classes.md) — fields plus `local` methods.
+- [templates.md](templates.md) — header constructors, `build ... named`, fields,
+  `local` methods, and `extending`.
+- [classes.md](classes.md) — deprecated class form.
 - [enums.md](enums.md) — tagged unions with payloads and `switch` patterns.
 - [vargroups.md](vargroups.md) — typed records with defaults and dot access.
 - [lists.md](lists.md) — `list` and `tuple` values and their builtins.

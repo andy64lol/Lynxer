@@ -16,17 +16,17 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DOCUMENT = """global setup(){}
+DOCUMENT = """fn setup(){}
 
 global addOne(int value) -> int {
     return value + 1;
 }
 
-global apply(function operation, int value) -> int {
+fn apply(function operation, int value) -> int {
     return operation(value);
 }
 
-global main(){
+fn main(){
     int unused = 1;
     int broken = "text";
     function increment = addOne;
@@ -176,8 +176,10 @@ def main() -> int:
             "textDocument/publishDiagnostics", uri)
         diagnostics = published["params"]["diagnostics"]
         messages = [item["message"] for item in diagnostics]
-        check(len(diagnostics) == 2,
-              f"expected 2 diagnostics, received {messages}")
+        check(len(diagnostics) == 3,
+              f"expected 3 diagnostics, received {messages}")
+        check(any("deprecated; use 'fn'" in item for item in messages),
+              f"missing function deprecation warning: {messages}")
         check(any("unused variable 'unused'" in item for item in messages),
               f"missing unused-variable diagnostic: {messages}")
         check(any("initializer for 'broken'" in item for item in messages),

@@ -16,7 +16,7 @@ struct Player {
 Every field has an explicit type and ends with `;`. Fields may **not** have
 default values (`int health = 100;` fails with
 `expected ';' after struct field`), and a struct has no methods — use a
-[class](classes.md) when you need either.
+[template](templates.md) when you need either.
 
 ## Construction
 
@@ -63,6 +63,8 @@ global main(){
 
 ## See also
 
-- [classes.md](classes.md) — the same shape plus methods and `init`.
+- [templates.md](templates.md) — the same shape plus header constructors and
+  methods.
+- [classes.md](classes.md) — the deprecated class form.
 - [vargroups.md](vargroups.md) — records with defaulted fields.
 - [types.md](types.md) — how a struct name works as a declared type.

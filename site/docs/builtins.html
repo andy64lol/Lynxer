@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -143,7 +144,9 @@
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
 <tr><td><code>print(value...)</code></td><td>Writes each argument with no separator</td></tr>
+<tr><td><code>printf(value...)</code></td><td>Like <code>print</code>, but <code>{expr}</code> in string literals written directly as arguments is interpolated</td></tr>
 <tr><td><code>println(value...)</code></td><td>Like <code>print</code> plus a trailing newline</td></tr>
+<tr><td><code>printlnf(value...)</code></td><td>Like <code>println</code>, but <code>{expr}</code> in string literals written directly as arguments is interpolated</td></tr>
 <tr><td><code>input([prompt])</code></td><td>Prints the prompt, reads one line from stdin</td></tr>
 <tr><td><code>inputln([prompt])</code></td><td>As <code>input</code>, but keeps the newline</td></tr>
 <tr><td><code>strOf(value)</code></td><td>Value rendered as text</td></tr>

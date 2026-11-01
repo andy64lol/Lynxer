@@ -652,6 +652,7 @@ struct Function {
     bool isFileFunction = false;
     bool isLambda = false;
     StatementList statements;
+    std::vector<std::shared_ptr<Function>> nestedFunctions;
 };
 
 // Invokes a function value while respecting the lexical environment retained
@@ -883,7 +884,7 @@ Value invokeFunction(const Function& function, const std::vector<Value>& args,
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment);
 
-// Registers the program's top-level functions and runs `global setup()` if it
+// Registers the program's top-level functions and runs `fn setup()` if it
 // exists, without running `main()`. `executeProgram` calls both; the embedding
 // runtime calls them and then keeps the environment alive for exported calls.
 void prepareProgram(const std::unordered_map<std::string, Function>& functions,
@@ -918,10 +919,11 @@ struct ImportRecord {
 
 // Lexes and parses `source`, returning every import it declares in source order.
 // A library (see `--emit-library`) can be parsed with `requireEntryPoints`
-// false, so a program without `global setup()` is accepted.
+// false, so a program without `main()` is accepted.
 std::vector<ImportRecord> collectImports(const std::string& source,
                                          const std::string& display,
-                                         bool requireEntryPoints = true);
+                                         bool requireEntryPoints = true,
+                                         bool emitDeprecationWarnings = true);
 
 // Resolves a module reference the way the interpreter does, starting from
 // `sourceDirectory`. Embedded modules take priority; returns "" when nothing

@@ -8,12 +8,12 @@ Imports are **statements**, so they run from a function body — `setup()` is th
 conventional place, but any function works:
 
 ```lynx
-global setup(){
+fn setup(){
     import("math");
     importAs("json", "j");
 }
 
-global main(){}
+fn main(){}
 ```
 
 A native shared library is named with its `.so` suffix:
@@ -70,7 +70,7 @@ the module with a manifest that names its entry point. This mirrors Node's
   modules/foo/
     module.toml        # [module] ... entry = "src/main.lynx"
     src/main.lynx      # the module source
-  main.lynx            # global setup(){ import("foo"); }
+  main.lynx            # fn setup(){ import("foo"); }
 ```
 
 `import("foo")` searches for `modules/foo/` by walking up from the importing
@@ -81,7 +81,7 @@ of `module.toml` and loads that file; without a manifest it falls back to
 `index.lynx`, then `main.lynx`.
 
 The namespace is always the requested name, so `import("foo")` binding
-`modules/foo/src/main.lynx` is reached as `global.foo.<function>()` — the entry
+`modules/foo/src/main.lynx` is reached as `foo.<function>()` — the entry
 filename does not matter. Relative paths and native (`.so`) imports are
 unaffected; only a bare, extensionless name looks in `modules/`.
 
@@ -91,45 +91,41 @@ remain private to their source file. See [macros.md](macros.md).
 
 ## Calling module members
 
-Members are reached through the module namespace: `global.<module>.<name>(...)`
-(or `global.<alias>.<name>(...)` after `importAs`).
+Members are reached through the module namespace: `<module>.<name>(...)`
+(or `<alias>.<name>(...)` after `importAs`).
 
 ```lynx
-global setup(){
+fn setup(){
     import("math");
     importAs("json", "j");
 }
 
-global main(){
-    println(global.math.max(2, 5));                    // 5
-    println(global.j.jsonGet("{\"a\": 1}", "a"));      // 1
+fn main(){
+    println(math.max(2, 5));                    // 5
+    println(j.jsonGet("{\"a\": 1}", "a"));      // 1
 }
 ```
 
-Inside the module file itself, call its own functions by **bare name** — using
-`global.<name>(...)` inside a module resolves to a *core builtin* named `name`,
-not the module's own function. A module that calls `global.round(...)` while
-defining its own `round` fails with `unknown function 'global.round'`; call it
-as `round(...)` instead. Reserve `global.name(...)` for builtins such as
-`assert`, `trim`, or `upper`. A file-level `func` in a module is reached from
-the importer as `global.<module>.<name>` just like a `global` function.
+Inside the module file itself, call its own functions by bare name. Functions
+imported from another module use that module's name or alias as the prefix.
 
 ## Writing a module
 
-Any `.lynx` file with `setup` and helpers is a module. Open it with a `////`
-docstring line so `--list-stdlibs` can describe it:
+Any `.lynx` file with functions is a module; `setup()` and `main()` are not
+required for imported modules. Open it with a `////` docstring line so
+`--list-stdlibs` can describe it:
 
 ```lynx
 ////
 Small helper module.
 ////
-global setup(){}
+fn setup(){}
 
-global twice(int n) -> int {
+fn twice(int n) -> int {
     return n * 2;
 }
 
-global main(){}
+fn main(){}
 ```
 
 A native backend exports `lynxer_module_init_v1`; see

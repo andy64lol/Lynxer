@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html" class="active">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -142,7 +143,7 @@
     int health;
     str name;
 }</code></pre>
-<p>Every field has an explicit type and ends with <code>;</code>. Fields may <strong>not</strong> have default values (<code>int health = 100;</code> fails with <code>expected &#x27;;&#x27; after struct field</code>), and a struct has no methods — use a <a href="classes.html">class</a> when you need either.</p>
+<p>Every field has an explicit type and ends with <code>;</code>. Fields may <strong>not</strong> have default values (<code>int health = 100;</code> fails with <code>expected &#x27;;&#x27; after struct field</code>), and a struct has no methods — use a <a href="templates.html">template</a> when you need either.</p>
 <h2 id="construction">Construction</h2>
 <pre><code>Player first = new Player(100, &quot;Ada&quot;);</code></pre>
 <ul>
@@ -172,7 +173,8 @@ global main(){
 }</code></pre>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="classes.html">classes</a> — the same shape plus methods and <code>init</code>.</li>
+<li><a href="templates.html">templates</a> — the same shape plus header constructors and methods.</li>
+<li><a href="classes.html">classes</a> — the deprecated class form.</li>
 <li><a href="vargroups.html">vargroups</a> — records with defaulted fields.</li>
 <li><a href="types.html">types</a> — how a struct name works as a declared type.</li>
 </ul>

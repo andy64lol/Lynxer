@@ -47,6 +47,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -137,43 +138,46 @@
         </div>
 <h1 id="the-lynxer-language">The Lynxer language</h1>
 <p>This page describes the Lynxer language <strong>as the interpreter actually parses and runs it</strong>, with every example verified against the interpreter. For the behaviour that is deliberately constrained or not implemented, see <a href="limitations.html">limitations</a>.</p>
-<p>Related pages: <a href="functions.html">functions</a>, <a href="types.html">types</a>, <a href="lists.html">lists</a>, <a href="structs.html">structs</a>, <a href="classes.html">classes</a>, <a href="enums.html">enums</a>, <a href="vargroups.html">vargroups</a>, <a href="modules.html">modules</a>, and <a href="builtins.html">builtins</a>.</p>
+<p>Related pages: <a href="functions.html">functions</a>, <a href="types.html">types</a>, <a href="lists.html">lists</a>, <a href="structs.html">structs</a>, <a href="templates.html">templates</a>, <a href="classes.html">classes</a>, <a href="enums.html">enums</a>, <a href="vargroups.html">vargroups</a>, <a href="modules.html">modules</a>, and <a href="builtins.html">builtins</a>.</p>
 <h2 id="a-first-program">A first program</h2>
-<pre><code>global setup() {
+<pre><code>fn setup() {
     println(&quot;ready&quot;);
 }
 
-global main() {
+fn main() {
     println(&quot;Hello, Lynxer!&quot;);
 }</code></pre>
-<p>Requires the interpreter (see <a href="install.html">install</a>) and runs with <code>lynxer hello.lynx</code>. If <code>setup</code> or <code>main</code> is missing, the parser reports it with a source location, for example <code>lynxer: hello.lynx:2:2: program must define global setup()</code>.</p>
+<p>Requires the interpreter (see <a href="install.html">install</a>) and runs with <code>lynxer hello.lynx</code>. <code>setup()</code> is optional and its absence produces a warning; <code>main()</code> is required and its absence is an error.</p>
 <h2 id="program-structure">Program structure</h2>
-<p>A file is a sequence of top-level declarations, in this order:</p>
-<ol>
-<li><strong><code>global setup()</code></strong> — must be the <strong>first</strong> declaration. The interpreter raises <code>global setup() must be the first declaration</code> otherwise.</li>
-<li><strong>Anything else</strong> — file-level <code>func</code>s, <code>global</code> functions, <code>struct</code>, <code>class</code> and <code>enum</code> definitions before <code>main</code>. A class's parent must be declared before the child class.</li>
-<li><strong><code>global main()</code></strong> — the default entry point, and the last declaration. A declaration after <code>main</code> fails with <code>declarations may not follow global main()</code>.</li>
-</ol>
+<p>A file is a sequence of top-level declarations. Functions use <code>fn</code>, and may appear before or after either entry point:</p>
+<pre><code>fn calculate(int value) -&gt; int {
+    return value * 2;
+}
+
+fn main() {
+    println(calculate(21));
+}</code></pre>
+<p><code>fn setup()</code> is an optional initialization entry point; <code>fn main()</code> is mandatory. Other declarations, including functions, may follow <code>main()</code>. A template's or class's parent must still be declared before the child. The legacy <code>global</code>, <code>local</code> and <code>func</code> function keywords continue to parse with deprecation warnings; use <code>fn</code> for new code.</p>
 <p>Executable code outside a function body is a syntax error (<code>expected top-level function declaration</code>).</p>
 <p><code>setup()</code> and <code>main()</code> may take <strong>defaulted parameters</strong>; they are filled in before the body runs:</p>
-<pre><code>global setup(int retries = 3) {
+<pre><code>fn setup(int retries = 3) {
     println(&quot;retries &quot;, retries);   // retries 3
 }
 
-global main() {
+fn main() {
     println(&quot;main&quot;);
 }</code></pre>
 <h3 id="overridemain"><code>overrideMain</code></h3>
-<p>When <code>setup()</code> calls <code>overrideMain(&quot;name&quot;)</code>, the named global function runs instead of <code>main</code>, and <code>main</code> becomes optional:</p>
-<pre><code>global setup() {
+<p>When <code>setup()</code> calls <code>overrideMain(&quot;name&quot;)</code>, the named function runs instead of <code>main</code>. The program must still declare <code>main()</code>:</p>
+<pre><code>fn setup() {
     overrideMain(&quot;start&quot;);
 }
 
-global start() {
+fn start() {
     println(&quot;started&quot;);   // printed
 }
 
-global main() {
+fn main() {
     println(&quot;unused&quot;);
 }</code></pre>
 <h2 id="comments-and-docstrings">Comments and docstrings</h2>
@@ -242,7 +246,7 @@ y = 200;       // x stays 7, y is 200</code></pre>
 <p>The initializer must be a <strong>variable name</strong>, the declared type must accept the source's value, and the source must be readable (not moved). <code>unshare(name)</code> detaches the alias; the detached variable keeps its current value and declared type. <code>shared</code> is a declaration form of <code>varBorrowMutate</code>, and <code>unshare</code> is an alias of <code>varEndBorrow</code> — so a shared variable reports <code>borrowing(alias)</code> and <code>beingBorrowed(source)</code> as <code>true</code> until it is detached.</p>
 <p>The arguments to these built-ins are <strong>variable names</strong>, not values. A runnable example is <code>lynxer/examples/ownership.lynx</code>.</p>
 <h2 id="types">Types</h2>
-<p>The complete type list, ranges, and conversion rules live in <a href="types.html">types</a>. The scalar names are <code>int</code>, <code>float</code>, <code>num</code>, <code>bool</code>, <code>str</code>, <code>char</code>, <code>numBool</code>, <code>bit</code>, <code>byte</code>, <code>int8</code>/<code>int16</code>/<code>int32</code>/<code>int64</code>, <code>uint8</code>/<code>uint16</code>/<code>uint32</code>/<code>uint64</code>, <code>float32</code>/<code>float64</code>, plus <code>any</code>, <code>none</code>, <code>list</code>, <code>tuple</code>, <code>codeblock</code>, and the named <code>struct</code>/<code>class</code>/<code>enum</code> types.</p>
+<p>The complete type list, ranges, and conversion rules live in <a href="types.html">types</a>. The scalar names are <code>int</code>, <code>float</code>, <code>num</code>, <code>bool</code>, <code>str</code>, <code>char</code>, <code>numBool</code>, <code>bit</code>, <code>byte</code>, <code>int8</code>/<code>int16</code>/<code>int32</code>/<code>int64</code>, <code>uint8</code>/<code>uint16</code>/<code>uint32</code>/<code>uint64</code>, <code>float32</code>/<code>float64</code>, plus <code>any</code>, <code>none</code>, <code>list</code>, <code>tuple</code>, <code>codeblock</code>, and the named <code>struct</code>/<code>template</code>/<code>class</code>/<code>enum</code> types.</p>
 <h2 id="operators">Operators</h2>
 <p>Lynxer uses keyword operators: <code>is</code> / <code>isnt</code>, <code>and</code> / <code>or</code> / <code>not</code>, <code>bitand</code> / <code>bitor</code> / <code>bitxor</code>, <code>bitleft</code> / <code>bitright</code>, and so on. The symbolic C-style spellings (<code>==</code>, <code>!=</code>, <code>&amp;&amp;</code>, <code>||</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, …) still parse but are <strong>deprecated</strong> and print a warning; a bare <code>!</code> is a syntax error.</p>
 <pre><code>int n = 6;
@@ -268,30 +272,28 @@ println(n bitand 3);   // 2</code></pre>
 <h3 id="return"><code>return</code></h3>
 <p><code>return expr;</code> returns a value; a bare <code>return;</code> returns nothing. The value is checked against the function's return annotation, if any.</p>
 <h2 id="functions">Functions</h2>
-<p>See <a href="functions.html">functions</a> for a full page on each form. There are three function declaration forms and a scoped named lambda form:</p>
+<p>See <a href="functions.html">functions</a> for the full reference. <code>fn</code> is used for top-level and nested functions; named lambdas remain available:</p>
 <table>
 <tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
-<tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code> or a bare name in the same file</td></tr>
-<tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
-<tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
+<tr><td>Function</td><td><code>fn name(...)</code></td><td>file or nested function scope</td><td>bare name, module namespace, or nested dot path</td></tr>
 <tr><td>Named lambda</td><td><code>lambda name(...)</code></td><td>inside a function body</td><td>its name in the declaring scope</td></tr>
 </table>
-<p><code>global func name(...)</code> is <strong>not</strong> valid syntax; use <code>func name(...)</code> for a file-level function.</p>
-<pre><code>func double(int n) -&gt; int {
+<p><code>global</code>, <code>local</code> and <code>func</code> remain accepted as deprecated declaration keywords; use <code>fn</code> instead.</p>
+<pre><code>fn double(int n) -&gt; int {
     return n * 2;
 }
 
-global add(int a, int b = 1) -&gt; int {
+fn add(int a, int b = 1) -&gt; int {
     return a + b;
 }
 
-global main() {
-    local square(int n) -&gt; int {
+fn main() {
+    fn square(int n) -&gt; int {
         return n * n;
     }
-    println(double(4));        // 8
-    println(global.add(2));    // 3
-    println(square(3));        // 9
+    println(double(4)); // 8
+    println(add(2));    // 3
+    println(square(3)); // 9
 }</code></pre>
 <p>Named lambdas are local to their declaring function scope and are not exported; nested function scopes cannot see them. See <a href="functions.html#named-lambdas">functions</a> for an example. Functions and lambdas can also be stored as <code>function</code> values, returned, and passed as arguments; see <a href="functions.html#function-values">function values</a>.</p>
 <h3 id="parameters-and-defaults">Parameters and defaults</h3>
@@ -300,7 +302,7 @@ global main() {
 <li>A parameter may have a default (<code>int b = 1</code>).</li>
 <li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
 <li><code>type T of value</code> declares an inferred type parameter for an ordinary function. Reuse <code>T</code> in later parameter types, local declarations, or the return annotation; each call infers <code>T</code> from <code>value</code>. See <a href="functions.html#parameters-and-defaults">functions</a> for an example and restrictions.</li>
-<li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
+<li>Template and class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="templates.html">templates</a> and <a href="classes.html">classes</a>).</li>
 </ul>
 <h3 id="return-annotations">Return annotations</h3>
 <p>Only the arrow form is accepted:</p>
@@ -310,7 +312,7 @@ global main() {
 <li>Omit the annotation, or use <code>-&gt; any</code>, to leave the result unchecked.</li>
 <li><code>-&gt; none</code> is accepted: the function must return nothing, and a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>.</li>
 <li>A mismatched return is a source-located runtime error.</li>
-<li>Named types (a <code>struct</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
+<li>Named types (a <code>struct</code>, <code>template</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
 </ul>
 <h3 id="codeblocks">Codeblocks</h3>
 <p>A function may declare caller-supplied blocks after its parameters and invoke them with <code>exec()</code>. See <strong><a href="codeblocks.html">codeblocks</a></strong> for the full reference.</p>
@@ -348,12 +350,25 @@ global main() {
     return inter&quot;value: {n}\n&quot;;
 }</code></pre>
 <p>The embedded expressions run when the string is evaluated. Each result is converted to text and inserted between the literal parts.</p>
+<h3 id="interpolating-output-calls">Interpolating output calls</h3>
+<p><code>printf(...)</code> and <code>printlnf(...)</code> are the interpolating counterparts of <code>print(...)</code> and <code>println(...)</code>. A double-quoted string literal written directly as an argument is treated as if it had an <code>inter</code> prefix, so <code>{expr}</code> is evaluated without constructing an explicit <code>inter&quot;...&quot;</code> value:</p>
+<pre><code>global main() {
+    int n = 3;
+    str name = &quot;Ada&quot;;
+    printf(&quot;n is {n} and name is {name}\n&quot;);
+    printlnf(&quot;next year: {n + 1}&quot;); // next year: 4
+}</code></pre>
+<p><code>printf</code> writes the result without a trailing newline; <code>printlnf</code> adds one. The escape rules match <code>inter&quot;...&quot;</code>: <code>\{</code> and <code>\}</code> insert literal braces and <code>\\</code> inserts a backslash.</p>
+<p>Only string literals written directly in the call are interpolated. A string held in a variable is printed unchanged:</p>
+<pre><code>str pattern = &quot;n is {n}&quot;;
+printlnf(pattern); // n is {n}</code></pre>
 <h2 id="modules">Modules</h2>
 <p><code>import(&quot;name&quot;)</code> and <code>importAs(&quot;name&quot;, &quot;alias&quot;)</code> load <code>.lynx</code> source modules or native <code>.so</code> libraries. They are <strong>statements</strong>, so they run from any function body — most often <code>setup()</code> — not at file scope. Both arguments must be string <strong>literals</strong>. See <a href="modules.html">modules</a>.</p>
 <h2 id="aggregate-types">Aggregate types</h2>
 <ul>
 <li><a href="structs.html">structs</a> — data-only records built with <code>new</code>.</li>
-<li><a href="classes.html">classes</a> — fields plus <code>local</code> methods.</li>
+<li><a href="templates.html">templates</a> — header constructors, <code>build ... named</code>, fields, <code>local</code> methods, and <code>extending</code>.</li>
+<li><a href="classes.html">classes</a> — deprecated class form.</li>
 <li><a href="enums.html">enums</a> — tagged unions with payloads and <code>switch</code> patterns.</li>
 <li><a href="vargroups.html">vargroups</a> — typed records with defaults and dot access.</li>
 <li><a href="lists.html">lists</a> — <code>list</code> and <code>tuple</code> values and their builtins.</li>

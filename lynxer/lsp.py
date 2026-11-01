@@ -27,14 +27,17 @@ def project_root() -> Path:
 
 ROOT = project_root()
 DECLARATION = re.compile(
-    r"^\s*(?:(global|func|local|lambda|async|class|struct|enum)\s+)?"
+    r"^\s*(?:(fn|global|func|local|lambda|async|template|class|struct|enum)\s+)?"
     r"([A-Za-z_]\w*)"
 )
 FUNCTION = re.compile(
-    r"^\s*(global|func|local|lambda|async)\s+([A-Za-z_]\w*)\s*\((.*)"
+    r"^\s*(fn|global|func|local|lambda|async)\s+([A-Za-z_]\w*)\s*\((.*)"
 )
 VARIABLE = re.compile(
     r"^\s*(?:const\s+)?(?:[A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*="
+)
+BUILD = re.compile(
+    r"^\s*build\s+[A-Za-z_]\w*\s*\(.*\)\s+named\s+([A-Za-z_]\w*)\s*;"
 )
 STATIC_DIAGNOSTIC = re.compile(
     r"^(.+):(\d+):(\d+): (error|warning): (.*)$"
@@ -42,7 +45,8 @@ STATIC_DIAGNOSTIC = re.compile(
 SOURCE_DIAGNOSTIC = re.compile(r"^lynxer: (.+):(\d+):(\d+): (.*)$")
 
 KEYWORDS = [
-    "global", "func", "local", "lambda", "class", "extends", "struct",
+    "fn", "global", "func", "local", "lambda", "template", "build", "named",
+    "extending", "class", "extends", "struct",
     "enum", "setup", "main", "return", "if", "elif", "else", "while",
     "for", "doWhile", "iterate", "forever", "switch", "case", "default",
     "try", "catch", "raise", "break", "continue", "restart", "new",
@@ -100,7 +104,7 @@ def declaration_locations(uri: str, text: str) -> list[dict[str, Any]]:
     for line_number, line in enumerate(text.splitlines()):
         function = FUNCTION.match(line)
         if function:
-            kind, name, signature = function.groups()
+            kind, name, _signature = function.groups()
             start = line.find(name)
             declarations.append({
                 "name": name, "kind": kind, "signature": line.strip(),
@@ -108,11 +112,19 @@ def declaration_locations(uri: str, text: str) -> list[dict[str, Any]]:
             })
             continue
         match = DECLARATION.match(line)
-        if match and match.group(1) in {"class", "struct", "enum"}:
+        if match and match.group(1) in {"template", "class", "struct", "enum"}:
             kind, name = match.groups()
             declarations.append({
                 "name": name, "kind": kind, "signature": line.strip(),
                 "line": line_number, "character": line.find(name), "uri": uri,
+            })
+            continue
+        build = BUILD.match(line)
+        if build:
+            name = build.group(1)
+            declarations.append({
+                "name": name, "kind": "variable", "signature": line.strip(),
+                "line": line_number, "character": build.start(1), "uri": uri,
             })
             continue
         variable = VARIABLE.match(line)
@@ -247,8 +259,10 @@ class LynxerLanguageServer:
             name = declaration["name"]
             if name.startswith(prefix):
                 kind = 3 if declaration["kind"] in {
-                    "global", "func", "local", "lambda", "async"
-                } else (7 if declaration["kind"] in {"class", "struct", "enum"} else 6)
+                    "fn", "global", "func", "local", "lambda", "async"
+                } else (7 if declaration["kind"] in {
+                    "template", "class", "struct", "enum"
+                } else 6)
                 items[name] = {
                     "label": name, "kind": kind,
                     "detail": declaration["signature"],
@@ -311,7 +325,8 @@ class LynxerLanguageServer:
         return references
 
     def documentation(self, name: str) -> str:
-        for page_name in ("functions.md", "classes.md", "types.md", "builtins.md"):
+        for page_name in ("functions.md", "templates.md", "classes.md",
+                          "types.md", "builtins.md"):
             page = self.docs_root / page_name
             if not page.is_file():
                 continue
@@ -352,8 +367,8 @@ class LynxerLanguageServer:
         if document is None:
             return []
         symbols = []
-        kinds = {"global": 12, "func": 12, "local": 12, "lambda": 12,
-                 "async": 12, "class": 5, "struct": 23, "enum": 10,
+        kinds = {"fn": 12, "global": 12, "func": 12, "local": 12, "lambda": 12,
+                 "async": 12, "template": 5, "class": 5, "struct": 23, "enum": 10,
                  "variable": 13}
         lines = document["text"].splitlines()
         for declaration in declaration_locations(uri, document["text"]):

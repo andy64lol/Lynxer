@@ -181,7 +181,7 @@ LYNXER_CONDITION_FIXTURE := $(LYNXER_DIR)/examples/conditions.lynx
 LYNXER_LOOP_FIXTURE := $(LYNXER_DIR)/examples/loops.lynx
 LYNXER_ERROR_FIXTURE := $(LYNXER_DIR)/examples/control_flow_error.lynx
 LYNXER_COMMENT_FIXTURE := $(LYNXER_DIR)/examples/comments.lynx
-LYNXER_SETUP_ERROR_FIXTURE := $(LYNXER_DIR)/examples/missing_setup.lynx
+LYNXER_ENTRY_POINT_ERROR_FIXTURE := $(LYNXER_DIR)/examples/missing_main.lynx
 # A run-time failure raised inside an imported module: the diagnostic must name
 # the module file, not the importing program.
 LYNXER_MODULE_ERROR_FIXTURE := $(LYNXER_DIR)/examples/module_error.lynx
@@ -192,6 +192,7 @@ LYNXER_MILESTONE4_PATTERN_FIXTURE := $(LYNXER_DIR)/examples/milestone4_patterns.
 LYNXER_MILESTONE5_FIXTURE := $(LYNXER_DIR)/examples/milestone5.lynx
 LYNXER_MILESTONE5_CODEBLOCK_FIXTURE := $(LYNXER_DIR)/examples/milestone5_codeblocks.lynx
 LYNXER_SUPER_FIXTURE := $(LYNXER_DIR)/examples/super_constructors.lynx
+LYNXER_TEMPLATE_FIXTURE := $(LYNXER_DIR)/examples/templates.lynx
 LYNXER_FUNCTION_VALUE_FIXTURE := $(LYNXER_DIR)/examples/function_values.lynx
 LYNXER_LINT_FIXTURE := $(LYNXER_DIR)/examples/lint_static.lynx
 LYNXER_DEBUGGER_FIXTURE := $(LYNXER_DIR)/examples/debugger.lynx
@@ -297,11 +298,11 @@ LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug email encoding fileIO game graphics html image js json lua markdown math \
 	multiprocessing network numutils os path pdf random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
-LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
+LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport functions_fn macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
  stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch stdlib_numutils \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
-	foo_example range_for
+	templates foo_example range_for
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -664,16 +665,16 @@ testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIG
 	echo "expected inputln output:"; printf '%s\n' "$$expected"; \
 	echo "received inputln output:"; printf '%s\n' "$$output"; exit 1; fi
 	@set +e; \
-	output="$$($(CLYX) $(LYNXER_SETUP_ERROR_FIXTURE) 2>&1)"; \
+	output="$$($(CLYX) $(LYNXER_ENTRY_POINT_ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global setup()"; \
-	case "$$output" in "$$expected"*) ;; \
-	*) echo "expected setup enforcement: $$expected"; \
+expected="program must define fn main()"; \
+	case "$$output" in *"$$expected"*) ;; \
+	*) echo "expected main enforcement: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \
 	esac; \
 	if [ "$$status" -ne 1 ]; then \
-	echo "expected setup enforcement: $$expected"; \
+	echo "expected main enforcement: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi
@@ -913,7 +914,7 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: Vargroup and lega
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
-	@for fixture in $(LYNXER_SUPER_FIXTURE) $(LYNXER_FUNCTION_VALUE_FIXTURE); do \
+	@for fixture in $(LYNXER_SUPER_FIXTURE) $(LYNXER_TEMPLATE_FIXTURE) $(LYNXER_FUNCTION_VALUE_FIXTURE); do \
 	$(CLYX) "$$fixture" > $(CLYX_TMP)_feature.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "feature fixture failed: $$fixture"; cat $(CLYX_TMP)_feature.out; \

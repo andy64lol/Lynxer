@@ -98,5 +98,6 @@ global main(){
 
 ## See also
 
-- [structs.md](structs.md) and [classes.md](classes.md) for the other named types.
+- [structs.md](structs.md), [templates.md](templates.md), and
+  [classes.md](classes.md) for the other named types.
 - [language.md](language.md#control-flow) for `switch`.

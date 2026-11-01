@@ -1,5 +1,11 @@
 # Classes
 
+> **Deprecated.** `class` is the legacy object form. New code should use
+> [`template`](templates.md): constructor parameters live in the declaration
+> header, construction uses `build T(args) named x;`, and inheritance uses
+> `extending`. The `class` form remains fully supported for compatibility,
+> including `new`, `extends`, and `super(...)`.
+
 A `class` is a named type with typed fields and `local` methods, constructed
 with `new`. A class can extend one previously declared class. Declare classes
 between `global setup()` and `global main()`.
@@ -170,6 +176,8 @@ global main(){
 
 ## See also
 
+- [templates.md](templates.md) — the current object form, with header
+  constructors, `build ... named`, and `extending`.
 - [structs.md](structs.md) — data-only records, positionally constructed.
 - [vargroups.md](vargroups.md) — records with defaulted fields.
 - [enums.md](enums.md) — tagged unions.

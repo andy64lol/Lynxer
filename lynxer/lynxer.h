@@ -67,7 +67,7 @@ enum {
 typedef struct LynxerEmbedContext LynxerEmbedContext;
 
 // Initializes the embedded program from an archive produced by the export
-// builder. Runs `global setup()` if present; never runs `main()`. Returns null
+// builder. Runs `fn setup()` if present; never runs `main()`. Returns null
 // on failure, with the reason in `lynxer_embed_last_error()`. The runtime
 // supports one program per process: a second call fails.
 LynxerEmbedContext* lynxer_embed_init(const uint8_t* archive, int64_t length);

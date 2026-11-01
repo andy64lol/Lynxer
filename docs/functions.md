@@ -1,90 +1,58 @@
 # Functions
 
-Lynxer has three function declaration forms plus scoped named lambdas. They
-differ in **where** they are written and **how** they are called. Parameters,
-return annotations and caller-supplied [codeblocks](codeblocks.md) work the
-same for all four.
-
-| Form | Written | Where | Called from |
-|------|---------|-------|-------------|
-| Global function | `global name(...)` | between `setup` and `main` | `global.name(...)`, or a bare name in the same file |
-| File-level function | `func name(...)` | between `setup` and `main` | a bare name in the same file; `global.module.name(...)` from an importer |
-| Local function | `local name(...)` | inside another function body | a bare name, or `local.name(...)` |
-| Named lambda | `lambda name(...)` | inside a function body | its name in the declaring scope |
-
-`global func name(...)` is **not** valid syntax (`unexpected character ' '`);
-use `func name(...)` for a file-level function.
-
-## Global functions
-
-`global` is the default, exported declaration. Declare it top-level, between
-`global setup()` and `global main()`:
+`fn` is the function declaration keyword. At file scope it declares a
+same-module function; inside another function it declares a nested function.
+Parameters, return annotations and caller-supplied
+[codeblocks](codeblocks.md) work the same at either location.
 
 ```lynx
-global setup(){}
+fn setup() {
+    // Optional initialization.
+}
 
-global double(int value) -> int {
+fn calculate(int value) -> int {
     return value * 2;
 }
 
-global main(){
-    println(double(21));        // 42, bare name in the same file
-    println(global.double(21)); // 42, fully qualified
-}
-```
-
-- A global function is callable by its bare name in its own file and by
-  `global.name(...)` everywhere, including from an importer as
-  `global.module.name(...)`.
-- `global setup()` and `global main()` are global functions with extra rules:
-  `setup` must be the first declaration, `main` the last, and either may take
-  defaulted parameters. See [language.md](language.md#program-structure) and
-  `overrideMain` in [language.md](language.md#overridemain).
-- Entry-point functions may **not** declare codeblock parameters.
-
-## File-level functions (`func`)
-
-A `func` belongs to its source file. Declare it top-level, between
-`global setup()` and `global main()`:
-
-```lynx
-global setup(){}
-
-func double(int value) -> int {
-    return value * 2;
-}
-
-global main(){
-    println(double(21));   // 42
-}
-```
-
-- `func` names are **file-scoped**: two imported files may each define a
-  `double` helper without colliding.
-- In the defining file, call it by bare name. From an importer, call it through
-  the module: `global.moduleName.double(21)` (see [modules.md](modules.md)).
-- `func` declarations must be top-level and may not follow `global main()`
-  (`declarations may not follow global main()`).
-
-## Local functions
-
-A `local` function is declared inside another function body and is not visible
-outside it:
-
-```lynx
-global setup(){}
-
-global main(){
-    local square(int n) -> int {
-        return n * n;
+fn parent() {
+    fn nested() {
+        println("nested function");
     }
-    println(square(4));        // 16, bare name
-    println(local.square(5));  // 25, qualified
+    nested();
+}
+
+fn main() {
+    println(calculate(21)); // 42
+    parent.nested();
 }
 ```
 
-- A local function is not exported and cannot be called from another function.
-- It may close over the top-level variables that are in scope where it runs.
+`main()` is required; `setup()` is optional. When `setup()` is absent the
+compiler warns, and when `main()` is absent it reports an error. Both are
+ordinary `fn` declarations with entry-point roles, and declarations may appear
+in any order. Entry-point functions may take defaulted parameters but may not
+declare codeblock parameters. See
+[language.md](language.md#program-structure) and `overrideMain` in
+[language.md](language.md#overridemain).
+
+Imported functions use their module namespace, including aliases:
+
+```lynx
+importAs("math", "m");
+println(m.calculate(21));
+```
+
+Nested names use hierarchical dot notation, with no fixed depth:
+`parent.child.grandchild()`.
+
+## Deprecated declaration keywords
+
+The old `global`, `local` and `func` declarations remain accepted for
+backwards compatibility, but each produces a deprecation warning recommending
+`fn`. Replace the declaration keyword with `fn`; call functions directly in
+the current module, through an imported module namespace, or through their
+nested function path. The old `global.` and `local.` function prefixes are
+also unnecessary for ordinary function calls.
 
 ## Named lambdas
 
@@ -92,9 +60,9 @@ A named `lambda` is declared inside a function and called by its name in that
 scope. It accepts typed parameters and an optional `-> type` return annotation:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main() {
+fn main() {
     str greeting = "Hello";
 
     lambda greet(str name) -> str {
@@ -103,7 +71,7 @@ global main() {
 
     println(greet("Andy")); // Hello, Andy!
 
-    global nested() {
+    fn nested() {
         println(greet("Andy")); // out-of-scope error if nested() is called
     }
 }
@@ -123,25 +91,25 @@ Named functions, local functions, and lambdas can be used as values. Use the
 something else:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global addOne(int value) -> int {
+fn addOne(int value) -> int {
     return value + 1;
 }
 
-global apply(function operation, int value) -> int {
+fn apply(function operation, int value) -> int {
     return operation(value);
 }
 
-global makeAdder(int base) -> function {
-    local add(int value) -> int {
+fn makeAdder(int base) -> function {
+    fn add(int value) -> int {
         return base + value;
     }
     return add;
 }
 
-global main() {
-    function increment = global.addOne;
+fn main() {
+    function increment = addOne;
     println(apply(increment, 4)); // 5
 
     function addTen = makeAdder(10);
@@ -168,13 +136,13 @@ explicitly as an argument remains available to the receiving function.
   return value:
 
   ```lynx
-  global setup(){}
+  fn setup(){}
 
-  global keep(type T of first, T second) -> T {
+  fn keep(type T of first, T second) -> T {
       return second;
   }
 
-  global main() {
+  fn main() {
       int number = keep(1, 2);
       str word = keep("one", "two");
       println(number); // 2
@@ -185,16 +153,18 @@ explicitly as an argument remains available to the receiving function.
   `T` can also be used for local declarations. Each call infers its own type;
   within one call, arguments using the same `T` must have the same Lynxer type.
   The generic parameter itself cannot have a default value; exported C
-  functions and class methods do not support inferred generic parameters.
-- Class methods are the exception: their parameters are typed but may **not**
-  have defaults (see [classes.md](classes.md)).
+  functions and template/class methods do not support inferred generic
+  parameters.
+- Template and class methods are the exception: their parameters are typed but
+  may **not** have defaults (see [templates.md](templates.md) and
+  [classes.md](classes.md)).
 
 ## Return annotations
 
 Only the arrow form is accepted:
 
 ```lynx
-global f(int x) -> int { return x + 1; }
+fn f(int x) -> int { return x + 1; }
 ```
 
 - `: int` is **not** valid syntax (`unexpected character ':'`).
@@ -202,12 +172,13 @@ global f(int x) -> int { return x + 1; }
 - `-> none` is accepted: the function must return nothing, and a returned value
   fails with `value cannot be assigned to type 'none'`.
 - A mismatched return is a source-located runtime error.
-- Named types (a `struct`, `class`, or `enum`) may be used as the annotation.
+- Named types (a `struct`, `template`, `class`, or `enum`) may be used as the
+  annotation.
 
 ## Caller-supplied codeblocks
 
-Any of the three forms may declare caller-supplied blocks **after** its
-parameter list and before its body. Write each block name in its own `{...}`:
+Any function may declare caller-supplied blocks **after** its parameter list
+and before its body. Write each block name in its own `{...}`:
 
 ```lynx
 <kind> name(<params>){<blockName>}{<blockName>}... { <body> }
@@ -217,19 +188,19 @@ The body invokes a block with `exec(){{<blockName>}}`. A caller supplies a block
 with `(){ ... }` or, for a named [codeblock](codeblocks.md) variable, `(){{var}}`:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global runTwice(){first}{second}{
+fn runTwice(){first}{second}{
     exec(){{first}}
     exec(){{second}}
 }
 
-func mapTwice(int value){apply}{
+fn mapTwice(int value){apply}{
     exec(value){{apply}}
     exec(value){{apply}}
 }
 
-global main(){
+fn main(){
     runTwice(){
         println("one");
     }{
@@ -243,15 +214,13 @@ global main(){
 }
 ```
 
-- The codeblock-parameter syntax is identical for `global`, `func` and `local`
-  declarations; the parser treats all three the same way.
-- Caller-supplied blocks also work on file-level `func` declarations; the
-  `macros` example fixture covers both macro-spliced and direct `func` calls.
+- The codeblock-parameter syntax is identical for top-level and nested `fn`
+  declarations.
+- Caller-supplied blocks also work on imported module functions.
 - Callers may mix inline blocks (`(){ ... }`) and named references
   (`(){{var}}`) in the same call.
-- `func` and `local` blocks are supplied the same way; a `func` reached through
-  an import takes blocks at the call site too:
-  `global.module.runTwice(){...}{...}`.
+- An imported function takes blocks at the call site too:
+  `module.runTwice(){...}{...}`.
 - Entry-point functions (`setup`/`main`) may not declare codeblock parameters.
 - A codeblock name must be unique across the source file and may not repeat a
   regular parameter name of the same function.
@@ -272,6 +241,7 @@ closes over.
   structure.
 - [codeblocks.md](codeblocks.md) — stored and caller-supplied codeblocks.
 - [async.md](async.md) — local `async` sub-functions and `await`.
-- [classes.md](classes.md) — `local` methods on a class.
-- [modules.md](modules.md) — calling exported `global` and `func` names across
-  files.
+- [templates.md](templates.md) — header constructors, `build ... named`, and
+  fields.
+- [classes.md](classes.md) — the deprecated class form.
+- [modules.md](modules.md) — calling functions through imported module names.

@@ -1,0 +1,64 @@
+////
+Templates: constructor parameters in the declaration header, `build ... named`
+construction, and `extending` inheritance. Header parameters become fields, so
+methods read them through `this`.
+////
+global setup(){}
+
+template Greeter(str name, int times) {
+    str greeting = "Hello";
+
+    local line() {
+        return this.greeting + ", " + this.name + "!";
+    }
+
+    local speak() {
+        int index = 0;
+        while (index < this.times) {
+            println(this.line());
+            index += 1;
+        }
+    }
+}
+
+template Polite(str name, int times) extending Greeter {
+    str greeting = "Good day";
+
+    local farewell() {
+        return "Goodbye, " + this.name;
+    }
+}
+
+template Quiet(str name) extending Greeter {
+    str greeting = "Hi";
+
+    local speak() {
+        println(this.line());
+    }
+}
+
+template Marker() {
+    local mark() {
+        return "mark";
+    }
+}
+
+global main(){
+    build Greeter("Andy", 2) named greeter;
+    greeter.speak();
+
+    build Polite("Ada", 1) named polite;
+    polite.speak();
+    println(polite.farewell());
+
+    build Quiet("Rex") named quiet;
+    quiet.speak();
+
+    build Marker() named marker;
+    println(marker.mark());
+
+    Greeter other = new Greeter("Sam", 1);
+    other.speak();
+
+    println(polite.name, " ", polite.times, " ", polite.greeting);
+}

@@ -19,9 +19,9 @@ Run it with:
 macro show!(*args){println("macro: ", *args)}
 
 
-// setup() must be the first global declaration. Imports are statements, so
-// they run here and bind the modules under `global.<name>` (or the alias).
-global setup(){
+// Imports are statements, so they run here and bind modules under their name
+// or an explicit alias.
+fn setup(){
     importAs("math", "m");
     importAs("typing", "types");
     import("text");
@@ -44,41 +44,26 @@ struct Point {
     int y;
 }
 
-class Counter {
-    int value = 0;
+template Counter(int value) {
     const int step = 1;
 
-    local init(int initial) {
-        this.value = initial;
-    }
-
-    local increment() {
+    fn increment() {
         this.value += this.step;
     }
 
-    local get() {
+    fn get() {
         return this.value;
     }
 }
 
-class Animal {
-    str name;
-
-    local init(str name) {
-        this.name = name;
-    }
-
-    local speak() {
+template Animal(str name) {
+    fn speak() {
         return "...";
     }
 }
 
-class Dog extends Animal {
-    local init(str name) {
-        super(name);
-    }
-
-    local speak() {
+template Dog(str name) extending Animal {
+    fn speak() {
         return "woof";
     }
 }
@@ -88,37 +73,36 @@ enum status = [
     Failed(str reason)
 ]{}
 
-// Global functions are exported; `func` is file-scoped.
-global add(int a, int b = 1) -> int {
+fn add(int a, int b = 1) -> int {
     return a + b;
 }
 
-func doubleIt(int value) -> int {
+fn doubleIt(int value) -> int {
     return value * 2;
 }
 
 // `type T of value` infers a generic type per call.
-global firstOf(type T of value) -> T {
+fn firstOf(type T of value) -> T {
     return value;
 }
 
-global apply(function operation, int value) -> int {
+fn apply(function operation, int value) -> int {
     return operation(value);
 }
 
-global makeAdder(int base) -> function {
-    local addBase(int value) -> int {
+fn makeAdder(int base) -> function {
+    fn addBase(int value) -> int {
         return base + value;
     }
     return addBase;
 }
 
 // A caller-supplied codeblock parameter, invoked with exec().
-global runBlock(){body}{
+fn runBlock(){body}{
     exec(){{body}}
 }
 
-global describeStatus(status value) -> str {
+fn describeStatus(status value) -> str {
     switch (value) {
         case(status.Ready){ return "ready"; }
         case(status.Failed(reason)){ return "failed: " + reason; }
@@ -127,7 +111,7 @@ global describeStatus(status value) -> str {
 }
 
 
-global main(){
+fn main(){
     println("=== Lynxer syntax showcase ===");
 
     // ---------------------------------------------------------------- macros
@@ -322,14 +306,14 @@ global main(){
     }
 
     // -------------------------------------------------------------- functions
-    println("add: ", global.add(10, 3), ", ", add(10, 3));
+    println("add: ", add(10, 3));
     println("func: ", doubleIt(21));
     println("generic: ", firstOf(1), ", ", firstOf("one"));
 
-    local square(int value) -> int {
+    fn square(int value) -> int {
         return value * value;
     }
-    println("local: ", square(6), ", ", local.square(7));
+    println("nested: ", square(6), ", ", square(7));
 
     lambda greet(str who) -> str {
         return inter"Hello, {who}!";
@@ -391,11 +375,12 @@ global main(){
     p.x = 10;
     println("struct: ", p.x, ", ", p.y);
 
-    Counter counter = new Counter(5);
+    build Counter(5) named counter;
     counter.increment();
-    println("class: ", counter.get(), ", field=", counter.value);
+    println("template: ", counter.get(), ", field=", counter.value);
 
-    Animal pet = new Dog("Rex");
+    build Dog("Rex") named dog;
+    Animal pet = dog;
     println("inheritance: ", pet.name, " says ", pet.speak());
 
     println("enum: ", status.Ready, ", ", describeStatus(status.Ready), ", ",
@@ -440,113 +425,113 @@ global main(){
     exec("value"){{inferredBlock}};
 
     // ---------------------------------------------------------------- async
-    int task = asyncRun(global.add, [40, 2]);
+    int task = asyncRun(add, [40, 2]);
     println("async: await=", await task);
-    any gathered = asyncGather(asyncRun(global.add, [1, 2]),
-                               asyncRun(global.add, [3, 4]));
+    any gathered = asyncGather(asyncRun(add, [1, 2]),
+                               asyncRun(add, [3, 4]));
     println("async: gather=", gathered);
 
     // ------------------------------------------------------ essential stdlib
     // math
-    println("math: pi>0=", global.m.pi() > 0, ", sqrt=", global.m.sqrt(144),
-            ", gcd=", global.m.gcd(12, 18), ", prime97=",
-            global.m.isPrime(97));
-    println("math: factorial=", global.m.factorial(5), ", clamp=",
-            global.m.clamp(15, 0, 10), ", roundTo=",
-            global.m.roundTo(3.14159, 2));
-    println("math: mean=", global.m.mean([int 1, int 2, int 3, int 4]),
-            ", median=", global.m.median([int 1, int 2, int 3]),
-            ", linspace=", global.m.linspace(0.0, 1.0, 5));
+    println("math: pi>0=", m.pi() > 0, ", sqrt=", m.sqrt(144),
+            ", gcd=", m.gcd(12, 18), ", prime97=",
+            m.isPrime(97));
+    println("math: factorial=", m.factorial(5), ", clamp=",
+            m.clamp(15, 0, 10), ", roundTo=",
+            m.roundTo(3.14159, 2));
+    println("math: mean=", m.mean([int 1, int 2, int 3, int 4]),
+            ", median=", m.median([int 1, int 2, int 3]),
+            ", linspace=", m.linspace(0.0, 1.0, 5));
 
     // typing
-    println("typing: isInt=", global.types.isInt(1), ", toInt=",
-            global.types.toInt("42"), ", toStr=", global.types.toStr(3.5));
-    println("typing: zfill=", global.types.zfill("42", 5), ", splitFirst=",
-            global.types.splitFirst("a=b", "="), ", listChunk=",
-            global.types.listChunk(range(6), 2));
+    println("typing: isInt=", types.isInt(1), ", toInt=",
+            types.toInt("42"), ", toStr=", types.toStr(3.5));
+    println("typing: zfill=", types.zfill("42", 5), ", splitFirst=",
+            types.splitFirst("a=b", "="), ", listChunk=",
+            types.listChunk(range(6), 2));
 
     // text
-    println("text: reverse=", global.text.reverse("abc"), ", title=",
-            global.text.title("hello world"), ", count=",
-            global.text.count("banana", "na"));
-    println("text: split=", global.text.split("a,b,c", ","), ", zfill=",
-            global.text.zfill("-42", 6));
+    println("text: reverse=", text.reverse("abc"), ", title=",
+            text.title("hello world"), ", count=",
+            text.count("banana", "na"));
+    println("text: split=", text.split("a,b,c", ","), ", zfill=",
+            text.zfill("-42", 6));
 
     // json
     str doc = "{\"name\": \"Ada\", \"age\": 36}";
-    println("json: valid=", global.json.jsonValid(doc), ", name=",
-            global.json.jsonGet(doc, "name"), ", age=",
-            global.json.jsonGetInt(doc, "age"));
-    println("json: keys=", global.json.jsonKeys(doc), ", updated=",
-            global.json.jsonSetInt(doc, "age", 37));
-    println("json: object=", global.json.jsonObject([str "a", int 1]),
-            ", array=", global.json.jsonArray([int 1, int 2]));
+    println("json: valid=", json.jsonValid(doc), ", name=",
+            json.jsonGet(doc, "name"), ", age=",
+            json.jsonGetInt(doc, "age"));
+    println("json: keys=", json.jsonKeys(doc), ", updated=",
+            json.jsonSetInt(doc, "age", 37));
+    println("json: object=", json.jsonObject([str "a", int 1]),
+            ", array=", json.jsonArray([int 1, int 2]));
 
     // os
-    println("os: cwd>0=", returnLength(global.os.getcwd()) > 0, ", temp>0=",
-            returnLength(global.os.tempDir()) > 0);
-    println("os: joinPath=", global.os.joinPath("parent", "child"),
-            ", basename=", global.os.basename("/a/b.txt"), ", dirname=",
-            global.os.dirname("/a/b.txt"));
-    println("os: host=", global.os.getSystemName(), ", cpus>0=",
-            global.os.cpuCount() > 0);
+    println("os: cwd>0=", returnLength(os.getcwd()) > 0, ", temp>0=",
+            returnLength(os.tempDir()) > 0);
+    println("os: joinPath=", os.joinPath("parent", "child"),
+            ", basename=", os.basename("/a/b.txt"), ", dirname=",
+            os.dirname("/a/b.txt"));
+    println("os: host=", os.getSystemName(), ", cpus>0=",
+            os.cpuCount() > 0);
 
     // path
-    println("path: name=", global.path.name("/tmp/report.tar.gz"),
-            ", stem=", global.path.stem("report.tar.gz"), ", suffix=",
-            global.path.suffix("report.tar.gz"));
-    println("path: suffixes=", global.path.suffixes("archive.tar.gz"),
-            ", parts=", global.path.parts("/a/b"), ", absolute=",
-            global.path.isAbsolute("/a/b"));
-    println("path: join=", global.path.join("a", "b"), ", normalize=",
-            global.path.normalize("a/./b/../c"));
+    println("path: name=", path.name("/tmp/report.tar.gz"),
+            ", stem=", path.stem("report.tar.gz"), ", suffix=",
+            path.suffix("report.tar.gz"));
+    println("path: suffixes=", path.suffixes("archive.tar.gz"),
+            ", parts=", path.parts("/a/b"), ", absolute=",
+            path.isAbsolute("/a/b"));
+    println("path: join=", path.join("a", "b"), ", normalize=",
+            path.normalize("a/./b/../c"));
 
     // fileIO
-    str tempPath = global.fileIO.tempFile(".txt");
-    bool wrote = global.fileIO.writeFile(tempPath, "alpha\nbeta\n");
+    str tempPath = fileIO.tempFile(".txt");
+    bool wrote = fileIO.writeFile(tempPath, "alpha\nbeta\n");
     println("fileIO: wrote=", wrote, ", lines=",
-            global.fileIO.readLines(tempPath), ", size=",
-            global.fileIO.fileSize(tempPath));
-    println("fileIO: delete=", global.fileIO.deleteFile(tempPath),
-            ", exists=", global.fileIO.fileExists(tempPath));
+            fileIO.readLines(tempPath), ", size=",
+            fileIO.fileSize(tempPath));
+    println("fileIO: delete=", fileIO.deleteFile(tempPath),
+            ", exists=", fileIO.fileExists(tempPath));
 
     // time
-    println("time: now>0=", returnLength(global.time.now()) > 0, ", leap=",
-            global.time.isLeapYear(2024), ", feb2024=",
-            global.time.daysInMonth(2024, 2));
-    println("time: addDays=", global.time.addDays("2026-02-27", 2),
-            ", diffDays=", global.time.diffDays("2026-01-01", "2026-01-03"));
+    println("time: now>0=", returnLength(time.now()) > 0, ", leap=",
+            time.isLeapYear(2024), ", feb2024=",
+            time.daysInMonth(2024, 2));
+    println("time: addDays=", time.addDays("2026-02-27", 2),
+            ", diffDays=", time.diffDays("2026-01-01", "2026-01-03"));
 
     // random (seeded, so the sequence is reproducible)
-    global.random.seed(7);
-    println("random: randint=", global.random.randint(1, 6), ", randrange=",
-            global.random.randrange(0, 10), ", coin=",
-            global.random.coinflip());
+    random.seed(7);
+    println("random: randint=", random.randint(1, 6), ", randrange=",
+            random.randrange(0, 10), ", coin=",
+            random.coinflip());
 
     // sys
-    println("sys: ", global.sys.platform(), " ", global.sys.architecture(),
-            " ", global.sys.version());
-    println("sys: byteOrder=", global.sys.getByteOrder(), ", encoding=",
-            global.sys.getDefaultEncoding(), ", frozen=",
-            global.sys.isFrozen());
-    println("sys versionInfo: ", global.sys.versionInfo());
+    println("sys: ", sys.platform(), " ", sys.architecture(),
+            " ", sys.version());
+    println("sys: byteOrder=", sys.getByteOrder(), ", encoding=",
+            sys.getDefaultEncoding(), ", frozen=",
+            sys.isFrozen());
+    println("sys versionInfo: ", sys.versionInfo());
 
     // --------------------------------------------------------------- raylib
     // Window-free smoke test (no display needed).
-    println("raylib: flagWindowHidden=", global.raylib.flagWindowHidden(),
-            ", mouseButtonLeft=", global.raylib.mouseButtonLeft());
-    println("raylib: random=", global.raylib.getRandomValue(3, 3));
-    int redHandle = global.raylib.colorFromHSV(0.0, 1.0, 1.0);
-    println("raylib: color r/g/a=", global.raylib.colorGetR(redHandle), "/",
-            global.raylib.colorGetG(redHandle), "/",
-            global.raylib.colorGetA(redHandle));
-    global.raylib.colorFree(redHandle);
-    int vecHandle = global.raylib.vector2New(1.5, 2.5);
-    println("raylib: vec=", global.raylib.vector2GetX(vecHandle), ",",
-            global.raylib.vector2GetY(vecHandle));
-    global.raylib.vector2SetX(vecHandle, 9.0);
-    println("raylib: vecX=", global.raylib.vector2GetX(vecHandle));
-    global.raylib.vector2Free(vecHandle);
+    println("raylib: flagWindowHidden=", raylib.flagWindowHidden(),
+            ", mouseButtonLeft=", raylib.mouseButtonLeft());
+    println("raylib: random=", raylib.getRandomValue(3, 3));
+    int redHandle = raylib.colorFromHSV(0.0, 1.0, 1.0);
+    println("raylib: color r/g/a=", raylib.colorGetR(redHandle), "/",
+            raylib.colorGetG(redHandle), "/",
+            raylib.colorGetA(redHandle));
+    raylib.colorFree(redHandle);
+    int vecHandle = raylib.vector2New(1.5, 2.5);
+    println("raylib: vec=", raylib.vector2GetX(vecHandle), ",",
+            raylib.vector2GetY(vecHandle));
+    raylib.vector2SetX(vecHandle, 9.0);
+    println("raylib: vecX=", raylib.vector2GetX(vecHandle));
+    raylib.vector2Free(vecHandle);
 
     // --------------------------------------------------------------- asserts
     assert(true, "assert passes");
