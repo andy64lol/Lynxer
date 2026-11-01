@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     const int frozen = 9;
     frozen = 10;
     println(frozen);

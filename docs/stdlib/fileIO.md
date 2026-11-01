@@ -4,7 +4,7 @@ File reading, writing, copying, moving and metadata helpers.
 
 **Backend:** native — `stdlib/fileIO.so`, built from `stdlib/fileIO.cpp` over
 `<fstream>` and `<filesystem>`. **Import:** `import("fileIO")` →
-`global.fileIO.*`
+`fileIO.*`
 
 Functions return `""`, `false` or `-1` on error.
 
@@ -35,13 +35,13 @@ newline produces a trailing empty element — by design.
 ## Example
 
 ```lynx
-global setup(){ import("fileIO"); }
+fn setup(){ import("fileIO"); }
 
-global main(){
-    global.fileIO.writeFile("/tmp/notes.txt", "alpha\nbeta\n");
-    println(global.fileIO.readLines("/tmp/notes.txt"));
-    println(global.fileIO.countLines("/tmp/notes.txt"));
-    println(global.fileIO.readFileLines("/tmp/notes.txt", " | "));
+fn main(){
+    fileIO.writeFile("/tmp/notes.txt", "alpha\nbeta\n");
+    println(fileIO.readLines("/tmp/notes.txt"));
+    println(fileIO.countLines("/tmp/notes.txt"));
+    println(fileIO.readFileLines("/tmp/notes.txt", " | "));
 }
 ```
 

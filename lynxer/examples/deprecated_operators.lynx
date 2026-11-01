@@ -7,9 +7,9 @@ prints the canonical keyword form first and the deprecated form second; the two
 lines must always agree.
 ////
 
-global setup(){ suppressDeprecationWarning(); }
+fn setup(){ suppressDeprecationWarning(); }
 
-global main(){
+fn main(){
     // equality and inequality
     println(1 is 1);          println(1 == 1);
     println(1 isnt 2);        println(1 != 2);

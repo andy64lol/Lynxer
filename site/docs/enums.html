@@ -156,7 +156,7 @@ any b = status.Failed(&quot;disk&quot;);</code></pre>
 <p>An enum value prints as <code>Enum.Variant</code> (<code>println(a)</code> prints <code>status.Ready</code>).</p>
 <h2 id="matching-with-switch">Matching with <code>switch</code></h2>
 <p>An enum value is normally consumed with a <code>switch</code> pattern, which destructures the payload and binds the field names for the case body:</p>
-<pre><code>func describe(status value) -&gt; str {
+<pre><code>fn describe(status value) -&gt; str {
     switch (value) {
         case(status.Ready){ return &quot;ready&quot;; }
         case(status.Failed(reason)){ return &quot;failed: &quot; + reason; }
@@ -173,14 +173,14 @@ any a = status.Ready;
 println(a is a);                                // true</code></pre>
 <p>Use <code>switch</code> patterns to test which variant a value is; do not use <code>is</code>.</p>
 <h2 id="full-example">Full example</h2>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
 enum status = [
     Ready,
     Failed(str reason)
 ]{}
 
-func describe(status value) -&gt; str {
+fn describe(status value) -&gt; str {
     switch (value) {
         case(status.Ready){ return &quot;ready&quot;; }
         case(status.Failed(reason)){ return &quot;failed: &quot; + reason; }
@@ -188,7 +188,7 @@ func describe(status value) -&gt; str {
     return &quot;unknown&quot;;
 }
 
-global main(){
+fn main(){
     any a = status.Ready;
     any b = status.Failed(&quot;disk&quot;);
     println(a);              // status.Ready

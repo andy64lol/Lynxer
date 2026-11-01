@@ -2,85 +2,85 @@
 Fixture for the json stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("json"); import("math"); }
+fn setup(){ import("json"); import("math"); }
 
-global main(){
+fn main(){
     str object = "{\"name\": \"Ada\", \"age\": 36, \"active\": true}";
-    println(global.json.jsonValid(object));
-    println(global.json.jsonValid("{bad"));
-    println(global.json.jsonParse("{\"a\": 1, \"b\": [1, 2]}"));
-    println(global.json.jsonPretty("{\"a\": 1}"));
-    println(global.json.jsonGet(object, "name"));
-    println(global.json.jsonGet(object, "age"));
-    println(global.json.jsonGetInt(object, "age"));
-    println(global.json.jsonGetFloat(object, "age"));
-    println(global.json.jsonGetBool(object, "active"));
-    println(global.json.jsonGet(object, "missing"));
-    println(global.json.jsonKeys(object));
-    println(global.json.jsonHas(object, "age"));
-    println(global.json.jsonHas(object, "nope"));
-    println(global.json.jsonLength(object));
-    println(global.json.jsonLength("[1, 2, 3]"));
-    println(global.json.jsonStringify("he\"llo"));
-    println(global.json.jsonSet("{\"a\": 1}", "b", "2"));
-    println(global.json.jsonSet("{\"a\": 1}", "b", "hello"));
-    println(global.json.jsonSetInt("{\"a\": 1}", "b", 5));
-    println(global.json.jsonDelete("{\"a\": 1, \"b\": 2}", "a"));
-    println(global.json.jsonMerge("{\"a\": 1, \"b\": 2}", "{\"b\": 3, \"c\": 4}"));
-    println(global.json.jsonType(object, "name"));
-    println(global.json.jsonType(object, "age"));
-    println(global.json.jsonType(object, "active"));
-    println(global.json.jsonType(object, "missing"));
-    println(global.json.jsonBuild("name=Alice|age=30"));
-    println(global.json.jsonArray(listRepeat(7, 3)));
+    println(json.jsonValid(object));
+    println(json.jsonValid("{bad"));
+    println(json.jsonParse("{\"a\": 1, \"b\": [1, 2]}"));
+    println(json.jsonPretty("{\"a\": 1}"));
+    println(json.jsonGet(object, "name"));
+    println(json.jsonGet(object, "age"));
+    println(json.jsonGetInt(object, "age"));
+    println(json.jsonGetFloat(object, "age"));
+    println(json.jsonGetBool(object, "active"));
+    println(json.jsonGet(object, "missing"));
+    println(json.jsonKeys(object));
+    println(json.jsonHas(object, "age"));
+    println(json.jsonHas(object, "nope"));
+    println(json.jsonLength(object));
+    println(json.jsonLength("[1, 2, 3]"));
+    println(json.jsonStringify("he\"llo"));
+    println(json.jsonSet("{\"a\": 1}", "b", "2"));
+    println(json.jsonSet("{\"a\": 1}", "b", "hello"));
+    println(json.jsonSetInt("{\"a\": 1}", "b", 5));
+    println(json.jsonDelete("{\"a\": 1, \"b\": 2}", "a"));
+    println(json.jsonMerge("{\"a\": 1, \"b\": 2}", "{\"b\": 3, \"c\": 4}"));
+    println(json.jsonType(object, "name"));
+    println(json.jsonType(object, "age"));
+    println(json.jsonType(object, "active"));
+    println(json.jsonType(object, "missing"));
+    println(json.jsonBuild("name=Alice|age=30"));
+    println(json.jsonArray(listRepeat(7, 3)));
     list pairs = listPush(listPush(listPush(listPush(listRepeat("", 0), "a"), 1), "b"), 2);
-    println(global.json.jsonObject(pairs));
+    println(json.jsonObject(pairs));
 
     // --- scalars, coercion and edge cases -----------------------------------
-    println(global.json.jsonValid("[1, 2, 3]"));
-    println(global.json.jsonValid("42"));
-    println(global.json.jsonParse("{bad"));
-    println(global.json.jsonPretty("{\"a\": [1, 2]}"));
+    println(json.jsonValid("[1, 2, 3]"));
+    println(json.jsonValid("42"));
+    println(json.jsonParse("{bad"));
+    println(json.jsonPretty("{\"a\": [1, 2]}"));
     // nlohmann's size() is 1 for a JSON string; other scalars are 0, and a
     // bare word like `hello` is not valid JSON at all.
-    println(global.json.jsonLength("\"hello\""));
-    println(global.json.jsonLength("42"));
-    println(global.json.jsonLength("hello"));
+    println(json.jsonLength("\"hello\""));
+    println(json.jsonLength("42"));
+    println(json.jsonLength("hello"));
     // Integer coercion: numeric strings parse, floats truncate, bools map to 0/1.
-    println(global.json.jsonGetInt("{\"n\": \"42\"}", "n"));
-    println(global.json.jsonGetInt("{\"n\": 3.9}", "n"));
-    println(global.json.jsonGetInt("{\"n\": \"3.9\"}", "n"));
-    println(global.json.jsonGetInt("{\"n\": true}", "n"));
-    println(global.json.jsonGetFloat("{\"n\": \"2.5\"}", "n"));
-    println(global.json.jsonGetFloat("{\"n\": true}", "n"));
+    println(json.jsonGetInt("{\"n\": \"42\"}", "n"));
+    println(json.jsonGetInt("{\"n\": 3.9}", "n"));
+    println(json.jsonGetInt("{\"n\": \"3.9\"}", "n"));
+    println(json.jsonGetInt("{\"n\": true}", "n"));
+    println(json.jsonGetFloat("{\"n\": \"2.5\"}", "n"));
+    println(json.jsonGetFloat("{\"n\": true}", "n"));
     // Truthiness: 0, "" and [] are false; a non-empty array is true.
-    println(global.json.jsonGetBool("{\"n\": 0}", "n"));
-    println(global.json.jsonGetBool("{\"n\": \"\"}", "n"));
-    println(global.json.jsonGetBool("{\"n\": []}", "n"));
-    println(global.json.jsonGetBool("{\"n\": [1]}", "n"));
-    println(global.json.jsonType("{\"n\": 3.5}", "n"));
-    println(global.json.jsonType("{\"n\": [1]}", "n"));
-    println(global.json.jsonType("{\"n\": {}}", "n"));
-    println(global.json.jsonType("[1]", "n"));
+    println(json.jsonGetBool("{\"n\": 0}", "n"));
+    println(json.jsonGetBool("{\"n\": \"\"}", "n"));
+    println(json.jsonGetBool("{\"n\": []}", "n"));
+    println(json.jsonGetBool("{\"n\": [1]}", "n"));
+    println(json.jsonType("{\"n\": 3.5}", "n"));
+    println(json.jsonType("{\"n\": [1]}", "n"));
+    println(json.jsonType("{\"n\": {}}", "n"));
+    println(json.jsonType("[1]", "n"));
     // Arrays are searched for a matching string element.
-    println(global.json.jsonHas("[1, \"two\", 3]", "two"));
-    println(global.json.jsonHas("[1, \"two\", 3]", "nope"));
-    println(global.json.jsonKeys("[1, 2]"));
+    println(json.jsonHas("[1, \"two\", 3]", "two"));
+    println(json.jsonHas("[1, \"two\", 3]", "nope"));
+    println(json.jsonKeys("[1, 2]"));
     // Non-object inputs are returned unchanged by the mutating helpers.
-    println(global.json.jsonStringify("42"));
-    println(global.json.jsonSet("[1, 2]", "a", "1"));
-    println(global.json.jsonSetInt("[1, 2]", "a", 1));
-    println(global.json.jsonDelete("[1, 2]", "a"));
-    println(global.json.jsonMerge("[1]", "{\"a\": 1}"));
+    println(json.jsonStringify("42"));
+    println(json.jsonSet("[1, 2]", "a", "1"));
+    println(json.jsonSetInt("[1, 2]", "a", 1));
+    println(json.jsonDelete("[1, 2]", "a"));
+    println(json.jsonMerge("[1]", "{\"a\": 1}"));
     // jsonBuild trims keys/values and skips segments without '='.
-    println(global.json.jsonBuild(""));
-    println(global.json.jsonBuild("a=1|broken|b = 2"));
+    println(json.jsonBuild(""));
+    println(json.jsonBuild("a=1|broken|b = 2"));
     // JSON rejects non-finite values and preserves key insertion order.
-    println(global.json.jsonValid("NaN"));
-    println(global.json.jsonValid("Infinity"));
-    println(global.json.jsonValid("1e999"));
-    println(global.json.jsonKeys("{\"z\":1,\"a\":2,\"m\":3}"));
-    println(global.json.jsonSet("{\"z\":1,\"a\":2}", "m", "3"));
-    println(global.json.jsonSet("{\"z\":1,\"a\":2}", "z", "9"));
-    println(global.json.jsonArray(listRepeat(global.math.exp(10000), 1)));
+    println(json.jsonValid("NaN"));
+    println(json.jsonValid("Infinity"));
+    println(json.jsonValid("1e999"));
+    println(json.jsonKeys("{\"z\":1,\"a\":2,\"m\":3}"));
+    println(json.jsonSet("{\"z\":1,\"a\":2}", "m", "3"));
+    println(json.jsonSet("{\"z\":1,\"a\":2}", "z", "9"));
+    println(json.jsonArray(listRepeat(math.exp(10000), 1)));
 }

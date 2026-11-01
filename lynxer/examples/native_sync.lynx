@@ -7,9 +7,9 @@ checks, error messages and the non-blocking paths. A blocking wait is only
 exercised where the resource is already available, so the output is host- and
 scheduler-independent.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     // --- mutex ---------------------------------------------------------
     int mutex = nativeMutexCreate();
     println("tryLock free ", nativeMutexTryLock(mutex));

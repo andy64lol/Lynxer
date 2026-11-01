@@ -3,38 +3,38 @@ Fixture for the multiprocessing stdlib. Interpreted only (module imports are not
 bytecode-compilable). Commands are chosen so results are order-independent and
 contain no newlines.
 ////
-global setup(){ import("multiprocessing"); import("os"); }
+fn setup(){ import("multiprocessing"); import("os"); }
 
-global main(){
-    println(global.multiprocessing.workerCount() > 0);
+fn main(){
+    println(multiprocessing.workerCount() > 0);
 
     list commands = listPush(listPush(listPush(listRepeat("", 0), "printf a"), "printf b"), "printf c");
-    println(global.multiprocessing.runParallel(commands));
-    println(global.multiprocessing.runParallelProcess(commands));
+    println(multiprocessing.runParallel(commands));
+    println(multiprocessing.runParallelProcess(commands));
 
     list silent = listPush(listPush(listRepeat("", 0), "true"), "false");
-    println(global.multiprocessing.runParallelSilent(silent));
+    println(multiprocessing.runParallelSilent(silent));
 
     list items = listPush(listPush(listRepeat("", 0), "x"), "y");
-    println(global.multiprocessing.mapShell("printf {}", items));
-    println(global.multiprocessing.threadMap("printf {}", items));
+    println(multiprocessing.mapShell("printf {}", items));
+    println(multiprocessing.threadMap("printf {}", items));
 
     // A command's stderr is captured into its output, and a failing command
     // still reports its exit code.
     list noisy = listPush(listRepeat("", 0), "printf boom >&2; exit 3");
-    println(global.multiprocessing.runParallel(noisy));
-    println(global.multiprocessing.runParallelSilent(noisy));
+    println(multiprocessing.runParallel(noisy));
+    println(multiprocessing.runParallelSilent(noisy));
 
     // A command that outlives the limit is killed and reports exit code 124.
-    global.os.setenv("LYNXER_MP_TIMEOUT", "1");
+    os.setenv("LYNXER_MP_TIMEOUT", "1");
     list slow = listPush(listRepeat("", 0), "sleep 30");
-    println(global.multiprocessing.runParallelSilent(slow));
+    println(multiprocessing.runParallelSilent(slow));
 
     // Native handles remain queryable until released and become invalid
     // immediately after release.
-    int handle = global.multiprocessing.runParallelHandle(
+    int handle = multiprocessing.runParallelHandle(
         listPush(listRepeat("", 0), "printf handled"));
-    println(global.multiprocessing.resultAt(handle, 0));
-    println(global.multiprocessing.release(handle));
-    println(global.multiprocessing.resultCount(handle));
+    println(multiprocessing.resultAt(handle, 0));
+    println(multiprocessing.release(handle));
+    println(multiprocessing.resultCount(handle));
 }

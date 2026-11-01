@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     if(missing){
         println("unreachable");
     }

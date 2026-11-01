@@ -144,14 +144,14 @@
 <p>A module is always two files with the same stem:</p>
 <table>
 <tr><th>File</th><th>Role</th></tr>
-<tr><td><code>stdlib/&lt;name&gt;.lynx</code></td><td>The Lynxer-facing module. Defines <code>setup()</code> and one <code>global</code> function per operation, and forwards each one to the namespace its <code>setup()</code> imported.</td></tr>
+<tr><td><code>stdlib/&lt;name&gt;.lynx</code></td><td>The Lynxer-facing module. Defines <code>setup()</code> and one <code>fn</code> function per operation, and forwards each one to the namespace its <code>setup()</code> imported.</td></tr>
 <tr><td><code>stdlib/&lt;name&gt;.so</code></td><td>The native backend. Built from <code>stdlib/&lt;name&gt;.cpp</code> (C++) or <code>rust/&lt;name&gt;/</code> (Rust), and registers its operations through <code>lynxer_module_init_v1</code>.</td></tr>
 </table>
 <p>The wrapper is the contract's public surface; the backend is an implementation detail behind it. <strong>A wrapper must never expose a crate- or library-specific type.</strong> Everything crossing the boundary is a number, a string, or an integer handle — see <a href="native-module-abi.html">native-module-abi</a> for why.</p>
 <h2 id="conventions-that-apply-to-every-module">Conventions that apply to every module</h2>
 <h3 id="operation-names">Operation names</h3>
 <ul>
-<li>The backend registers each operation under the name the wrapper calls; the Lynxer-facing name is a lowerCamelCase <code>global</code> function.</li>
+<li>The backend registers each operation under the name the wrapper calls; new wrappers declare the lowerCamelCase public function with <code>fn</code>. Existing <code>global</code> declarations remain accepted as deprecated syntax.</li>
 <li>The wrapper imports its backend once, in <code>setup()</code>, with <code>importAs(&quot;&lt;name&gt;.so&quot;, &quot;native&lt;Name&gt;&quot;)</code>. Nothing else in the wrapper refers to the backend.</li>
 <li><code>setup()</code> is the only place a module may import. Importing from a program function is not part of the contract.</li>
 </ul>

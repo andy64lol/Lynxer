@@ -3,31 +3,31 @@ Windows fixture for the watch stdlib. The Windows backend uses
 `ReadDirectoryChangesW`; `watchFd` has no pollable descriptor there, so this
 fixture asserts `-1` and uses `watchWait` directly.
 ////
-global setup(){ import("watch"); import("fileIO"); import("os"); }
+fn setup(){ import("watch"); import("fileIO"); import("os"); }
 
-global main(){
+fn main(){
     str root = ".lynxer_scratch_winwatch";
-    if(global.os.exists(root)){ global.os.rmTree(root); }
-    global.os.mkdir(root);
+    if(os.exists(root)){ os.rmTree(root); }
+    os.mkdir(root);
 
-    int handle = global.watch.watchAdd(root, false);
+    int handle = watch.watchAdd(root, false);
     println(handle > 0);
-    println(global.watch.watchFd(handle) is -1);
-    println(global.watch.watchSetDebounce(handle, 0));
+    println(watch.watchFd(handle) is -1);
+    println(watch.watchSetDebounce(handle, 0));
 
-    global.fileIO.writeFile(root + "/a.txt", "hi");
-    println(global.watch.watchWait(handle, 2000));
+    fileIO.writeFile(root + "/a.txt", "hi");
+    println(watch.watchWait(handle, 2000));
 
-    str events = global.watch.watchDrain(handle);
+    str events = watch.watchDrain(handle);
     println(substring(events, 0, 1) is "[");
     println(returnLength(events) > 2);
 
-    println(global.watch.watchWait(9999, 0));
-    println(global.watch.watchRemove(handle));
-    println(global.watch.watchFd(handle) is -1);
-    println(global.watch.watchDrain(9999) is "");
-    println(global.watch.watchRemove(9999));
-    println(global.watch.watchAdd(root + "/missing", false) is -1);
+    println(watch.watchWait(9999, 0));
+    println(watch.watchRemove(handle));
+    println(watch.watchFd(handle) is -1);
+    println(watch.watchDrain(9999) is "");
+    println(watch.watchRemove(9999));
+    println(watch.watchAdd(root + "/missing", false) is -1);
 
-    global.os.rmTree(root);
+    os.rmTree(root);
 }

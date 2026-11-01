@@ -138,7 +138,7 @@
         </div>
 <h1 id="csv">csv</h1>
 <p>CSV and TSV parsing, writing and transformation.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/csv.so</code>, built from <code>stdlib/csv.cpp</code> (a hand-written reader/writer) and <code>stdlib/native_json.hpp</code>. <strong>Import:</strong> <code>import(&quot;csv&quot;)</code> → <code>global.csv.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/csv.so</code>, built from <code>stdlib/csv.cpp</code> (a hand-written reader/writer) and <code>stdlib/native_json.hpp</code>. <strong>Import:</strong> <code>import(&quot;csv&quot;)</code> → <code>csv.*</code></p>
 <p>Rows are exchanged as JSON strings: arrays of arrays for positional access and arrays of objects for keyed access, so <code>csv</code> pairs naturally with <a href="json.html">json</a>.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
@@ -185,13 +185,13 @@
 </table>
 <p><code>readCSV</code> returns raw file content, so <code>readCSVRaw</code> differs from the legacy <code>readCSV</code> (which returned objects); use <code>parseCSV</code>/<code>parseToJson</code> for objects.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;csv&quot;); import(&quot;json&quot;); }
+<pre><code>fn setup(){ import(&quot;csv&quot;); import(&quot;json&quot;); }
 
-global main(){
+fn main(){
     str data = &quot;name,age\nalpha,30\nbeta,25\n&quot;;
-    println(global.csv.rowCount(data));
-    println(global.csv.getColumn(data, &quot;name&quot;));
-    println(global.csv.columnStats(data, &quot;age&quot;));
+    println(csv.rowCount(data));
+    println(csv.getColumn(data, &quot;name&quot;));
+    println(csv.columnStats(data, &quot;age&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

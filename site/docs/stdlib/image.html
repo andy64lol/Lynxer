@@ -139,15 +139,15 @@
 <h1 id="image">image</h1>
 <p>Image loading, creation, transforms, pixels, and encoding. The backend is a Rust <code>cdylib</code> built with the <code>image</code> crate and installed as <code>stdlib/image.so</code>. Images are process-local integer handles; <code>-1</code> indicates a failed operation.</p>
 <blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). Build it with <code>make cargo</code> or <code>make buildLynxer</code>. The module supports PNG, JPEG, GIF, BMP, TIFF, WebP, ICO, QOI, TGA, PNM, HDR, OpenEXR, and farbfeld, and rasterises SVG.</blockquote>
-<pre><code>global setup(){ import(&quot;image&quot;); }
+<pre><code>fn setup(){ import(&quot;image&quot;); }
 
-global main(){
-    int picture = global.image.create(64, 64, &quot;RGBA&quot;, 20, 30, 40);
-    global.image.setPixel(picture, 0, 0, 255, 0, 0);
-    println(global.image.getPixel(picture, 0, 0));
-    println(global.image.getWidth(picture), &quot;x&quot;, global.image.getHeight(picture));
-    global.image.save(picture, &quot;picture.png&quot;);
-    global.image.close(picture);
+fn main(){
+    int picture = image.create(64, 64, &quot;RGBA&quot;, 20, 30, 40);
+    image.setPixel(picture, 0, 0, 255, 0, 0);
+    println(image.getPixel(picture, 0, 0));
+    println(image.getWidth(picture), &quot;x&quot;, image.getHeight(picture));
+    image.save(picture, &quot;picture.png&quot;);
+    image.close(picture);
 }</code></pre>
 <h2 id="handles-and-metadata">Handles and metadata</h2>
 <table>

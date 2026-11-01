@@ -138,7 +138,7 @@
         </div>
 <h1 id="numutils">numutils</h1>
 <p>Exact decimal and rational (fraction) arithmetic.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/numutils.so</code>, built from the Rust crate <code>rust/numutils</code> over <a href="https://docs.rs/rust_decimal"><code>rust_decimal</code></a> and <a href="https://docs.rs/num-rational"><code>num-rational</code></a>. <strong>Import:</strong> <code>import(&quot;numutils&quot;)</code> → <code>global.numutils.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/numutils.so</code>, built from the Rust crate <code>rust/numutils</code> over <a href="https://docs.rs/rust_decimal"><code>rust_decimal</code></a> and <a href="https://docs.rs/num-rational"><code>num-rational</code></a>. <strong>Import:</strong> <code>import(&quot;numutils&quot;)</code> → <code>numutils.*</code></p>
 <h2 id="why">Why</h2>
 <p>Lynxer's <code>float</code> is an IEEE-754 double, so <code>0.1 + 0.2</code> prints as <code>0.30000000000000004</code>. This module keeps values as canonical strings and does the arithmetic exactly, so results round-trip cleanly. Convert back to a number with <code>decimalToFloat</code> / <code>fractionToFloat</code> (or <code>int()</code>) when a native number is needed.</p>
 <p>Pass numeric operands straight to the arithmetic helpers: <code>decimalAdd(0.1, 0.2)</code> is <code>&quot;0.3&quot;</code>. The conversion happens <em>before</em> any float arithmetic only if you avoid doing the float arithmetic yourself — <code>decimal(0.1 + 0.2)</code> still reports <code>&quot;0.30000000000000004&quot;</code>, because the sum is already a rounded double by the time the module sees it.</p>
@@ -193,14 +193,14 @@
 <li><code>cleanFloat(value)</code> — the shortest round-tripping decimal text for a float.</li>
 </ul>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;numutils&quot;); }
+<pre><code>fn setup(){ import(&quot;numutils&quot;); }
 
-global main(){
-    println(global.numutils.decimalAdd(0.1, 0.2));        // 0.3
-    println(global.numutils.decimalMul(&quot;0.1&quot;, &quot;0.2&quot;));    // 0.02
-    println(global.numutils.fraction(1, 3));              // 1/3
-    println(global.numutils.fractionAdd(&quot;1/3&quot;, &quot;1/6&quot;));   // 1/2
-    println(global.numutils.fractionToDecimal(&quot;1/3&quot;, 6)); // 0.333333
+fn main(){
+    println(numutils.decimalAdd(0.1, 0.2));        // 0.3
+    println(numutils.decimalMul(&quot;0.1&quot;, &quot;0.2&quot;));    // 0.02
+    println(numutils.fraction(1, 3));              // 1/3
+    println(numutils.fractionAdd(&quot;1/3&quot;, &quot;1/6&quot;));   // 1/2
+    println(numutils.fractionToDecimal(&quot;1/3&quot;, 6)); // 0.333333
 }</code></pre>
 <h2 id="see-also">See also</h2>
 <ul>

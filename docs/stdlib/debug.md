@@ -5,7 +5,7 @@ Assertions, type inspection, structured logging, timers and process metrics.
 **Backend:** native + pure — `stdlib/debug.so` (`stdlib/debug.cpp`) provides
 timers, timestamps, environment and memory; the assertions and logging helpers
 are written in Lynxer in `stdlib/debug.lynx`.
-**Import:** `import("debug")` → `global.debug.*`
+**Import:** `import("debug")` → `debug.*`
 
 ## Assertions
 
@@ -66,13 +66,13 @@ testable without touching the user's state directory.
 ## Example
 
 ```lynx
-global setup(){ import("debug"); }
+fn setup(){ import("debug"); }
 
-global main(){
-    global.debug.assertEq(global.debug.typeOf(1), "int", "int type");
-    global.debug.startTimer("work");
-    println(global.debug.stopTimer("work") >= 0.0);
-    println(global.debug.inspect("text"));
+fn main(){
+    debug.assertEq(debug.typeOf(1), "int", "int type");
+    debug.startTimer("work");
+    println(debug.stopTimer("work") >= 0.0);
+    println(debug.inspect("text"));
 }
 ```
 

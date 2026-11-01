@@ -6,7 +6,7 @@ Hashes, HMAC, constant-time comparison, OS randomness and Ed25519 signatures.
 over `sha2`, `sha1`, `md-5`, `sha3`, `blake3`, `hmac`, `subtle`, `getrandom` and
 `ed25519-dalek`.
 
-**Import:** `import("crypto")` → `global.crypto.*`
+**Import:** `import("crypto")` → `crypto.*`
 
 ## How bytes travel
 
@@ -75,27 +75,27 @@ key signs a fixed message to a fixed signature.
 ## Example
 
 ```lynx
-global setup(){ import("crypto"); import("fileIO"); }
+fn setup(){ import("crypto"); import("fileIO"); }
 
-global main(){
+fn main(){
     // A SHA-256 digest of "abc", as lower-case hex.
-    println(global.crypto.hash("sha256", bytesOf("abc")));
+    println(crypto.hash("sha256", bytesOf("abc")));
 
     // An HMAC-SHA256, and its constant-time verification.
-    str mac = global.crypto.hmac("sha256", bytesOf("key"), bytesOf("message"));
-    println(global.crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("message"), mac));
-    println(global.crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("other"), mac));
+    str mac = crypto.hmac("sha256", bytesOf("key"), bytesOf("message"));
+    println(crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("message"), mac));
+    println(crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("other"), mac));
 
     // Hash a file's bytes (binary-safe).
-    global.fileIO.writeFile("data.bin", "payload");
-    println(global.crypto.hashFile("sha256", "data.bin"));
+    fileIO.writeFile("data.bin", "payload");
+    println(crypto.hashFile("sha256", "data.bin"));
 
     // A fresh Ed25519 key pair, then sign and verify.
-    str pair = global.crypto.generateEd25519KeyPair();
-    bytes private = global.encoding.base64Decode(global.json.jsonGet(pair, "private"));
-    bytes public = global.encoding.base64Decode(global.json.jsonGet(pair, "public"));
-    bytes signature = global.crypto.signEd25519(private, bytesOf("hello"));
-    println(global.crypto.verifyEd25519(public, bytesOf("hello"), signature));
+    str pair = crypto.generateEd25519KeyPair();
+    bytes private = encoding.base64Decode(json.jsonGet(pair, "private"));
+    bytes public = encoding.base64Decode(json.jsonGet(pair, "public"));
+    bytes signature = crypto.signEd25519(private, bytesOf("hello"));
+    println(crypto.verifyEd25519(public, bytesOf("hello"), signature));
 }
 ```
 

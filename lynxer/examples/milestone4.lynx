@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int left = 6;
     int right = 3;
     println(left bitand right);

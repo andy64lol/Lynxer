@@ -158,12 +158,12 @@
 <p>Loading happens in <code>lynxer/ast.cpp</code> (<code>ImportStatement::execute</code>), where <code>dlopen</code> is called with <code>RTLD_NOW | RTLD_LOCAL</code> and the initializer is invoked with the three callbacks. Modules are kept loaded for the lifetime of their namespace so registered function pointers cannot dangle.</p>
 <h2 id="importing">Importing</h2>
 <p>Import the library from <code>setup()</code> with any of the <code>import</code> forms:</p>
-<pre><code>global setup(){
+<pre><code>fn setup(){
     importAs(&quot;math.so&quot;, &quot;nativeMath&quot;);
 }
 
-global main(){
-    println(global.nativeMath.abs(-3));
+fn main(){
+    println(nativeMath.abs(-3));
 }</code></pre>
 <p>A path ending in <code>.so</code> is treated as a native module; anything else is compiled as Lynxer source. The namespace is the import alias, or the file stem when no alias is given.</p>
 <h2 id="the-native-call-engine">The native call engine</h2>
@@ -300,10 +300,10 @@ extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction function,
                ? 0
                : 1;
 }</code></pre>
-<pre><code>global setup(){ importAs(&quot;pair.so&quot;, &quot;pair&quot;); }
-global main(){
-    println(global.pair.sum(2, 3));
-    println(global.pair.label(&quot;items&quot;, 4));
+<pre><code>fn setup(){ importAs(&quot;pair.so&quot;, &quot;pair&quot;); }
+fn main(){
+    println(pair.sum(2, 3));
+    println(pair.label(&quot;items&quot;, 4));
 }</code></pre>
 <h2 id="extending-the-abi">Extending the ABI</h2>
 <p>The ABI is deliberately small and changes only when a real module cannot be expressed with the conventions above. Before adding anything, a module must first try to fit one of them:</p>

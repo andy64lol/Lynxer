@@ -3,7 +3,7 @@
 Date and time helpers.
 
 **Backend:** native — `stdlib/time.so`, built from `stdlib/time.cpp` over
-`<chrono>` and `<ctime>`. **Import:** `import("time")` → `global.time.*`
+`<chrono>` and `<ctime>`. **Import:** `import("time")` → `time.*`
 
 | Function | Signature | Notes |
 | --- | --- | --- |
@@ -26,12 +26,12 @@ Date and time helpers.
 ## Example
 
 ```lynx
-global setup(){ import("time"); }
+fn setup(){ import("time"); }
 
-global main(){
-    println(global.time.getDate());
-    println(global.time.addDays("2026-02-27", 2));
-    println(global.time.daysInMonth(2024, 2));
+fn main(){
+    println(time.getDate());
+    println(time.addDays("2026-02-27", 2));
+    println(time.daysInMonth(2024, 2));
 }
 ```
 

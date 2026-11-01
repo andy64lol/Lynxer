@@ -139,7 +139,7 @@
 <h1 id="winpipe">winpipe</h1>
 <p>Blocking Windows named pipes.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/winpipe.so</code>, built from <code>stdlib/winpipe.cpp</code>. Windows-only; the module is not built or available on Linux or macOS.</p>
-<p><strong>Import:</strong> <code>import(&quot;winpipe&quot;)</code> → <code>global.winpipe.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;winpipe&quot;)</code> → <code>winpipe.*</code></p>
 <p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is accepted too. The server creates a handle with <code>create</code> and blocks in <code>connect</code> until a client arrives. The client calls <code>open</code>, which retries for five seconds while the server is still creating the pipe. Reads and writes are blocking. Every handle must be released with <code>close</code>.</p>
 <h2 id="functions">Functions</h2>
 <table>
@@ -154,17 +154,17 @@
 <tr><td><code>close</code></td><td><code>(int handle)</code></td><td><code>true</code> / <code>false</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;winpipe&quot;); }
+<pre><code>fn setup(){ import(&quot;winpipe&quot;); }
 
-global main(){
-    int server = global.winpipe.create(&quot;lynxer-demo&quot;);
+fn main(){
+    int server = winpipe.create(&quot;lynxer-demo&quot;);
     // In another process:
-    //   int client = global.winpipe.open(&quot;lynxer-demo&quot;);
-    global.winpipe.connect(server);
-    println(global.winpipe.read(server, 64));
-    global.winpipe.write(server, &quot;pong&quot;);
-    global.winpipe.disconnect(server);
-    global.winpipe.close(server);
+    //   int client = winpipe.open(&quot;lynxer-demo&quot;);
+    winpipe.connect(server);
+    println(winpipe.read(server, 64));
+    winpipe.write(server, &quot;pong&quot;);
+    winpipe.disconnect(server);
+    winpipe.close(server);
 }</code></pre>
     </main>
 </div>

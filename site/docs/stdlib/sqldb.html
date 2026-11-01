@@ -185,25 +185,25 @@
 <p>Handles stay valid for the run, and a closed or unknown handle answers the usual sentinels (<code>-1</code>, <code>false</code>) for integer- and boolean-returning operations. String-returning operations raise a catchable runtime error, including for an unknown or closed handle. Two threads can share a handle: each call takes the connection for its duration.</p>
 <p>Catch database failures with the language's <code>try</code>/<code>catch</code> statement:</p>
 <pre><code>try {
-    global.sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM missing_table&quot;);
+    sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM missing_table&quot;);
 } catch(str error) {
     println(&quot;Database error: &quot;, error);
 }</code></pre>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){
+<pre><code>fn setup(){
     import(&quot;sqldb&quot;)
 }
 
-global main(){
-    global.sqldb.execute(&quot;database.db&quot;, &quot;CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)&quot;);
-    global.sqldb.execute(&quot;database.db&quot;, &quot;INSERT INTO users (name) VALUES (&#x27;Alice&#x27;)&quot;);
-    println(global.sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM users&quot;));
+fn main(){
+    sqldb.execute(&quot;database.db&quot;, &quot;CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)&quot;);
+    sqldb.execute(&quot;database.db&quot;, &quot;INSERT INTO users (name) VALUES (&#x27;Alice&#x27;)&quot;);
+    println(sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM users&quot;));
 
     // Or keep one connection open across calls.
-    int db = global.sqldb.open(&quot;database.db&quot;);
-    global.sqldb.executeOn(db, &quot;INSERT INTO users (name) VALUES (&#x27;Bob&#x27;)&quot;);
-    println(global.sqldb.queryOn(db, &quot;SELECT * FROM users ORDER BY id&quot;));
-    global.sqldb.close(db);
+    int db = sqldb.open(&quot;database.db&quot;);
+    sqldb.executeOn(db, &quot;INSERT INTO users (name) VALUES (&#x27;Bob&#x27;)&quot;);
+    println(sqldb.queryOn(db, &quot;SELECT * FROM users ORDER BY id&quot;));
+    sqldb.close(db);
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

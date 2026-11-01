@@ -138,7 +138,7 @@
         </div>
 <h1 id="cli">cli</h1>
 <p>Command-line helpers: arguments, environment, terminal queries, process execution and Click/Typer-style command builders.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/cli.so</code>, built from <code>stdlib/cli.cpp</code> over POSIX APIs. <strong>Import:</strong> <code>import(&quot;cli&quot;)</code> → <code>global.cli.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/cli.so</code>, built from <code>stdlib/cli.cpp</code> over POSIX APIs. <strong>Import:</strong> <code>import(&quot;cli&quot;)</code> → <code>cli.*</code></p>
 <h2 id="command-builders">Command builders</h2>
 <p>The Click/Typer builders are implemented natively; command definitions live in integer handles. Call <code>clickInit()</code> (or <code>typerInit()</code>) before creating anything.</p>
 <table>
@@ -167,15 +167,15 @@
 <li><code>multiple</code> collects repeated occurrences into a JSON array; a <code>{name}</code> template substitutes those values joined by a space.</li>
 <li>A failed parse returns <code>{&quot;error&quot;: &quot;…&quot;}</code> instead of failing the process.</li>
 </ul>
-<pre><code>global setup(){ import(&quot;cli&quot;); }
+<pre><code>fn setup(){ import(&quot;cli&quot;); }
 
-global main(){
-    global.cli.clickInit();
-    int command = global.cli.clickCommandCreate(&quot;greet&quot;, &quot;Greet a person&quot;);
-    global.cli.clickAddArgument(command, &quot;name&quot;, true, 1);
-    global.cli.clickAddOption(command, &quot;--shout,-s&quot;, &quot;Use uppercase&quot;, &quot;&quot;, true, false, &quot;bool&quot;);
-    global.cli.clickCommandSetShell(command, &quot;printf &#x27;Hello {name}&#x27;&quot;);
-    println(global.cli.clickInvoke(command, &quot;[\&quot;Ada\&quot;, \&quot;--shout\&quot;]&quot;));
+fn main(){
+    cli.clickInit();
+    int command = cli.clickCommandCreate(&quot;greet&quot;, &quot;Greet a person&quot;);
+    cli.clickAddArgument(command, &quot;name&quot;, true, 1);
+    cli.clickAddOption(command, &quot;--shout,-s&quot;, &quot;Use uppercase&quot;, &quot;&quot;, true, false, &quot;bool&quot;);
+    cli.clickCommandSetShell(command, &quot;printf &#x27;Hello {name}&#x27;&quot;);
+    println(cli.clickInvoke(command, &quot;[\&quot;Ada\&quot;, \&quot;--shout\&quot;]&quot;));
     // {&quot;params&quot;: {&quot;name&quot;: &quot;Ada&quot;, &quot;shout&quot;: true}, &quot;output&quot;: &quot;Hello Ada&quot;, &quot;exitCode&quot;: 0}
 }</code></pre>
 <h2 id="arguments-and-environment">Arguments and environment</h2>
@@ -210,15 +210,15 @@ global main(){
 <tr><td><code>runCode</code></td><td><code>(str command) -&gt; int</code></td><td>Runs silently and returns the exit code</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;cli&quot;); }
+<pre><code>fn setup(){ import(&quot;cli&quot;); }
 
-global main(){
-    println(global.cli.argCount());
-    if(global.cli.envHas(&quot;HOME&quot;)){
-        println(global.cli.envGet(&quot;HOME&quot;));
+fn main(){
+    println(cli.argCount());
+    if(cli.envHas(&quot;HOME&quot;)){
+        println(cli.envGet(&quot;HOME&quot;));
     }
-    println(global.cli.run(&quot;printf ok&quot;, true));
-    println(global.cli.runCode(&quot;false&quot;));
+    println(cli.run(&quot;printf ok&quot;, true));
+    println(cli.runCode(&quot;false&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

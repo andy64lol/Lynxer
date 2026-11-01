@@ -5,9 +5,9 @@ It is **not a module** — there is no `import` — and it is gated by the same
 `syscalls(...)` target selector the named Linux syscalls use:
 
 ```lynx
-global setup(){ syscalls("winAPI", "amd64"); }
+fn setup(){ syscalls("winAPI", "amd64"); }
 
-global main(){
+fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getComputerName());
     println(winAPI.getCurrentDirectory());
@@ -138,9 +138,9 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 `seekFile` positions absolutely from the start of the file.
 
 ```lynx
-global setup(){ syscalls("winAPI", "amd64"); }
+fn setup(){ syscalls("winAPI", "amd64"); }
 
-global main(){
+fn main(){
     str path = winAPI.getTempPath() + "demo.txt";
 
     int file = winAPI.createFile(path, "write");
@@ -196,9 +196,9 @@ so a client may start before the server. Pipe handles are ordinary handles and
 are released with `winAPI.closeHandle`. Reads and writes are blocking.
 
 ```lynx
-global setup(){ syscalls("winAPI", "amd64"); }
+fn setup(){ syscalls("winAPI", "amd64"); }
 
-global main(){
+fn main(){
     int server = winAPI.createNamedPipe("lynxer-demo");
     // In another process:
     //   int client = winAPI.openNamedPipe("lynxer-demo");
@@ -260,9 +260,9 @@ Windows the Win32 calling convention is the one `cdecl:` describes, so a Win32
 call looks like any other:
 
 ```lynx
-global setup(){ syscalls("winAPI", "amd64"); }
+fn setup(){ syscalls("winAPI", "amd64"); }
 
-global main(){
+fn main(){
     int user32 = ffiLoadLibrary("user32.dll");
     functionAddress box = ffiLookup(user32, "MessageBoxA");
     ffiCall(box, "cdecl:int32(int64,cstring,cstring,int32)",

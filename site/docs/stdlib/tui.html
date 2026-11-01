@@ -301,15 +301,15 @@
 <li><code>image(path: string, width: int, height: int)</code> — Renders an image as half blocks with 24-bit color on a color terminal, or a deterministic placeholder otherwise.</li>
 </ul>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){
+<pre><code>fn setup(){
     import(&quot;tui&quot;)
 }
 
-global main(){
-    global.tui.init(&quot;truecolor&quot;);
-    global.tui.printText(&quot;Hello, TUI!&quot;);
-    global.tui.panel(&quot;Hello&quot;, &quot;Title&quot;);
-    global.tui.clear();
+fn main(){
+    tui.init(&quot;truecolor&quot;);
+    tui.printText(&quot;Hello, TUI!&quot;);
+    tui.panel(&quot;Hello&quot;, &quot;Title&quot;);
+    tui.clear();
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

@@ -139,21 +139,21 @@
 <h1 id="importas">importAs</h1>
 <p><code>importAs(&quot;module&quot;, &quot;alias&quot;)</code> loads a module exactly like <code>import</code>, but binds it under a name you choose instead of the module's own name.</p>
 <h2 id="syntax">Syntax</h2>
-<pre><code>global setup(){
+<pre><code>fn setup(){
     importAs(&quot;math&quot;, &quot;m&quot;);
     importAs(&quot;network&quot;, &quot;net&quot;);
     importAs(&quot;json.so&quot;, &quot;nativeJson&quot;);   // a native library under an alias
 }
 
-global main(){
-    println(global.m.sqrt(9.0));         // 3
+fn main(){
+    println(m.sqrt(9.0));                // 3
 }</code></pre>
 <h2 id="rules">Rules</h2>
 <ul>
 <li>Both arguments are <strong>string literals</strong>. An expression is rejected with <code>expected module path string</code>.</li>
-<li>The alias is used as <code>global.&lt;alias&gt;</code>, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>global.m.&lt;name&gt;(...)</code>.</li>
+<li>The alias is the module namespace, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>m.&lt;name&gt;(...)</code>.</li>
 <li>Like <code>import</code>, it is a statement and may appear in any function body, not only in <code>setup()</code>.</li>
-<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>global f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
+<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>fn f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
 </ul>
 <h2 id="see-also">See also</h2>
 <ul>

@@ -138,7 +138,7 @@
         </div>
 <h1 id="text">text</h1>
 <p>String helpers built on the core string builtins.</p>
-<p><strong>Backend:</strong> Lynxer helpers backed by the Rust <code>text.so</code> Unicode operations. <strong>Import:</strong> <code>import(&quot;text&quot;)</code> → <code>global.text.*</code></p>
+<p><strong>Backend:</strong> Lynxer helpers backed by the Rust <code>text.so</code> Unicode operations. <strong>Import:</strong> <code>import(&quot;text&quot;)</code> → <code>text.*</code></p>
 <p>The interpreter's strings hold UTF-8, and length, indexing and slicing here count <strong>code points</strong>, so a character is one Unicode scalar value. Unicode case conversion uses the per-character Unicode mappings and can expand one character, such as <code>ß</code> to <code>SS</code>. Predicates use Unicode alphabetic/numeric properties. Combining marks are separate scalars and do not count as alphabetic on their own.</p>
 <h2 id="search-and-replace">Search and replace</h2>
 <table>
@@ -202,15 +202,15 @@
 <tr><td><code>join</code></td><td><code>(list parts, str separator) -&gt; str</code></td><td>Join a list</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;text&quot;); }
+<pre><code>fn setup(){ import(&quot;text&quot;); }
 
-global main(){
-    println(global.text.reverse(&quot;abc&quot;));        // cba
-    println(global.text.contains(&quot;hello&quot;, &quot;ell&quot;)); // true
-    println(global.text.count(&quot;banana&quot;, &quot;na&quot;)); // 2
-    println(global.text.indexOf(&quot;banana&quot;, &quot;na&quot;)); // 2
-    println(global.text.zfill(&quot;42&quot;, 5));        // 00042
-    println(global.text.splitFirst(&quot;a=b&quot;, &quot;=&quot;)); // [a, b]
+fn main(){
+    println(text.reverse(&quot;abc&quot;));        // cba
+    println(text.contains(&quot;hello&quot;, &quot;ell&quot;)); // true
+    println(text.count(&quot;banana&quot;, &quot;na&quot;)); // 2
+    println(text.indexOf(&quot;banana&quot;, &quot;na&quot;)); // 2
+    println(text.zfill(&quot;42&quot;, 5));        // 00042
+    println(text.splitFirst(&quot;a=b&quot;, &quot;=&quot;)); // [a, b]
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

@@ -24,7 +24,7 @@ standard-library improvements.
 | Document | What it covers |
 | --- | --- |
 | [language.md](language.md) | Program structure, variables, operators, control flow, functions, scoping, interpolation |
-| [functions.md](functions.md) | The `global`, `func`, `local`, and named `lambda` forms, inferred generic parameters, and caller-supplied codeblocks |
+| [functions.md](functions.md) | `fn` declarations, nested and module-qualified calls, named `lambda`, inferred generic parameters, and caller-supplied codeblocks |
 | [macros.md](macros.md) | File-scoped macros, `pub` exports, token arguments and codeblock parameters |
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |
@@ -204,7 +204,7 @@ with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-e
 
 2. Write `stdlib/<name>.lynx`. Its `setup()` imports the library with
    `importAs("<name>.so", "native<Name>")` and forwards each function as
-   `global f(...) { return global.nativeName.f(...); }`. Start the file with a
+   `fn f(...) { return nativeName.f(...); }`. Start the file with a
    line containing exactly `////`, then the description, then another `////`;
    `lynxer --list-stdlibs` prints that block.
 
@@ -232,25 +232,32 @@ for the full checklist and the contract.
 | `LYNXER_GRAPHICS_HEADLESS=1` | Run the `graphics` module without opening a window |
 | `LYNXER_SKIP_DISPLAY=1` | `make testLynxer` skips the display/audio fixtures (used by CI) |
 
-## File-wide functions
+## Function declarations
 
-Use `func` for a helper that belongs to the current source file:
+Declare functions with `fn`. `main()` is required; `setup()` is optional.
+Functions may appear before or after either entry point, and nested functions
+can be called through their parent path:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-func double(int value) -> int {
+fn double(int value) -> int {
     return value * 2;
 }
 
-global main(){
-    println(double(21));   // 42
+fn parent() {
+    fn nested() {
+        println(double(21)); // 42
+    }
+    nested();
+}
+
+fn main(){
+    parent.nested();
 }
 ```
 
-`func` declarations must be top-level and appear between `global setup()` and
-`global main()`. They are called by bare name in their defining file. When a
-file is imported as a module, callers use `global.moduleName.functionName(...)`.
-`func` names are file-scoped, so two different imported files may define the
-same helper name. `global func name(...)` is not valid syntax; see
-[language.md](language.md#functions).
+Use a bare function name in its own module and `<module>.<function>(...)` after
+importing another module. The old `global`, `local`, and `func` declaration
+keywords remain accepted with deprecation warnings; see
+[functions.md](functions.md#deprecated-declaration-keywords).

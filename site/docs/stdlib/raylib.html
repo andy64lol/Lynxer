@@ -149,11 +149,11 @@
 <h3 id="scalar-only-structs-are-flattened">Scalar-only structs are flattened</h3>
 <p>Structs made only of scalars (<code>Vector2</code>/<code>Vector3</code>/<code>Vector4</code>, <code>Color</code>, <code>Rectangle</code>, <code>Camera3D</code>, <code>Ray</code>, <code>BoundingBox</code>, <code>Texture</code>, <code>Matrix</code>, …) are passed <strong>by value as flattened scalars</strong>, so a function taking one takes its fields:</p>
 <pre><code>// DrawRectangleRec(Rectangle, Color) becomes eight scalars.
-global.raylib.drawRectangleRec(x, y, w, h, r, g, b, a);</code></pre>
+raylib.drawRectangleRec(x, y, w, h, r, g, b, a);</code></pre>
 <p>A function returning one returns an <strong>opaque <code>int</code> handle</strong> you read with the struct's field accessors and release with <code>&lt;struct&gt;Free</code>:</p>
-<pre><code>int c = global.raylib.colorFromHSV(0.0, 1.0, 1.0); // Color handle
-float red = global.raylib.colorGetR(c);            // 255.0
-global.raylib.colorFree(c);</code></pre>
+<pre><code>int c = raylib.colorFromHSV(0.0, 1.0, 1.0); // Color handle
+float red = raylib.colorGetR(c);            // 255.0
+raylib.colorFree(c);</code></pre>
 <h3 id="other-structs-are-handles">Other structs are handles</h3>
 <p>Every other struct (<code>Image</code>, <code>Model</code>, <code>Sound</code>, <code>Music</code>, <code>Font</code>, <code>RenderTexture</code>, <code>Shader</code>, <code>Mesh</code>, …) is an opaque <code>int</code> handle:</p>
 <ul>
@@ -180,16 +180,16 @@ global.raylib.colorFree(c);</code></pre>
 <h2 id="example">Example</h2>
 <pre><code>import(&quot;raylib&quot;)
 
-global main(){
-    global.raylib.initWindow(800, 450, &quot;Lynxer + raylib&quot;);
-    global.raylib.setTargetFPS(60);
-    while(not global.raylib.windowShouldClose()){
-        global.raylib.beginDrawing();
-        global.raylib.clearBackground(245, 245, 245, 255);
-        global.raylib.drawText(&quot;hello from Lynxer&quot;, 20, 20, 20, 0, 0, 0, 255);
-        global.raylib.endDrawing();
+fn main(){
+    raylib.initWindow(800, 450, &quot;Lynxer + raylib&quot;);
+    raylib.setTargetFPS(60);
+    while(not raylib.windowShouldClose()){
+        raylib.beginDrawing();
+        raylib.clearBackground(245, 245, 245, 255);
+        raylib.drawText(&quot;hello from Lynxer&quot;, 20, 20, 20, 0, 0, 0, 255);
+        raylib.endDrawing();
     }
-    global.raylib.closeWindow();
+    raylib.closeWindow();
 }</code></pre>
 <h2 id="regenerating">Regenerating</h2>
 <p>The bindings are generated from raylib 6.0's API description, vendored so the generator runs offline:</p>

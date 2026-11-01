@@ -137,7 +137,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="structs">Structs</h1>
-<p>A <code>struct</code> is a data-only named type: a fixed list of typed fields, constructed positionally with <code>new</code>, with no methods. Declare it between <code>global setup()</code> and <code>global main()</code>.</p>
+<p>A <code>struct</code> is a data-only named type: a fixed list of typed fields, constructed positionally with <code>new</code>, with no methods. Declare it between <code>fn setup()</code> and <code>fn main()</code>.</p>
 <h2 id="declaration">Declaration</h2>
 <pre><code>struct Player {
     int health;
@@ -158,14 +158,14 @@ first.health = 90;
 println(first.health); // 90</code></pre>
 <p>(That differs from <a href="vargroups.html">vargroups</a>, whose field assignment requires the type.)</p>
 <h2 id="full-example">Full example</h2>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
 struct Player {
     int health;
     str name;
 }
 
-global main(){
+fn main(){
     Player first = new Player(100, &quot;Ada&quot;);
     first.health = 90;
     println(first.name);    // Ada

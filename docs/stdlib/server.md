@@ -4,7 +4,7 @@ HTTP and WebSocket server backed by Rust [`axum`](https://docs.rs/axum) on
 [`tokio`](https://docs.rs/tokio). Pair it with `network` for local round-trip tests.
 
 ```lynx
-global setup(){
+fn setup(){
     import("server");
     import("network");
 }
@@ -38,10 +38,10 @@ HTML is supplied as a normal Lynxer string and is returned unchanged. For
 example:
 
 ```lynx
-global main(){
-    global.server.get("/", "<!doctype html><html><body><h1>Hello</h1></body></html>");
-    println(global.server.start(8080));
-    while (global.server.running()) {}
+fn main(){
+    server.get("/", "<!doctype html><html><body><h1>Hello</h1></body></html>");
+    println(server.start(8080));
+    while (server.running()) {}
 }
 ```
 
@@ -81,14 +81,14 @@ callback that omits `respond` returns `204`; a callback error returns `500`.
 Fixed-string route registration and responses remain unchanged.
 
 ```lynx
-global greetRequest(){
-    str name = global.server.getArg("name");
-    global.server.respond(200, "text/plain", "Hello " + name);
+fn greetRequest(){
+    str name = server.getArg("name");
+    server.respond(200, "text/plain", "Hello " + name);
 }
 
-global setup(){
+fn setup(){
     import("server");
-    global.server.routeGetCallback("/greet", "greetRequest");
+    server.routeGetCallback("/greet", "greetRequest");
 }
 ```
 
@@ -137,7 +137,7 @@ The query-string arguments also overlay the root context, so `?name=Ada` makes
 `{{ name }}` render `Ada` even without the prefix.
 
 ```lynx
-global.server.templateString(
+server.templateString(
     "/greet",
     "<h1>Hello, {{ name | upper }}!</h1>"
     "{% if request.args.n | default(\"\") %}<p>n={{ request.args.n }}</p>{% endif %}",

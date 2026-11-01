@@ -1,9 +1,9 @@
 ////
 Second extra module for the multi-file bundling check.
 ////
-global setup(){}
+fn setup(){}
 
-global countTo(int limit) -> str {
+fn countTo(int limit) -> str {
     str result = "";
     int index = 1;
     while(index <= limit){
@@ -14,4 +14,4 @@ global countTo(int limit) -> str {
     return result;
 }
 
-global main(){}
+fn main(){}

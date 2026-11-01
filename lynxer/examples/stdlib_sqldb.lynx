@@ -4,81 +4,81 @@ bytecode-compilable). Uses a repo-local scratch database and removes it
 afterwards.
 ////
 
-global setup(){ import("sqldb"); import("fileIO"); }
+fn setup(){ import("sqldb"); import("fileIO"); }
 
-global main(){
+fn main(){
     str db = ".lynxer_scratch_sqldb.db";
 
     // Start from a clean database even if an earlier run was interrupted.
-    global.fileIO.deleteFile(db);
-    global.fileIO.deleteFile(db + "-journal");
+    fileIO.deleteFile(db);
+    fileIO.deleteFile(db + "-journal");
 
-    println(global.sqldb.execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, score REAL)"));
+    println(sqldb.execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, score REAL)"));
 
-    println(global.sqldb.executeArgs(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Ada\", 36.5]"));
-    println(global.sqldb.executeArgs(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Bob\", 41]"));
+    println(sqldb.executeArgs(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Ada\", 36.5]"));
+    println(sqldb.executeArgs(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Bob\", 41]"));
 
     // Rows come back as a JSON array of objects, in column order.
-    println(global.sqldb.query(db, "SELECT id, name, score FROM users ORDER BY id"));
-    println(global.sqldb.queryArgs(db, "SELECT name FROM users WHERE score > ? ORDER BY name", "[40]"));
+    println(sqldb.query(db, "SELECT id, name, score FROM users ORDER BY id"));
+    println(sqldb.queryArgs(db, "SELECT name FROM users WHERE score > ? ORDER BY name", "[40]"));
 
     // scalar() returns the first column of the first row, or "" when absent.
-    println(global.sqldb.scalar(db, "SELECT COUNT(*) FROM users"));
-    println(global.sqldb.scalar(db, "SELECT name FROM users WHERE name = 'nobody'"));
+    println(sqldb.scalar(db, "SELECT COUNT(*) FROM users"));
+    println(sqldb.scalar(db, "SELECT name FROM users WHERE name = 'nobody'"));
 
-    println(global.sqldb.tables(db));
-    println(global.sqldb.tableExists(db, "users"));
-    println(global.sqldb.tableExists(db, "missing"));
+    println(sqldb.tables(db));
+    println(sqldb.tableExists(db, "users"));
+    println(sqldb.tableExists(db, "missing"));
 
-    println(global.sqldb.lastInsertId(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Cy\", 7]"));
+    println(sqldb.lastInsertId(db, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Cy\", 7]"));
 
     // script() runs several statements as one transaction.
-    println(global.sqldb.script(db, "CREATE TABLE t2 (a INTEGER); INSERT INTO t2 VALUES (7);"));
-    println(global.sqldb.tables(db));
+    println(sqldb.script(db, "CREATE TABLE t2 (a INTEGER); INSERT INTO t2 VALUES (7);"));
+    println(sqldb.tables(db));
 
     // String-returning operations raise catchable errors on database failure.
     str queryError = "";
     try {
-        global.sqldb.query(db, "SELECT * FROM missing_table");
+        sqldb.query(db, "SELECT * FROM missing_table");
     } catch(str error) {
         queryError = error;
     }
     println("query error: ", queryError);
 
     // A handle from open() keeps one connection live across calls.
-    int conn = global.sqldb.open(db);
-    println(global.sqldb.executeOn(conn, "INSERT INTO users (name, score) VALUES ('Dee', 12)"));
-    println(global.sqldb.queryOn(conn, "SELECT name FROM users WHERE score < 20"));
-    println(global.sqldb.executeArgsOn(conn, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Eve\", 99]"));
-    println(global.sqldb.queryArgsOn(conn, "SELECT name FROM users WHERE score = ?", "[99]"));
-    println(global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users"));
-    println(global.sqldb.scalarArgsOn(conn, "SELECT name FROM users WHERE id = ?", "[1]"));
-    println(global.sqldb.lastInsertIdOn(conn, "INSERT INTO users (name, score) VALUES ('Fox', 1)", "[]"));
-    println(global.sqldb.scriptOn(conn, "CREATE TABLE t3 (a INTEGER);"));
-    println(global.sqldb.tablesOn(conn));
-    println(global.sqldb.tableExistsOn(conn, "t3"));
-    println(global.sqldb.tableExistsOn(conn, "missing"));
+    int conn = sqldb.open(db);
+    println(sqldb.executeOn(conn, "INSERT INTO users (name, score) VALUES ('Dee', 12)"));
+    println(sqldb.queryOn(conn, "SELECT name FROM users WHERE score < 20"));
+    println(sqldb.executeArgsOn(conn, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Eve\", 99]"));
+    println(sqldb.queryArgsOn(conn, "SELECT name FROM users WHERE score = ?", "[99]"));
+    println(sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users"));
+    println(sqldb.scalarArgsOn(conn, "SELECT name FROM users WHERE id = ?", "[1]"));
+    println(sqldb.lastInsertIdOn(conn, "INSERT INTO users (name, score) VALUES ('Fox', 1)", "[]"));
+    println(sqldb.scriptOn(conn, "CREATE TABLE t3 (a INTEGER);"));
+    println(sqldb.tablesOn(conn));
+    println(sqldb.tableExistsOn(conn, "t3"));
+    println(sqldb.tableExistsOn(conn, "missing"));
 
     // close() reports whether the handle was live, and a closed or unknown
     // handle answers the usual sentinels rather than raising.
-    println(global.sqldb.close(conn));
-    println(global.sqldb.close(conn));
-    println(global.sqldb.tableExistsOn(conn, "users"));
+    println(sqldb.close(conn));
+    println(sqldb.close(conn));
+    println(sqldb.tableExistsOn(conn, "users"));
     str handleError = "";
     try {
-        global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users");
+        sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users");
     } catch(str error) {
         handleError = error;
     }
     println("handle error: ", handleError);
-    println(global.sqldb.open("/nonexistent-directory/x.db"));
+    println(sqldb.open("/nonexistent-directory/x.db"));
 
     // BLOBs round-trip as an explicit tagged JSON value, not an ambiguous
     // base64-looking text string. The scalar form is prefixed with bytes:.
-    println(global.sqldb.execute(db, "CREATE TABLE blobs (value BLOB)"));
-    println(global.sqldb.executeArgs(db, "INSERT INTO blobs VALUES (?)", "[{\"$bytes\":\"AAH/gA==\"}]"));
-    println(global.sqldb.query(db, "SELECT value FROM blobs"));
-    println(global.sqldb.scalar(db, "SELECT value FROM blobs"));
+    println(sqldb.execute(db, "CREATE TABLE blobs (value BLOB)"));
+    println(sqldb.executeArgs(db, "INSERT INTO blobs VALUES (?)", "[{\"$bytes\":\"AAH/gA==\"}]"));
+    println(sqldb.query(db, "SELECT value FROM blobs"));
+    println(sqldb.scalar(db, "SELECT value FROM blobs"));
 
-    global.fileIO.deleteFile(db);
+    fileIO.deleteFile(db);
 }

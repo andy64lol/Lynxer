@@ -2,61 +2,61 @@
 Fixture for the os stdlib. Interpreted only (module imports are not
 bytecode-compilable). Uses a repo-local scratch directory and removes it.
 ////
-global setup(){ import("os"); import("fileIO"); }
+fn setup(){ import("os"); import("fileIO"); }
 
-global main(){
+fn main(){
     str root = ".lynxer_scratch_os";
-    if(global.os.exists(root)){ global.os.rmTree(root); }
-    println(global.os.mkdir(root));
-    println(global.os.mkdir(root));
-    println(global.os.isDir(root));
-    println(global.os.makedirs(root + "/a/b"));
-    println(global.os.isDir(root + "/a/b"));
-    println(global.os.isFile(root + "/a/b"));
-    println(global.os.isDir(root + "/missing"));
+    if(os.exists(root)){ os.rmTree(root); }
+    println(os.mkdir(root));
+    println(os.mkdir(root));
+    println(os.isDir(root));
+    println(os.makedirs(root + "/a/b"));
+    println(os.isDir(root + "/a/b"));
+    println(os.isFile(root + "/a/b"));
+    println(os.isDir(root + "/missing"));
 
-    global.fileIO.writeFile(root + "/one.txt", "1");
-    global.fileIO.writeFile(root + "/two.txt", "2");
-    global.fileIO.writeFile(root + "/three.log", "3");
-    println(sortList(global.os.listdir(root)));
-    println(sortList(global.os.listdirExt(root, ".txt")));
-    println(global.os.walkFiles(root) is "");
-    println(global.os.isFile(root + "/one.txt"));
+    fileIO.writeFile(root + "/one.txt", "1");
+    fileIO.writeFile(root + "/two.txt", "2");
+    fileIO.writeFile(root + "/three.log", "3");
+    println(sortList(os.listdir(root)));
+    println(sortList(os.listdirExt(root, ".txt")));
+    println(os.walkFiles(root) is "");
+    println(os.isFile(root + "/one.txt"));
 
-    println(global.os.joinPath("a", "b"));
-    println(global.os.joinPath("a/", "b"));
-    println(global.os.basename("/x/y.txt"));
-    println(global.os.basename("/x/"));
-    println(global.os.dirname("/x/y.txt"));
-    println(global.os.extname("/x/y.txt"));
-    println(global.os.extname("/x/.bashrc"));
-    println(global.os.normPath("a/./b/../c"));
-    println(global.os.normPath(""));
-    println(global.os.sep());
-    println(global.os.getpid() > 0);
-    println(global.os.cpuCount() > 0);
-    println(global.os.diskTotal(root) > 0);
-    println(global.os.diskFree(root) > 0);
-    println(global.os.setenv("LYNXER_OS_TEST", "hello"));
-    println(global.os.getenv("LYNXER_OS_TEST"));
-    println(global.os.getenv("LYNXER_OS_MISSING") is "");
-    println(global.os.expandUser("~") is global.os.homedir());
-    println(returnLength(global.os.homedir()) > 0);
-    println(returnLength(global.os.username()) > 0);
-    println(returnLength(global.os.hostname()) > 0);
-    println(returnLength(global.os.tempDir()) > 0);
-    println(global.os.exists(root));
-    println(global.os.rename(root + "/one.txt", root + "/renamed.txt"));
-    println(global.fileIO.fileExists(root + "/renamed.txt"));
-    println(global.os.remove(root + "/renamed.txt"));
-    println(global.os.rmdir(root + "/a/b"));
-    println(global.os.rmdir(root + "/a"));
-    println(global.os.rmTree(root));
-    println(global.os.exists(root));
+    println(os.joinPath("a", "b"));
+    println(os.joinPath("a/", "b"));
+    println(os.basename("/x/y.txt"));
+    println(os.basename("/x/"));
+    println(os.dirname("/x/y.txt"));
+    println(os.extname("/x/y.txt"));
+    println(os.extname("/x/.bashrc"));
+    println(os.normPath("a/./b/../c"));
+    println(os.normPath(""));
+    println(os.sep());
+    println(os.getpid() > 0);
+    println(os.cpuCount() > 0);
+    println(os.diskTotal(root) > 0);
+    println(os.diskFree(root) > 0);
+    println(os.setenv("LYNXER_OS_TEST", "hello"));
+    println(os.getenv("LYNXER_OS_TEST"));
+    println(os.getenv("LYNXER_OS_MISSING") is "");
+    println(os.expandUser("~") is os.homedir());
+    println(returnLength(os.homedir()) > 0);
+    println(returnLength(os.username()) > 0);
+    println(returnLength(os.hostname()) > 0);
+    println(returnLength(os.tempDir()) > 0);
+    println(os.exists(root));
+    println(os.rename(root + "/one.txt", root + "/renamed.txt"));
+    println(fileIO.fileExists(root + "/renamed.txt"));
+    println(os.remove(root + "/renamed.txt"));
+    println(os.rmdir(root + "/a/b"));
+    println(os.rmdir(root + "/a"));
+    println(os.rmTree(root));
+    println(os.exists(root));
 
-    println(returnLength(global.os.getSystemName()) > 0);
-    println(global.os.getSystemArchitecture());
-    println(global.os.getSystemUname() isnt "{}");
-    println(returnLength(global.os.getSystemDistro()) > 2);
-    println(returnLength(global.os.getSystemInfo()) > 2);
+    println(returnLength(os.getSystemName()) > 0);
+    println(os.getSystemArchitecture());
+    println(os.getSystemUname() isnt "{}");
+    println(returnLength(os.getSystemDistro()) > 2);
+    println(returnLength(os.getSystemInfo()) > 2);
 }

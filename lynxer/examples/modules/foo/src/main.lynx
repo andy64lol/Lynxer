@@ -2,9 +2,9 @@
 foo: an example directory module, resolved from modules/foo/.
 ////
 
-global setup(){}
+fn setup(){}
 
 // Say foo bar!
-global foo() -> str { return "foo bar!"; }
+fn foo() -> str { return "foo bar!"; }
 
-global main(){}
+fn main(){}

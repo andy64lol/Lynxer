@@ -4,20 +4,20 @@ port and the fixture asks the kernel for it, so no fixed port can collide with
 another run or another service. The only file it creates is a Unix socket under
 the working directory, which it removes again.
 ////
-global setup(){ import("json"); import("fileIO"); }
+fn setup(){ import("json"); import("fileIO"); }
 
 // Reads the port out of an address document like ["127.0.0.1",41234].
-global portOf(str address){
+fn portOf(str address){
     str tail = listGet(splitStr(address, ","), 1);
     return intOf(listGet(splitStr(tail, "]"), 0));
 }
 
-global main(){
+fn main(){
     int server = networkingOpen("tcp");
     println(networkingOption(server, "reuseAddr", 1));
     println(networkingBind(server, "127.0.0.1", 0));
     println(networkingListen(server, 4));
-    int port = global.portOf(networkingAddress(server));
+    int port = portOf(networkingAddress(server));
     println(port > 0);
 
     int client = networkingOpen("tcp");
@@ -39,7 +39,7 @@ global main(){
 
     int udpServer = networkingOpen("udp");
     println(networkingBind(udpServer, "127.0.0.1", 0));
-    int udpPort = global.portOf(networkingAddress(udpServer));
+    int udpPort = portOf(networkingAddress(udpServer));
     int udpClient = networkingOpen("udp");
     println(networkingConnect(udpClient, "127.0.0.1", udpPort));
     println(networkingSend(udpClient, "datagram"));
@@ -48,7 +48,7 @@ global main(){
     println(networkingClose(udpServer));
 
     str path = ".lynxer_scratch_net.sock";
-    global.fileIO.deleteFile(path);
+    fileIO.deleteFile(path);
     int unixServer = networkingOpen("unix");
     println(networkingBind(unixServer, path));
     println(networkingListen(unixServer, 1));
@@ -84,7 +84,7 @@ global main(){
     int refused = networkingOpen("tcp");
     int closing = networkingOpen("tcp");
     println(networkingBind(closing, "127.0.0.1", 0));
-    int closedPort = global.portOf(networkingAddress(closing));
+    int closedPort = portOf(networkingAddress(closing));
     println(networkingClose(closing));
     try { networkingConnect(refused, "127.0.0.1", closedPort); } catch(str e) { println("refused: ", e); }
     println(networkingClose(refused));

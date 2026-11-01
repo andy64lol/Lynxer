@@ -9,9 +9,9 @@ file holds on amd64 and arm64. Calling *through* an address with nativeCall
 needs a real function pointer and a matching ABI, so it is documented rather
 than pinned by this fixture.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int buffer = memoryAllocate(32);
     memoryWriteInt64(buffer, 0, 1111);
     println("address round-trips ", getAddress(buffer) is buffer);

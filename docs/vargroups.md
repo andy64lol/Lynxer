@@ -55,9 +55,9 @@ println(nested.sub.k);   // x
 ## Full example
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     vargroup player = {
         str username = "Ada",
         int coins = 250,

@@ -138,7 +138,7 @@
         </div>
 <h1 id="multiprocessing">multiprocessing</h1>
 <p>Run shell commands in parallel.</p>
-<p><strong>Backend:</strong> native + pure — <code>stdlib/multiprocessing.so</code> (<code>stdlib/multiprocessing.cpp</code>) runs the commands; <code>stdlib/multiprocessing.lynx</code> reads the results back into Lynxer lists. <strong>Import:</strong> <code>import(&quot;multiprocessing&quot;)</code> → <code>global.multiprocessing.*</code></p>
+<p><strong>Backend:</strong> native + pure — <code>stdlib/multiprocessing.so</code> (<code>stdlib/multiprocessing.cpp</code>) runs the commands; <code>stdlib/multiprocessing.lynx</code> reads the results back into Lynxer lists. <strong>Import:</strong> <code>import(&quot;multiprocessing&quot;)</code> → <code>multiprocessing.*</code></p>
 <p>Commands run in worker threads, each spawning its own shell subprocess. Results are always returned in input order, whatever order they finish in. A command's <code>stderr</code> is captured into its output, and a command that outlives the timeout (<code>LYNXER_MP_TIMEOUT</code> seconds, default <code>300</code>, <code>0</code> for no limit) is killed and reports exit code <code>124</code>. The timeout kills the complete process group, not only the shell wrapper. Captured stdout and stderr are concatenated in their original pipe order.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
@@ -153,14 +153,14 @@
 <p><code>resultCount(handle)</code>, <code>resultAt(handle, index)</code>, and <code>codeAt(handle, index)</code> read one handle. <code>release(handle)</code> frees it and returns <code>true</code>; subsequent queries return <code>0</code>, <code>&quot;&quot;</code>, or <code>-1</code>. The list-returning convenience functions release their handles automatically.</p>
 <p>Results are collected through a native handle registry rather than a joined string, because command output can contain any character. The wrappers release each handle automatically. Native callers that use the handle operations directly must call <code>release(handle)</code>; result queries on released or unknown handles return their invalid-handle sentinels.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;multiprocessing&quot;); }
+<pre><code>fn setup(){ import(&quot;multiprocessing&quot;); }
 
-global main(){
+fn main(){
     list commands = listPush(listPush(listRepeat(&quot;&quot;, 0), &quot;printf a&quot;), &quot;printf b&quot;);
-    println(global.multiprocessing.runParallel(commands));
+    println(multiprocessing.runParallel(commands));
 
     list items = listPush(listPush(listRepeat(&quot;&quot;, 0), &quot;x&quot;), &quot;y&quot;);
-    println(global.multiprocessing.mapShell(&quot;printf {}&quot;, items));
+    println(multiprocessing.mapShell(&quot;printf {}&quot;, items));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

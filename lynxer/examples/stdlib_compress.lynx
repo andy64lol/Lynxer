@@ -3,82 +3,82 @@ Fixture for the compress stdlib. Compression output is not pinned — only
 round-trips, lengths, status strings and archive entry names are, so the output
 is deterministic across builds and is part of the import-parity gate.
 ////
-global setup(){ import("compress"); import("fileIO"); import("os"); }
+fn setup(){ import("compress"); import("fileIO"); import("os"); }
 
-global main(){
+fn main(){
     str root = ".lynxer_scratch_compress";
-    if(global.os.exists(root)){ global.os.rmTree(root); }
-    global.os.mkdir(root);
+    if(os.exists(root)){ os.rmTree(root); }
+    os.mkdir(root);
 
     str text = "the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog";
     bytes payload = bytesOf(text);
 
     // --- in-memory round trips ---
-    println(bytesToStr(global.compress.gzipDecompress(global.compress.gzipCompress(payload))) is text);
-    println(bytesToStr(global.compress.zlibDecompress(global.compress.zlibCompress(payload))) is text);
-    println(bytesToStr(global.compress.zstdDecompress(global.compress.zstdCompress(payload))) is text);
-    println(bytesToStr(global.compress.bzip2Decompress(global.compress.bzip2Compress(payload))) is text);
-    println(bytesToStr(global.compress.brotliDecompress(global.compress.brotliCompress(payload))) is text);
-    println(bytesToStr(global.compress.lz4Decompress(global.compress.lz4Compress(payload))) is text);
+    println(bytesToStr(compress.gzipDecompress(compress.gzipCompress(payload))) is text);
+    println(bytesToStr(compress.zlibDecompress(compress.zlibCompress(payload))) is text);
+    println(bytesToStr(compress.zstdDecompress(compress.zstdCompress(payload))) is text);
+    println(bytesToStr(compress.bzip2Decompress(compress.bzip2Compress(payload))) is text);
+    println(bytesToStr(compress.brotliDecompress(compress.brotliCompress(payload))) is text);
+    println(bytesToStr(compress.lz4Decompress(compress.lz4Compress(payload))) is text);
     // A repetitive payload compresses to fewer bytes.
-    println(bytesLength(global.compress.gzipCompress(payload)) < returnLength(text));
+    println(bytesLength(compress.gzipCompress(payload)) < returnLength(text));
 
     // --- malformed inputs answer empty bytes ---
-    println(bytesLength(global.compress.gzipDecompress(bytesOf("not a stream"))) is 0);
+    println(bytesLength(compress.gzipDecompress(bytesOf("not a stream"))) is 0);
     // "abc" is not a stream in any of these codecs.
-    println(bytesLength(global.compress.gzipDecompress(bytesOf("abc"))) is 0);
-    println(bytesLength(global.compress.zlibDecompress(bytesOf("abc"))) is 0);
-    println(bytesLength(global.compress.zstdDecompress(bytesOf("abc"))) is 0);
-    println(bytesLength(global.compress.bzip2Decompress(bytesOf("abc"))) is 0);
-    println(bytesLength(global.compress.brotliDecompress(bytesOf("abc"))) is 0);
-    println(bytesLength(global.compress.lz4Decompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.gzipDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.zlibDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.zstdDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.bzip2Decompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.brotliDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(compress.lz4Decompress(bytesOf("abc"))) is 0);
 
     // --- file round trips ---
-    global.fileIO.writeFile(root + "/data.txt", text);
-    println(global.compress.gzipCompressFile(root + "/data.txt", root + "/data.gz"));
-    println(global.compress.gzipDecompressFile(root + "/data.gz", root + "/data.out"));
-    println(global.fileIO.readFile(root + "/data.out") is text);
-    println(global.compress.zstdCompressFile(root + "/data.txt", root + "/data.zst"));
-    println(global.compress.zstdDecompressFile(root + "/data.zst", root + "/data.zout"));
-    println(global.fileIO.readFile(root + "/data.zout") is text);
-    println(global.compress.bzip2CompressFile(root + "/data.txt", root + "/data.bz2"));
-    println(global.compress.bzip2DecompressFile(root + "/data.bz2", root + "/data.bzout"));
-    println(global.fileIO.readFile(root + "/data.bzout") is text);
-    println(returnLength(global.compress.gzipDecompressFile(root + "/missing.gz", root + "/x")) > 0);
+    fileIO.writeFile(root + "/data.txt", text);
+    println(compress.gzipCompressFile(root + "/data.txt", root + "/data.gz"));
+    println(compress.gzipDecompressFile(root + "/data.gz", root + "/data.out"));
+    println(fileIO.readFile(root + "/data.out") is text);
+    println(compress.zstdCompressFile(root + "/data.txt", root + "/data.zst"));
+    println(compress.zstdDecompressFile(root + "/data.zst", root + "/data.zout"));
+    println(fileIO.readFile(root + "/data.zout") is text);
+    println(compress.bzip2CompressFile(root + "/data.txt", root + "/data.bz2"));
+    println(compress.bzip2DecompressFile(root + "/data.bz2", root + "/data.bzout"));
+    println(fileIO.readFile(root + "/data.bzout") is text);
+    println(returnLength(compress.gzipDecompressFile(root + "/missing.gz", root + "/x")) > 0);
 
     // --- ZIP ---
     str manifest = "[{\"name\":\"a.txt\",\"path\":\"" + root + "/data.txt\"},{\"name\":\"dir/b.txt\",\"base64\":\"aGVsbG8=\"}]";
-    println(global.compress.zipCreate(root + "/archive.zip", manifest));
-    println(global.compress.zipList(root + "/archive.zip"));
-    println(bytesToStr(global.compress.zipRead(root + "/archive.zip", "dir/b.txt")));
-    println(bytesLength(global.compress.zipRead(root + "/archive.zip", "nope.txt")) is 0);
-    println(global.compress.zipExtract(root + "/archive.zip", root + "/unzip"));
-    println(global.fileIO.readFile(root + "/unzip/dir/b.txt") is "hello");
+    println(compress.zipCreate(root + "/archive.zip", manifest));
+    println(compress.zipList(root + "/archive.zip"));
+    println(bytesToStr(compress.zipRead(root + "/archive.zip", "dir/b.txt")));
+    println(bytesLength(compress.zipRead(root + "/archive.zip", "nope.txt")) is 0);
+    println(compress.zipExtract(root + "/archive.zip", root + "/unzip"));
+    println(fileIO.readFile(root + "/unzip/dir/b.txt") is "hello");
     // An entry that would escape the destination is refused at creation.
-    println(global.compress.zipCreate(root + "/bad.zip", "[{\"name\":\"../evil\",\"base64\":\"aGk=\"}]"));
+    println(compress.zipCreate(root + "/bad.zip", "[{\"name\":\"../evil\",\"base64\":\"aGk=\"}]"));
 
     // --- AES-encrypted ZIP ---
     // A manifest entry may carry a "password"; reading and extracting it then
     // requires the matching password.
     str secretManifest = "[{\"name\":\"secret.txt\",\"base64\":\"aGVsbG8=\",\"password\":\"hunter2\"}]";
-    println(global.compress.zipCreate(root + "/secret.zip", secretManifest));
-    println(bytesToStr(global.compress.zipReadWithPassword(root + "/secret.zip", "secret.txt", "hunter2")) is "hello");
+    println(compress.zipCreate(root + "/secret.zip", secretManifest));
+    println(bytesToStr(compress.zipReadWithPassword(root + "/secret.zip", "secret.txt", "hunter2")) is "hello");
     // A wrong password yields empty bytes instead of garbage.
-    println(bytesLength(global.compress.zipReadWithPassword(root + "/secret.zip", "secret.txt", "wrong")) is 0);
-    println(global.compress.zipExtractWithPassword(root + "/secret.zip", root + "/unsecret", "hunter2"));
-    println(global.fileIO.readFile(root + "/unsecret/secret.txt") is "hello");
+    println(bytesLength(compress.zipReadWithPassword(root + "/secret.zip", "secret.txt", "wrong")) is 0);
+    println(compress.zipExtractWithPassword(root + "/secret.zip", root + "/unsecret", "hunter2"));
+    println(fileIO.readFile(root + "/unsecret/secret.txt") is "hello");
     // An empty password is refused rather than writing a plain entry.
-    println(global.compress.zipCreate(root + "/emptypw.zip", "[{\"name\":\"a.txt\",\"base64\":\"aGk=\",\"password\":\"\"}]"));
+    println(compress.zipCreate(root + "/emptypw.zip", "[{\"name\":\"a.txt\",\"base64\":\"aGk=\",\"password\":\"\"}]"));
 
     // --- TAR and TAR.GZ ---
-    println(global.compress.tarCreate(root + "/archive.tar", manifest));
-    println(global.compress.tarList(root + "/archive.tar"));
-    println(global.compress.tarExtract(root + "/archive.tar", root + "/untar"));
-    println(global.fileIO.readFile(root + "/untar/dir/b.txt") is "hello");
-    println(global.compress.tarGzCreate(root + "/archive.tgz", manifest));
-    println(global.compress.tarGzExtract(root + "/archive.tgz", root + "/untgz"));
-    println(global.fileIO.readFile(root + "/untgz/a.txt") is text);
-    println(global.compress.tarCreate(root + "/bad.tar", "[{\"name\":\"/abs\",\"base64\":\"aGk=\"}]"));
+    println(compress.tarCreate(root + "/archive.tar", manifest));
+    println(compress.tarList(root + "/archive.tar"));
+    println(compress.tarExtract(root + "/archive.tar", root + "/untar"));
+    println(fileIO.readFile(root + "/untar/dir/b.txt") is "hello");
+    println(compress.tarGzCreate(root + "/archive.tgz", manifest));
+    println(compress.tarGzExtract(root + "/archive.tgz", root + "/untgz"));
+    println(fileIO.readFile(root + "/untgz/a.txt") is text);
+    println(compress.tarCreate(root + "/bad.tar", "[{\"name\":\"/abs\",\"base64\":\"aGk=\"}]"));
 
-    global.os.rmTree(root);
+    os.rmTree(root);
 }

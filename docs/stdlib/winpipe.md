@@ -5,7 +5,7 @@ Blocking Windows named pipes.
 **Backend:** native — `stdlib/winpipe.so`, built from `stdlib/winpipe.cpp`.
 Windows-only; the module is not built or available on Linux or macOS.
 
-**Import:** `import("winpipe")` → `global.winpipe.*`
+**Import:** `import("winpipe")` → `winpipe.*`
 
 Names are relative to `\\.\pipe\`; a full `\\.\pipe\name` path is accepted too.
 The server creates a handle with `create` and blocks in `connect` until a client
@@ -29,16 +29,16 @@ must be released with `close`.
 ## Example
 
 ```lynx
-global setup(){ import("winpipe"); }
+fn setup(){ import("winpipe"); }
 
-global main(){
-    int server = global.winpipe.create("lynxer-demo");
+fn main(){
+    int server = winpipe.create("lynxer-demo");
     // In another process:
-    //   int client = global.winpipe.open("lynxer-demo");
-    global.winpipe.connect(server);
-    println(global.winpipe.read(server, 64));
-    global.winpipe.write(server, "pong");
-    global.winpipe.disconnect(server);
-    global.winpipe.close(server);
+    //   int client = winpipe.open("lynxer-demo");
+    winpipe.connect(server);
+    println(winpipe.read(server, 64));
+    winpipe.write(server, "pong");
+    winpipe.disconnect(server);
+    winpipe.close(server);
 }
 ```

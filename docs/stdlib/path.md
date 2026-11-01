@@ -3,7 +3,7 @@
 `pathlib`-style path manipulation and filesystem helpers.
 
 **Backend:** native — `stdlib/path.so`, built from `stdlib/path.cpp` over
-`<filesystem>` and POSIX `stat`. **Import:** `import("path")` → `global.path.*`
+`<filesystem>` and POSIX `stat`. **Import:** `import("path")` → `path.*`
 
 Paths are plain strings. Functions return `""`, an empty list, `false` or `-1`
 when the underlying operation fails.
@@ -88,12 +88,12 @@ Glob patterns support `*`, `?`, `[...]` and `**` (which spans directories).
 ## Example
 
 ```lynx
-global setup(){ import("path"); }
+fn setup(){ import("path"); }
 
-global main(){
-    println(global.path.name("/tmp/notes.txt"));
-    println(global.path.suffixes("archive.tar.gz"));
-    println(global.path.rglob(".", "*.lynx"));
+fn main(){
+    println(path.name("/tmp/notes.txt"));
+    println(path.suffixes("archive.tar.gz"));
+    println(path.rglob(".", "*.lynx"));
 }
 ```
 

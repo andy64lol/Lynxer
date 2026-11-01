@@ -5,28 +5,28 @@ A worker only runs while the starter is blocked, so each blocking wait here has
 a defined wakeup and the output order is fixed: the semaphore wait is satisfied
 by the producer thread, and the condition wait by the notifier thread.
 ////
-global setup(){}
+fn setup(){}
 
-global producer(int semaphore){
+fn producer(int semaphore){
     nativeSemaphorePost(semaphore);
 }
 
-global notifier(int mutex, int condition){
+fn notifier(int mutex, int condition){
     nativeMutexLock(mutex);
     nativeConditionNotify(condition, mutex);
     nativeMutexUnlock(mutex);
 }
 
-global main(){
+fn main(){
     int semaphore = nativeSemaphoreCreate(0);
-    int producerThread = nativeThreadStart(global.producer, [semaphore]);
+    int producerThread = nativeThreadStart(producer, [semaphore]);
     nativeSemaphoreWait(semaphore);
     println("semaphore signalled ", nativeThreadJoin(producerThread));
     nativeSemaphoreClose(semaphore);
 
     int mutex = nativeMutexCreate();
     int condition = nativeConditionCreate();
-    int notifierThread = nativeThreadStart(global.notifier, [mutex, condition]);
+    int notifierThread = nativeThreadStart(notifier, [mutex, condition]);
     nativeMutexLock(mutex);
     nativeConditionWait(condition, mutex);
     nativeMutexUnlock(mutex);

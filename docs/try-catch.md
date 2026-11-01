@@ -127,17 +127,17 @@ to standard error and exits with status `1`. (An interrupt exits `130`.)
 ## Example
 
 ```lynx
-global setup(){ }
+fn setup(){ }
 
-global divide(int a, int b) -> int {
+fn divide(int a, int b) -> int {
     if(b is 0){ raise("cannot divide by zero"); }
     return a /% b;
 }
 
-global main(){
+fn main(){
     try {
-        println(global.divide(10, 2));   // 5
-        println(global.divide(10, 0));   // raises
+        println(divide(10, 2));   // 5
+        println(divide(10, 0));   // raises
     } catch (str error) {
         println("error: ", error);
         println(exceptionInfo());

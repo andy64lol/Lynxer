@@ -63,13 +63,13 @@ exactly, including through the native-memory writes in
 [builtins.md](builtins.md#native-memory).
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-func scaled(int16 n) -> int32 {
+fn scaled(int16 n) -> int32 {
     return n * 2;
 }
 
-global main(){
+fn main(){
     numBool enabled = 1;
     byte mask = 255;
     float32 ratio = 0.25;
@@ -96,8 +96,8 @@ global main(){
 Use the arrow form:
 
 ```lynx
-global f(int x) -> int { return x + 1; }
-func label(str name) -> str { return "hi " + name; }
+fn f(int x) -> int { return x + 1; }
+fn label(str name) -> str { return "hi " + name; }
 ```
 
 - `: type` is **not** valid syntax (`unexpected character ':'`).

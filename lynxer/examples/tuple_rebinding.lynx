@@ -7,9 +7,9 @@ deprecation warning (once per source location); those warnings are part of the
 expected output below. `suppressDeprecationWarning()` silences them.
 ////
 
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     tuple point = (int 10, int 20);
     println(point);
     println(tupleLen(point));

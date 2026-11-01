@@ -48,7 +48,7 @@ The legacy `http` and `net` modules are **not provided**, and no compatibility
 shim is planned. `network` is the client — HTTP, WebSocket, and URL handling in
 one module — and `server` covers serving, so a program has one API surface
 rather than three overlapping ones. The legacy names (`httpGet`, `netSocket`, …)
-are not aliases; port a program to `global.network.*` / `global.server.*`. See
+are not aliases; port a program to `network.*` / `server.*`. See
 [stdlib/network.md](stdlib/network.md).
 
 ## `venv`

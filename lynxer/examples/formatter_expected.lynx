@@ -3,19 +3,19 @@ Formatter fixture: the suite formats a copy of this file and compares the
 result with formatter_expected.lynx, then formats it again to prove the
 formatter is idempotent, then runs the formatted file.
 ////
-global setup() {
+fn setup() {
 }
 class Counter {
     int value = 0;
-    local init(int initial) {
+    fn init(int initial) {
         this.value = initial;
     }
-    local bump() {
+    fn bump() {
         this.value += 1;
     }
 }
 // a trailing line comment
-global main() {
+fn main() {
     int total = 0;
     for(int i = 0; i < 3; i += 1) {
         total += i;

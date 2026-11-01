@@ -1,14 +1,14 @@
-global setup(){
+fn setup(){
     import("sys");
 }
 
-global worker(){
+fn worker(){
     println("thread cleanup completed");
 }
 
-global main(){
+fn main(){
     println("before sys.exit");
-    nativeThreadStart(global.worker, []);
-    global.sys.exit(23);
+    nativeThreadStart(worker, []);
+    sys.exit(23);
     println("after sys.exit");
 }

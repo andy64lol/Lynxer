@@ -2,16 +2,16 @@ pub macro pathPrint!(*args){println(*args)}
 pub macro pathBlock!(*args){body}{global.example.withPathBlock(*args){{body}}}
 macro privatePrint!(*args){println(*args)}
 
-global setup(){
+fn setup(){
     import("nested/helper.lynx");
 }
 
-global withPathBlock(int value){body}{
+fn withPathBlock(int value){body}{
     exec(value){{body}}
 }
 
-global greet(str name) -> str {
-    return global.helper.prefix() + name;
+fn greet(str name) -> str {
+    return helper.prefix() + name;
 }
 
-global main(){}
+fn main(){}

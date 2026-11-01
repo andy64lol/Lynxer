@@ -1,15 +1,15 @@
 macro localPrint!(*args){println(*args)}
 macro punctuation!(*args){println("*args")}
 
-global setup(){}
+fn setup(){}
 
-func invokeBlock(int value){body}{
+fn invokeBlock(int value){body}{
     exec(value){{body}}
 }
 
 macro withBlock!(*args){body}{invokeBlock(*args){{body}}}
 
-global main(){
+fn main(){
     localPrint!("local macro");
     localPrint!("text ) ( ,");
     punctuation!();

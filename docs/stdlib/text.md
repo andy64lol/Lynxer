@@ -3,7 +3,7 @@
 String helpers built on the core string builtins.
 
 **Backend:** Lynxer helpers backed by the Rust `text.so` Unicode operations.
-**Import:** `import("text")` → `global.text.*`
+**Import:** `import("text")` → `text.*`
 
 The interpreter's strings hold UTF-8, and length, indexing and slicing here count
 **code points**, so a character is one Unicode scalar value. Unicode case
@@ -84,15 +84,15 @@ only tests list/tuple membership.
 ## Example
 
 ```lynx
-global setup(){ import("text"); }
+fn setup(){ import("text"); }
 
-global main(){
-    println(global.text.reverse("abc"));        // cba
-    println(global.text.contains("hello", "ell")); // true
-    println(global.text.count("banana", "na")); // 2
-    println(global.text.indexOf("banana", "na")); // 2
-    println(global.text.zfill("42", 5));        // 00042
-    println(global.text.splitFirst("a=b", "=")); // [a, b]
+fn main(){
+    println(text.reverse("abc"));        // cba
+    println(text.contains("hello", "ell")); // true
+    println(text.count("banana", "na")); // 2
+    println(text.indexOf("banana", "na")); // 2
+    println(text.zfill("42", 5));        // 00042
+    println(text.splitFirst("a=b", "=")); // [a, b]
 }
 ```
 

@@ -1,5 +1,5 @@
-global setup(){}
+fn setup(){}
 
-global prefix() -> str {
+fn prefix() -> str {
     return "hello ";
 }

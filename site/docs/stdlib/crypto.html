@@ -139,7 +139,7 @@
 <h1 id="crypto">crypto</h1>
 <p>Hashes, HMAC, constant-time comparison, OS randomness and Ed25519 signatures.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/crypto.so</code>, built from the Rust crate <code>rust/crypto</code> over <code>sha2</code>, <code>sha1</code>, <code>md-5</code>, <code>sha3</code>, <code>blake3</code>, <code>hmac</code>, <code>subtle</code>, <code>getrandom</code> and <code>ed25519-dalek</code>.</p>
-<p><strong>Import:</strong> <code>import(&quot;crypto&quot;)</code> → <code>global.crypto.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;crypto&quot;)</code> → <code>crypto.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
 <p>Binary payloads cross the module ABI as <code>bytes</code>:</p>
 <ul>
@@ -184,27 +184,27 @@
 <tr><td><code>verifyEd25519</code></td><td><code>(bytes publicKey, bytes message, bytes signature)</code></td><td><code>true</code> / <code>false</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;crypto&quot;); import(&quot;fileIO&quot;); }
+<pre><code>fn setup(){ import(&quot;crypto&quot;); import(&quot;fileIO&quot;); }
 
-global main(){
+fn main(){
     // A SHA-256 digest of &quot;abc&quot;, as lower-case hex.
-    println(global.crypto.hash(&quot;sha256&quot;, bytesOf(&quot;abc&quot;)));
+    println(crypto.hash(&quot;sha256&quot;, bytesOf(&quot;abc&quot;)));
 
     // An HMAC-SHA256, and its constant-time verification.
-    str mac = global.crypto.hmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;));
-    println(global.crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;), mac));
-    println(global.crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;other&quot;), mac));
+    str mac = crypto.hmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;));
+    println(crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;), mac));
+    println(crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;other&quot;), mac));
 
     // Hash a file&#x27;s bytes (binary-safe).
-    global.fileIO.writeFile(&quot;data.bin&quot;, &quot;payload&quot;);
-    println(global.crypto.hashFile(&quot;sha256&quot;, &quot;data.bin&quot;));
+    fileIO.writeFile(&quot;data.bin&quot;, &quot;payload&quot;);
+    println(crypto.hashFile(&quot;sha256&quot;, &quot;data.bin&quot;));
 
     // A fresh Ed25519 key pair, then sign and verify.
-    str pair = global.crypto.generateEd25519KeyPair();
-    bytes private = global.encoding.base64Decode(global.json.jsonGet(pair, &quot;private&quot;));
-    bytes public = global.encoding.base64Decode(global.json.jsonGet(pair, &quot;public&quot;));
-    bytes signature = global.crypto.signEd25519(private, bytesOf(&quot;hello&quot;));
-    println(global.crypto.verifyEd25519(public, bytesOf(&quot;hello&quot;), signature));
+    str pair = crypto.generateEd25519KeyPair();
+    bytes private = encoding.base64Decode(json.jsonGet(pair, &quot;private&quot;));
+    bytes public = encoding.base64Decode(json.jsonGet(pair, &quot;public&quot;));
+    bytes signature = crypto.signEd25519(private, bytesOf(&quot;hello&quot;));
+    println(crypto.verifyEd25519(public, bytesOf(&quot;hello&quot;), signature));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

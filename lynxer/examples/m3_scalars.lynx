@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     // All documented scalar types
     num n = 3.5;
     println(n);

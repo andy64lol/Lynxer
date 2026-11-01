@@ -4,7 +4,7 @@ CSV and TSV parsing, writing and transformation.
 
 **Backend:** native — `stdlib/csv.so`, built from `stdlib/csv.cpp` (a
 hand-written reader/writer) and `stdlib/native_json.hpp`.
-**Import:** `import("csv")` → `global.csv.*`
+**Import:** `import("csv")` → `csv.*`
 
 Rows are exchanged as JSON strings: arrays of arrays for positional access and
 arrays of objects for keyed access, so `csv` pairs naturally with
@@ -73,13 +73,13 @@ Three aliases have no single-op equivalent and are implemented natively:
 ## Example
 
 ```lynx
-global setup(){ import("csv"); import("json"); }
+fn setup(){ import("csv"); import("json"); }
 
-global main(){
+fn main(){
     str data = "name,age\nalpha,30\nbeta,25\n";
-    println(global.csv.rowCount(data));
-    println(global.csv.getColumn(data, "name"));
-    println(global.csv.columnStats(data, "age"));
+    println(csv.rowCount(data));
+    println(csv.getColumn(data, "name"));
+    println(csv.columnStats(data, "age"));
 }
 ```
 

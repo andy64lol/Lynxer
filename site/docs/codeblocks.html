@@ -196,18 +196,18 @@ exec(str text) {
 <h2 id="named-codeblocks">Named Codeblocks</h2>
 <p>Codeblocks can be passed as arguments to functions and executed dynamically:</p>
 <h3 id="example-passing-codeblocks-to-functions">Example: Passing Codeblocks to Functions</h3>
-<pre><code>global setup() {
+<pre><code>fn setup(){}
+
+fn main() {
     codeblock code1 = {
         println(&quot;A&quot;);
     };
-}
 
-global something(){handler} {
-    exec(){{handler}}
-}
+    fn something(){handler} {
+        exec(){{handler}}
+    }
 
-global main() {
-    global.something(){{code1}}
+    something(){{code1}}
 }</code></pre>
 <ul>
 <li>Codeblock identifiers are unique across the entire source file, regardless of where they are declared.</li>
@@ -215,21 +215,21 @@ global main() {
 <li>Named blocks retain their identity when passed to functions.</li>
 </ul>
 <hr>
-<h2 id="caller-supplied-blocks-on-any-function-form">Caller-Supplied Blocks on Any Function Form</h2>
-<p>The <code>{...}</code> block list is not specific to <code>global</code>. A <code>func</code> or <code>local</code> declaration takes caller-supplied blocks the same way: the list follows the <code>()</code> parameter list and precedes the body, and the parser does not distinguish the three forms when reading it.</p>
-<pre><code>global setup(){}
+<h2 id="caller-supplied-blocks-on-functions">Caller-Supplied Blocks on Functions</h2>
+<p>An <code>fn</code> declaration may include caller-supplied blocks after its regular parameters and before the body:</p>
+<pre><code>fn setup(){}
 
-global runTwice(){first}{second}{
+fn runTwice(){first}{second}{
     exec(){{first}}
     exec(){{second}}
 }
 
-func applyTwice(int value){apply}{
+fn applyTwice(int value){apply}{
     exec(value){{apply}}
     exec(value){{apply}}
 }
 
-global main(){
+fn main(){
     runTwice(){
         println(&quot;one&quot;);
     }{
@@ -241,7 +241,7 @@ global main(){
     };
     applyTwice(4){{triple}}   // 12 printed twice
 
-    local notify(){block}{
+    fn notify(){block}{
         exec(){{block}}
     }
     notify(){
@@ -249,11 +249,11 @@ global main(){
     }
 }</code></pre>
 <ul>
-<li>A <code>func</code> reached through an import also takes blocks at the call site: <code>global.lib.applyTwice(4){ ... }</code>.</li>
+<li>A function reached through an import also takes blocks at the call site: <code>lib.applyTwice(4){ ... }</code>.</li>
 <li>Callers may mix inline blocks (<code>(){ ... }</code>) and named references (<code>(){{var}}</code>) in one call.</li>
-<li>Entry points (<code>global setup()</code> / <code>global main()</code>) may not declare codeblock parameters.</li>
+<li>Entry points (<code>fn setup()</code> / <code>fn main()</code>) may not declare codeblock parameters.</li>
 </ul>
-<p>See <a href="functions.html">functions</a> for the three declaration forms and their calling conventions.</p>
+<p>See <a href="functions.html">functions</a> for declaration and calling conventions.</p>
 <hr>
 <h2 id="inferred-parameters">Inferred Parameters</h2>
 <p>If the parameter list is omitted, the names and types are inferred from the variables referenced in the codeblock:</p>
@@ -290,15 +290,15 @@ exec(str message) {
     println(&quot;Hello, &quot; + message + &quot;!&quot;);
 }</code></pre>
 <h3 id="example-3-passing-codeblocks-to-functions">Example 3: Passing Codeblocks to Functions</h3>
-<pre><code>global runCode(){code} {
+<pre><code>fn runCode(){code} {
     exec(){{code}}
 }
 
-global main() {
+fn main() {
     codeblock task = {
         println(&quot;Executing task...&quot;);
     };
-    global.runCode(){{task}}
+    runCode(){{task}}
 }</code></pre>
 <h3 id="example-4-inferred-parameters">Example 4: Inferred Parameters</h3>
 <pre><code>codeblock printValues = {
@@ -310,7 +310,7 @@ exec(10, 20){{printValues}}</code></pre>
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="language.html">Language Reference</a> — For more details on Lynxer syntax and types.</li>
-<li><a href="functions.html">functions</a> — The <code>global</code>, <code>func</code> and <code>local</code> declaration forms and their calling conventions.</li>
+<li><a href="functions.html">functions</a> — <code>fn</code> declarations and their calling conventions.</li>
 <li><a href="builtins.html">Built-in Functions</a> — For built-in higher-order functions.</li>
 <li><a href="limitations.html">Limitations</a> — For constraints on codeblocks and other features.</li>
 </ul>

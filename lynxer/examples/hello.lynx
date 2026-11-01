@@ -1,8 +1,8 @@
-global setup(){
+fn setup(){
     str greeting = "Hello";
 }
 
-global main(){
+fn main(){
     str name = input("What's your name? ");
     println(greeting + ", " + name + "!");
 }

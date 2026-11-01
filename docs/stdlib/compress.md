@@ -5,7 +5,7 @@ gzip, zlib, zstd, bzip2, brotli and lz4 streams, plus ZIP and TAR archives.
 **Backend:** native — `stdlib/compress.so`, built from the Rust crate
 `rust/compress` over `flate2`, `zstd`, `bzip2`, `brotli`, `lz4_flex`, `zip` and `tar`.
 
-**Import:** `import("compress")` → `global.compress.*`
+**Import:** `import("compress")` → `compress.*`
 
 ## How bytes travel
 
@@ -66,31 +66,31 @@ whose name would escape it.
 ## Example
 
 ```lynx
-global setup(){ import("compress"); import("fileIO"); }
+fn setup(){ import("compress"); import("fileIO"); }
 
-global main(){
+fn main(){
     str text = "the quick brown fox jumps over the lazy dog";
     bytes payload = bytesOf(text);
 
     // In-memory round trip.
-    bytes packed = global.compress.gzipCompress(payload);
-    println(bytesToStr(global.compress.gzipDecompress(packed)) is text);
+    bytes packed = compress.gzipCompress(payload);
+    println(bytesToStr(compress.gzipDecompress(packed)) is text);
 
     // File round trip (binary-safe).
-    global.fileIO.writeFile("data.txt", text);
-    println(global.compress.zstdCompressFile("data.txt", "data.zst"));
-    println(global.compress.zstdDecompressFile("data.zst", "data.out"));
-    println(global.fileIO.readFile("data.out") is text);
+    fileIO.writeFile("data.txt", text);
+    println(compress.zstdCompressFile("data.txt", "data.zst"));
+    println(compress.zstdDecompressFile("data.zst", "data.out"));
+    println(fileIO.readFile("data.out") is text);
 
     // BZIP2 is supported too, when the dependency is compiled in.
-    bytes bzipPack = global.compress.bzip2Compress(bytesOf(text));
-    println(bytesToStr(global.compress.bzip2Decompress(bzipPack)) is text);
+    bytes bzipPack = compress.bzip2Compress(bytesOf(text));
+    println(bytesToStr(compress.bzip2Decompress(bzipPack)) is text);
 
     // Build a ZIP containing a file and an inline entry.
     str manifest = "[{\"name\":\"a.txt\",\"path\":\"data.txt\"},{\"name\":\"b.txt\",\"base64\":\"aGVsbG8=\"}]";
-    println(global.compress.zipCreate("archive.zip", manifest));
-    println(global.compress.zipList("archive.zip"));
-    println(global.compress.zipExtract("archive.zip", "unpacked"));
+    println(compress.zipCreate("archive.zip", manifest));
+    println(compress.zipList("archive.zip"));
+    println(compress.zipExtract("archive.zip", "unpacked"));
 }
 ```
 

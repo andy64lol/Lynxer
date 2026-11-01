@@ -2,16 +2,16 @@
 Fixture for the ini stdlib. Documents cross as JSON strings and every assertion
 is fixed, so the output is deterministic. Part of the import-parity gate.
 ////
-global setup(){ import("ini"); }
+fn setup(){ import("ini"); }
 
-global main(){
+fn main(){
     str text = "; comment\n[server]\nhost = localhost\nport = 8080\n[db]\nuser = root\n";
-    println(global.ini.iniParse(text));
-    println(global.ini.iniGet(text, "server", "host"));
-    println(global.ini.iniGet(text, "db", "user"));
-    println(global.ini.iniGet(text, "server", "nope"));
-    println(global.ini.iniValid(text));
-    println(global.ini.iniSerialize("{\"server\":{\"host\":\"localhost\"}}"));
-    str roundTrip = global.ini.iniSerialize(global.ini.iniParse(text));
-    println(global.ini.iniParse(roundTrip));
+    println(ini.iniParse(text));
+    println(ini.iniGet(text, "server", "host"));
+    println(ini.iniGet(text, "db", "user"));
+    println(ini.iniGet(text, "server", "nope"));
+    println(ini.iniValid(text));
+    println(ini.iniSerialize("{\"server\":{\"host\":\"localhost\"}}"));
+    str roundTrip = ini.iniSerialize(ini.iniParse(text));
+    println(ini.iniParse(roundTrip));
 }

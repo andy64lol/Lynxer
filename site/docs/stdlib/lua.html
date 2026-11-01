@@ -139,12 +139,12 @@
 <h1 id="lua">lua</h1>
 <p>Embedded Lua 5.4 execution backed by Rust <code>mlua</code> with vendored Lua sources. The module is a <code>cdylib</code> installed as <code>stdlib/lua.so</code>; it does not require a system Lua installation.</p>
 <blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). Build it with <code>make cargo</code> or <code>make buildLynxer</code>.</blockquote>
-<pre><code>global setup(){ import(&quot;lua&quot;); }
+<pre><code>fn setup(){ import(&quot;lua&quot;); }
 
-global main(){
-    println(global.lua.luaVersion());
-    println(global.lua.evalLua(&quot;1 + 2 * 3&quot;));
-    println(global.lua.runLua(&quot;print(&#x27;hello from Lua&#x27;)&quot;));
+fn main(){
+    println(lua.luaVersion());
+    println(lua.evalLua(&quot;1 + 2 * 3&quot;));
+    println(lua.runLua(&quot;print(&#x27;hello from Lua&#x27;)&quot;));
 }</code></pre>
 <table>
 <tr><th>Function</th><th>Description</th></tr>

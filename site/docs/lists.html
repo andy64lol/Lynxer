@@ -276,9 +276,9 @@ tuple pair = (int 10, int 20);</code></pre>
 </table>
 <p>There is no <code>tupleSet</code>; use a <code>list</code> when you need to replace elements.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     list xs = [1, 2, 3];
     xs = listPush(xs, 4);
     println(xs);                 // [1, 2, 3, 4]

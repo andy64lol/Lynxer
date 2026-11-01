@@ -3,7 +3,7 @@
 ANSI colour and text-style helpers for terminal output.
 
 **Backend:** pure — `stdlib/colorlib.lynx` builds ANSI escape sequences with the
-core string builtins. **Import:** `import("colorlib")` → `global.colorlib.*`
+core string builtins. **Import:** `import("colorlib")` → `colorlib.*`
 
 Every styling function takes a string and returns that string wrapped in the
 corresponding SGR sequence, terminated with a reset (`\e[0m`).
@@ -43,12 +43,12 @@ corresponding SGR sequence, terminated with a reset (`\e[0m`).
 ## Example
 
 ```lynx
-global setup(){ import("colorlib"); }
+fn setup(){ import("colorlib"); }
 
-global main(){
-    println(global.colorlib.red("failed"));
-    println(global.colorlib.heading("report"));
-    println(global.colorlib.ansi("custom", "1;34"));
+fn main(){
+    println(colorlib.red("failed"));
+    println(colorlib.heading("report"));
+    println(colorlib.ansi("custom", "1;34"));
 }
 ```
 

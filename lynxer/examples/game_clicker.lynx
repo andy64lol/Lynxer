@@ -14,20 +14,20 @@ variable. This example keeps its state in an invisible 1x1 "save" sprite that
 click. Sprite 1 is the click button and sprite 2 the upgrade button. `init()`
 clears the sprite registry, so those indices are stable.
 ////
-global setup(){ import("game"); }
+fn setup(){ import("game"); }
 
-global onUpdate(float dt){
+fn onUpdate(float dt){
     // Load the state from the save sprite.
-    float score = global.game.getSpriteX(0);
-    float power = global.game.getSpriteY(0);
+    float score = game.getSpriteX(0);
+    float power = game.getSpriteY(0);
 
-    if(global.game.keyPressed("ESCAPE")){
-        global.game.close();
+    if(game.keyPressed("ESCAPE")){
+        game.close();
     }
 
-    if(global.game.mouseButtonPressed("LEFT")){
-        float mx = global.game.mouseX();
-        float my = global.game.mouseY();
+    if(game.mouseButtonPressed("LEFT")){
+        float mx = game.mouseX();
+        float my = game.mouseY();
 
         // Click button: centre (360, 300), 300x100.
         if(mx >= 210.0 and mx <= 510.0 and my >= 250.0 and my <= 350.0){
@@ -44,39 +44,39 @@ global onUpdate(float dt){
     }
 
     // Save the state back into the sprite.
-    global.game.setSpritePos(0, score, power);
+    game.setSpritePos(0, score, power);
 }
 
-global onDraw(){
-    float score = global.game.getSpriteX(0);
-    float power = global.game.getSpriteY(0);
+fn onDraw(){
+    float score = game.getSpriteX(0);
+    float power = game.getSpriteY(0);
     float cost = power * 10.0;
 
-    global.game.beginDraw();
+    game.beginDraw();
 
-    global.game.drawRect(360.0, 300.0, 300.0, 100.0, 70, 130, 230);
-    global.game.drawTextAnchored("Click  +" + power, 360.0, 300.0, 255, 255, 255, 26, "center", "center");
+    game.drawRect(360.0, 300.0, 300.0, 100.0, 70, 130, 230);
+    game.drawTextAnchored("Click  +" + power, 360.0, 300.0, 255, 255, 255, 26, "center", "center");
 
-    global.game.drawRect(360.0, 150.0, 300.0, 100.0, 235, 150, 60);
-    global.game.drawTextAnchored("Upgrade  (" + cost + " points)", 360.0, 150.0, 35, 30, 25, 22, "center", "center");
+    game.drawRect(360.0, 150.0, 300.0, 100.0, 235, 150, 60);
+    game.drawTextAnchored("Upgrade  (" + cost + " points)", 360.0, 150.0, 35, 30, 25, 22, "center", "center");
 
-    global.game.drawTextAnchored("Score  " + score, 360.0, 420.0, 255, 255, 255, 30, "center", "center");
-    global.game.drawTextAnchored("Points per click  " + power, 360.0, 380.0, 170, 200, 230, 20, "center", "center");
-    global.game.drawTextAnchored("Click the blue button. ESC quits.", 360.0, 40.0, 150, 155, 170, 18, "center", "center");
+    game.drawTextAnchored("Score  " + score, 360.0, 420.0, 255, 255, 255, 30, "center", "center");
+    game.drawTextAnchored("Points per click  " + power, 360.0, 380.0, 170, 200, 230, 20, "center", "center");
+    game.drawTextAnchored("Click the blue button. ESC quits.", 360.0, 40.0, 150, 155, 170, 18, "center", "center");
 
-    global.game.endDraw();
+    game.endDraw();
 }
 
-global main(){
-    global.game.init("Lynxer Clicker", 720, 480);
-    global.game.setBackground(24, 26, 34);
-    global.game.setFPSCap(60);
+fn main(){
+    game.init("Lynxer Clicker", 720, 480);
+    game.setBackground(24, 26, 34);
+    game.setFPSCap(60);
 
-    global.game.makeSolidSprite(1, 1, 0, 0, 0, 0.0, 0.0);                 // 0: save state
-    global.game.makeSolidSprite(300, 100, 70, 130, 230, 360.0, 300.0);    // 1: click button
-    global.game.makeSolidSprite(300, 100, 235, 150, 60, 360.0, 150.0);    // 2: upgrade button
+    game.makeSolidSprite(1, 1, 0, 0, 0, 0.0, 0.0);                 // 0: save state
+    game.makeSolidSprite(300, 100, 70, 130, 230, 360.0, 300.0);    // 1: click button
+    game.makeSolidSprite(300, 100, 235, 150, 60, 360.0, 150.0);    // 2: upgrade button
 
-    global.game.setUpdateCallback("onUpdate");
-    global.game.setDrawCallback("onDraw");
-    global.game.run();
+    game.setUpdateCallback("onUpdate");
+    game.setDrawCallback("onDraw");
+    game.run();
 }

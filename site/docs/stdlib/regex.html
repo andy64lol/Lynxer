@@ -138,7 +138,7 @@
         </div>
 <h1 id="regex">regex</h1>
 <p>Extended regular-expression helpers with a named compiled-pattern cache.</p>
-<p><strong>Backend:</strong> Rust — <code>stdlib/regex.so</code>, built from <code>rust/regex</code> over the shared <code>rust/regex_engine</code> (<code>fancy-regex</code>). <strong>Import:</strong> <code>import(&quot;regex&quot;)</code> → <code>global.regex.*</code></p>
+<p><strong>Backend:</strong> Rust — <code>stdlib/regex.so</code>, built from <code>rust/regex</code> over the shared <code>rust/regex_engine</code> (<code>fancy-regex</code>). <strong>Import:</strong> <code>import(&quot;regex&quot;)</code> → <code>regex.*</code></p>
 <p>Compiled patterns live in a module-local cache keyed by name, and <code>cacheKeys</code> reports the names sorted. This module mirrors the <code>re</code>-fallback path: <code>findLetters</code>/<code>findDigits</code> are ASCII-only and <code>findallOverlapping</code> is emulated.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
@@ -170,12 +170,12 @@
 </table>
 <p>Pattern syntax is the same engine as <a href="re.html">re</a>.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;regex&quot;); }
+<pre><code>fn setup(){ import(&quot;regex&quot;); }
 
-global main(){
-    global.regex.compile(&quot;digits&quot;, &quot;\\d+&quot;, &quot;&quot;);
-    println(global.regex.testCompiled(&quot;digits&quot;, &quot;abc123&quot;));
-    println(global.regex.findallCompiled(&quot;digits&quot;, &quot;a1 b22&quot;));
+fn main(){
+    regex.compile(&quot;digits&quot;, &quot;\\d+&quot;, &quot;&quot;);
+    println(regex.testCompiled(&quot;digits&quot;, &quot;abc123&quot;));
+    println(regex.findallCompiled(&quot;digits&quot;, &quot;a1 b22&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

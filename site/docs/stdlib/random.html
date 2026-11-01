@@ -138,7 +138,7 @@
         </div>
 <h1 id="random">random</h1>
 <p>Seeded pseudo-random number and character helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/random.so</code>, built from <code>stdlib/random.cpp</code>. The generator is a linear congruential sequence, so a given seed always produces the same sequence (there is no process-global <code>random</code> state). <strong>Import:</strong> <code>import(&quot;random&quot;)</code> → <code>global.random.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/random.so</code>, built from <code>stdlib/random.cpp</code>. The generator is a linear congruential sequence, so a given seed always produces the same sequence (there is no process-global <code>random</code> state). <strong>Import:</strong> <code>import(&quot;random&quot;)</code> → <code>random.*</code></p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>seed</code></td><td><code>(int value)</code></td><td>Reseeds the generator; <code>0</code> restores the default seed</td></tr>
@@ -152,13 +152,13 @@
 </table>
 <p>This is a subset of the original 17 functions; <code>sampleInt</code>, <code>sampleStr</code>, <code>shuffle</code>, <code>triangular</code>, <code>gauss</code>, <code>uuid4</code> and <code>randHex</code> are not ported.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;random&quot;); }
+<pre><code>fn setup(){ import(&quot;random&quot;); }
 
-global main(){
-    global.random.seed(7);
-    println(global.random.randint(1, 6));   // 4
-    println(global.random.choice(&quot;abc&quot;));   // b
-    println(global.random.uniform(0.0, 1.0));
+fn main(){
+    random.seed(7);
+    println(random.randint(1, 6));   // 4
+    println(random.choice(&quot;abc&quot;));   // b
+    println(random.uniform(0.0, 1.0));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

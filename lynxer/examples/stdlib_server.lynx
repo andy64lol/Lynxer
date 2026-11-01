@@ -3,83 +3,83 @@ Fixture for the server stdlib. Registers routes, serves them on localhost, and
 verifies them with the network HTTP client. Also pins the route/port/state
 error handling.
 ////
-global setup(){
+fn setup(){
     import("server");
     import("network");
     import("text");
 }
 
-global main(){
+fn main(){
     // Idle state: not running, no port, and stopping is an error.
-    println(global.server.running());
-    println(global.server.port());
-    println(global.server.stop());
+    println(server.running());
+    println(server.port());
+    println(server.stop());
 
     // The TLS entry points need a port before they can listen, and they never
     // need a certificate to say so.
-    println(global.server.runHTTPS("cert.pem", "key.pem"));
-    println(global.server.runSSLAdhoc());
+    println(server.runHTTPS("cert.pem", "key.pem"));
+    println(server.runSSLAdhoc());
 
     // Every registration validates the path.
-    println(global.server.routeGet("bad", "x"));
-    println(global.server.routePost("", "x"));
-    println(global.server.routeEcho("echo"));
-    println(global.server.wsEcho("ws"));
+    println(server.routeGet("bad", "x"));
+    println(server.routePost("", "x"));
+    println(server.routeEcho("echo"));
+    println(server.wsEcho("ws"));
 
     // Register routes through the aliases and the direct forms, rejecting
     // duplicates for each method.
-    println(global.server.clearRoutes());
-    println(global.server.get("/hello", "<!doctype html><html><body>world</body></html>"));
-    println(global.server.routeGet("/hello", "other"));
-    println(global.server.htmlPost("/fixed", "<p>posted</p>"));
-    println(global.server.routePost("/fixed", "other"));
-    println(global.server.post("/plain", "<p>plain</p>"));
-    println(global.server.htmlGet("/alt", "<p>alt</p>"));
-    println(global.server.routeEcho("/echo"));
-    println(global.server.routeEcho("/echo"));
-    println(global.server.wsEcho("/ws"));
-    println(global.server.wsEcho("/ws"));
+    println(server.clearRoutes());
+    println(server.get("/hello", "<!doctype html><html><body>world</body></html>"));
+    println(server.routeGet("/hello", "other"));
+    println(server.htmlPost("/fixed", "<p>posted</p>"));
+    println(server.routePost("/fixed", "other"));
+    println(server.post("/plain", "<p>plain</p>"));
+    println(server.htmlGet("/alt", "<p>alt</p>"));
+    println(server.routeEcho("/echo"));
+    println(server.routeEcho("/echo"));
+    println(server.wsEcho("/ws"));
+    println(server.wsEcho("/ws"));
 
     // A template route: the static data plus the per-request context, with
     // filters, `if` and a `for` loop.
-    println(global.server.templateString(
+    println(server.templateString(
         "/tpl",
         "Hi {{ name | upper }}! {% if n > 1 %}{% for i in range(n) %}{{ i }}{% endfor %}{% else %}none{% endif %} q={{ request.args.n | default(\"\") }} path={{ request.path }}",
         "{\"name\": \"Ada\", \"n\": 3}"));
 
     // Port validation.
-    println(global.server.start(0));
-    println(global.server.start(70000));
+    println(server.start(0));
+    println(server.start(70000));
 
     // Start and observe the running state.
-    println(global.server.start(18124));
-    println(global.server.running());
-    println(global.server.port());
+    println(server.start(18124));
+    println(server.running());
+    println(server.port());
 
     // The route table is frozen while the server runs.
-    println(global.server.routeGet("/late", "x"));
-    println(global.server.clearRoutes());
-    println(global.server.start(18125));
+    println(server.routeGet("/late", "x"));
+    println(server.clearRoutes());
+    println(server.start(18125));
 
     sleep(0.2);
 
     // Serve the registered routes.
-    println(global.network.get("http://127.0.0.1:18124/hello"));
-    println(global.text.contains(global.network.getHeaders("http://127.0.0.1:18124/hello"), "Content-Type: text/html; charset=utf-8"));
-    println(global.network.post("http://127.0.0.1:18124/fixed", "ignored", "text/plain"));
-    println(global.network.post("http://127.0.0.1:18124/echo", "ping", "text/plain"));
-    println(global.network.postJson("http://127.0.0.1:18124/echo", "{\"k\": 1}"));
-    println(global.network.getStatus("http://127.0.0.1:18124/hello"));
-    println(global.network.get("http://127.0.0.1:18124/missing"));
+    println(network.get("http://127.0.0.1:18124/hello"));
+    println(text.contains(network.getHeaders("http://127.0.0.1:18124/hello"), "Content-Type: text/html; charset=utf-8"));
+    println(network.post("http://127.0.0.1:18124/fixed", "ignored", "text/plain"));
+    println(network.post("http://127.0.0.1:18124/echo", "ping", "text/plain"));
+    println(network.postJson("http://127.0.0.1:18124/echo", "{\"k\": 1}"));
+    println(network.getStatus("http://127.0.0.1:18124/hello"));
+    println(network.get("http://127.0.0.1:18124/missing"));
 
     // The template is rendered per request: the query argument `n` is visible
     // through `request.args`, and `name` keeps the static value.
-    println(global.network.get("http://127.0.0.1:18124/tpl?name=Bob&n=2"));
-    println(global.text.contains(global.network.getHeaders("http://127.0.0.1:18124/tpl"), "Content-Type: text/html; charset=utf-8"));
+    println(network.get("http://127.0.0.1:18124/tpl?name=Bob&n=2"));
+    println(text.contains(network.getHeaders("http://127.0.0.1:18124/tpl"), "Content-Type: text/html; charset=utf-8"));
 
     // Stop returns the server to the idle state.
-    println(global.server.stop());
-    println(global.server.running());
-    println(global.server.port());
-    println(global.server.stop());
+    println(server.stop());
+    println(server.running());
+    println(server.port());
+    println(server.stop());
 }

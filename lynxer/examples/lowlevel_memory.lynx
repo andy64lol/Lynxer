@@ -10,9 +10,9 @@ which used to lose precision by coercing the value through a double, so
 INT64_MAX (and anything above 2^53 a double cannot represent) came back wrong.
 ////
 
-global setup() {}
+fn setup() {}
 
-global main() {
+fn main() {
     println("== type sizes ==");
     println("int8 ", memoryTypeSize("int8"), " uint8 ", memoryTypeSize("uint8"),
             " int16 ", memoryTypeSize("int16"), " uint16 ", memoryTypeSize("uint16"));

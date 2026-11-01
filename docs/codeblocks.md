@@ -95,18 +95,18 @@ Codeblocks can be passed as arguments to functions and executed dynamically:
 
 ### Example: Passing Codeblocks to Functions
 ```lynx
-global setup() {
+fn setup(){}
+
+fn main() {
     codeblock code1 = {
         println("A");
     };
-}
 
-global something(){handler} {
-    exec(){{handler}}
-}
+    fn something(){handler} {
+        exec(){{handler}}
+    }
 
-global main() {
-    global.something(){{code1}}
+    something(){{code1}}
 }
 ```
 
@@ -116,27 +116,25 @@ global main() {
 
 ---
 
-## Caller-Supplied Blocks on Any Function Form
+## Caller-Supplied Blocks on Functions
 
-The `{...}` block list is not specific to `global`. A `func` or `local`
-declaration takes caller-supplied blocks the same way: the list follows the
-`()` parameter list and precedes the body, and the parser does not distinguish
-the three forms when reading it.
+An `fn` declaration may include caller-supplied blocks after its regular
+parameters and before the body:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global runTwice(){first}{second}{
+fn runTwice(){first}{second}{
     exec(){{first}}
     exec(){{second}}
 }
 
-func applyTwice(int value){apply}{
+fn applyTwice(int value){apply}{
     exec(value){{apply}}
     exec(value){{apply}}
 }
 
-global main(){
+fn main(){
     runTwice(){
         println("one");
     }{
@@ -148,7 +146,7 @@ global main(){
     };
     applyTwice(4){{triple}}   // 12 printed twice
 
-    local notify(){block}{
+    fn notify(){block}{
         exec(){{block}}
     }
     notify(){
@@ -157,15 +155,14 @@ global main(){
 }
 ```
 
-- A `func` reached through an import also takes blocks at the call site:
-  `global.lib.applyTwice(4){ ... }`.
+- A function reached through an import also takes blocks at the call site:
+  `lib.applyTwice(4){ ... }`.
 - Callers may mix inline blocks (`(){ ... }`) and named references
   (`(){{var}}`) in one call.
-- Entry points (`global setup()` / `global main()`) may not declare codeblock
+- Entry points (`fn setup()` / `fn main()`) may not declare codeblock
   parameters.
 
-See [functions.md](functions.md) for the three declaration forms and their
-calling conventions.
+See [functions.md](functions.md) for declaration and calling conventions.
 
 ---
 
@@ -218,15 +215,15 @@ exec(str message) {
 
 ### Example 3: Passing Codeblocks to Functions
 ```lynx
-global runCode(){code} {
+fn runCode(){code} {
     exec(){{code}}
 }
 
-global main() {
+fn main() {
     codeblock task = {
         println("Executing task...");
     };
-    global.runCode(){{task}}
+    runCode(){{task}}
 }
 ```
 
@@ -244,6 +241,6 @@ exec(10, 20){{printValues}}
 ## See Also
 
 - [Language Reference](language.md) — For more details on Lynxer syntax and types.
-- [functions.md](functions.md) — The `global`, `func` and `local` declaration forms and their calling conventions.
+- [functions.md](functions.md) — `fn` declarations and their calling conventions.
 - [Built-in Functions](builtins.md) — For built-in higher-order functions.
 - [Limitations](limitations.md) — For constraints on codeblocks and other features.

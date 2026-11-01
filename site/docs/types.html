@@ -177,13 +177,13 @@
 </table>
 <p>Fixed-width values are checked at <strong>every</strong> boundary — declaration, parameter, assignment, and return — and an out-of-range value is a source-located error, for example <code>value 200 is out of range for type &#x27;int8&#x27;</code>.</p>
 <p><code>uint64</code> values above <code>2^63 - 1</code> are held in a separate internal representation so the full range survives; <code>18446744073709551615</code> prints and round-trips exactly, including through the native-memory writes in <a href="builtins.html#native-memory">builtins</a>.</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-func scaled(int16 n) -&gt; int32 {
+fn scaled(int16 n) -&gt; int32 {
     return n * 2;
 }
 
-global main(){
+fn main(){
     numBool enabled = 1;
     byte mask = 255;
     float32 ratio = 0.25;
@@ -203,8 +203,8 @@ global main(){
 </ul>
 <h2 id="return-annotations">Return annotations</h2>
 <p>Use the arrow form:</p>
-<pre><code>global f(int x) -&gt; int { return x + 1; }
-func label(str name) -&gt; str { return &quot;hi &quot; + name; }</code></pre>
+<pre><code>fn f(int x) -&gt; int { return x + 1; }
+fn label(str name) -&gt; str { return &quot;hi &quot; + name; }</code></pre>
 <ul>
 <li><code>: type</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
 <li>Omit the annotation (or write <code>-&gt; any</code>) to leave the result unchecked.</li>

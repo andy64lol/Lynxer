@@ -2,44 +2,44 @@
 Fixture for the fileIO stdlib. Interpreted only (module imports are not
 bytecode-compilable). Uses a repo-local scratch file and removes it afterwards.
 ////
-global setup(){ import("fileIO"); import("os"); }
+fn setup(){ import("fileIO"); import("os"); }
 
-global main(){
+fn main(){
     str path = ".lynxer_scratch_fileio.txt";
-    println(global.fileIO.writeFile(path, "line1\nline2\nline3\n"));
-    println(global.fileIO.fileExists(path));
-    println(global.fileIO.readFile(path));
-    println(global.fileIO.readLines(path));
-    println(global.fileIO.countLines(path));
-    println(global.fileIO.readLine(path, 1));
-    println(global.fileIO.readLine(path, 99));
-    println(global.fileIO.fileSize(path));
-    println(global.fileIO.fileExtension(path));
-    println(global.fileIO.stemName(path));
-    println(global.fileIO.fileIsEmpty(path));
-    println(global.fileIO.appendFile(path, "line4\n"));
-    println(global.fileIO.countLines(path));
-    println(global.fileIO.readFileLines(path, "|"));
-    println(global.fileIO.copyFile(path, path + ".bak"));
-    println(global.fileIO.fileExists(path + ".bak"));
-    println(global.fileIO.moveFile(path + ".bak", path + ".mov"));
-    println(global.fileIO.fileExists(path + ".bak"));
-    println(global.fileIO.fileExists(path + ".mov"));
-    println(global.fileIO.deleteFile(path + ".mov"));
-    println(global.fileIO.fileExists(path + ".mov"));
-    println(global.fileIO.deleteFile(path));
-    println(global.fileIO.readFile(path) is "");
-    println(returnLength(global.fileIO.readLines(path)));
-    println(global.fileIO.fileModTime(path) is "");
-    println(global.fileIO.countLines(path));
+    println(fileIO.writeFile(path, "line1\nline2\nline3\n"));
+    println(fileIO.fileExists(path));
+    println(fileIO.readFile(path));
+    println(fileIO.readLines(path));
+    println(fileIO.countLines(path));
+    println(fileIO.readLine(path, 1));
+    println(fileIO.readLine(path, 99));
+    println(fileIO.fileSize(path));
+    println(fileIO.fileExtension(path));
+    println(fileIO.stemName(path));
+    println(fileIO.fileIsEmpty(path));
+    println(fileIO.appendFile(path, "line4\n"));
+    println(fileIO.countLines(path));
+    println(fileIO.readFileLines(path, "|"));
+    println(fileIO.copyFile(path, path + ".bak"));
+    println(fileIO.fileExists(path + ".bak"));
+    println(fileIO.moveFile(path + ".bak", path + ".mov"));
+    println(fileIO.fileExists(path + ".bak"));
+    println(fileIO.fileExists(path + ".mov"));
+    println(fileIO.deleteFile(path + ".mov"));
+    println(fileIO.fileExists(path + ".mov"));
+    println(fileIO.deleteFile(path));
+    println(fileIO.readFile(path) is "");
+    println(returnLength(fileIO.readLines(path)));
+    println(fileIO.fileModTime(path) is "");
+    println(fileIO.countLines(path));
 
-    str temp = global.fileIO.tempFile(".tmp");
+    str temp = fileIO.tempFile(".tmp");
     println(returnLength(temp) > 0);
-    println(global.fileIO.writeFile(temp, "x"));
-    println(global.fileIO.fileSize(temp));
-    println(global.fileIO.deleteFile(temp));
+    println(fileIO.writeFile(temp, "x"));
+    println(fileIO.fileSize(temp));
+    println(fileIO.deleteFile(temp));
 
-    str directory = global.fileIO.tempDir();
+    str directory = fileIO.tempDir();
     println(returnLength(directory) > 0);
-    println(global.os.rmdir(directory));
+    println(os.rmdir(directory));
 }

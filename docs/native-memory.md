@@ -16,9 +16,9 @@ interpreter owns the allocation table.
 | `memoryCopy(source, target, count)` | Copies `count` bytes. |
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int buffer = memoryAllocate(16);
     memoryWriteInt32(buffer, 0, 1234);
     println(memoryReadInt32(buffer, 0));   // 1234

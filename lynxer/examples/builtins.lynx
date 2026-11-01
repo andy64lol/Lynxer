@@ -1,8 +1,8 @@
-global setup(){
+fn setup(){
     suppressForeverWarning();
 }
 
-global main(){
+fn main(){
     // strings and conversions
     println(strOf(99), " ", strOf(3.14), " ", strOf(true));
     println(intOf("42"), " ", intOf(3.9));

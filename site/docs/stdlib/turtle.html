@@ -138,7 +138,7 @@
         </div>
 <h1 id="turtle">turtle</h1>
 <p>Classic turtle graphics: a pen that moves and turns, drawing as it goes.</p>
-<p><strong>Backend:</strong> pure — <code>stdlib/turtle.lynx</code>, a thin wrapper over the <code>graphics</code> module's turtle state machine (<code>rust/graphics</code>). The drawing goes through the ordinary shape ops, so it works with a window <em>and</em> on the headless rasterizer. <strong>Import:</strong> <code>import(&quot;turtle&quot;)</code> → <code>global.turtle.*</code></p>
+<p><strong>Backend:</strong> pure — <code>stdlib/turtle.lynx</code>, a thin wrapper over the <code>graphics</code> module's turtle state machine (<code>rust/graphics</code>). The drawing goes through the ordinary shape ops, so it works with a window <em>and</em> on the headless rasterizer. <strong>Import:</strong> <code>import(&quot;turtle&quot;)</code> → <code>turtle.*</code></p>
 <h2 id="state-lives-in-graphics">State lives in <code>graphics</code></h2>
 <p>Lynxer has no module-level mutable state, so a pure-Lynxer module cannot remember anything between calls. The turtle therefore lives in the <code>graphics</code> module as a handle; this module drives the <strong>implicit default turtle</strong> (handle <code>0</code>), which <code>graphics</code> creates on first use. Programs that need several turtles use the <code>graphics.turtle*</code> ops with an explicit handle from <code>graphics.turtleCreate(x, y, heading)</code>.</p>
 <p>The heading is in degrees: <code>0</code> points east (<code>+x</code>) and increases clockwise, matching the screen's y-down coordinate system.</p>
@@ -160,21 +160,21 @@
 </table>
 <p>Each op returns <code>0</code> on success (the movement ops) or the queried value; there is no failure sentinel because the default turtle always exists.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;turtle&quot;); import(&quot;graphics&quot;); }
+<pre><code>fn setup(){ import(&quot;turtle&quot;); import(&quot;graphics&quot;); }
 
-global main(){
-    global.graphics.init(&quot;turtle&quot;, 400, 400);
-    global.graphics.clearBackground(255, 255, 255);
+fn main(){
+    graphics.init(&quot;turtle&quot;, 400, 400);
+    graphics.clearBackground(255, 255, 255);
 
-    global.turtle.setColor(0, 90, 200);
-    global.turtle.setWidth(2.0);
+    turtle.setColor(0, 90, 200);
+    turtle.setWidth(2.0);
     for (int i = 0; i &lt; 4; i = i + 1){
-        global.turtle.forward(120.0);
-        global.turtle.turn(90.0);
+        turtle.forward(120.0);
+        turtle.turn(90.0);
     }
 
-    println(global.turtle.x(), &quot;,&quot;, global.turtle.y());
-    println(global.turtle.heading());
+    println(turtle.x(), &quot;,&quot;, turtle.y());
+    println(turtle.heading());
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

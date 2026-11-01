@@ -138,7 +138,7 @@
         </div>
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
-<p>Inside a module, <code>global.name(...)</code> always resolves to a <em>core builtin</em>, never to the module's own function of that name — see <a href="modules.html#calling-module-members">modules</a>.</p>
+<p>Inside a module, the legacy <code>global.name(...)</code> form always resolves to a <em>core builtin</em>, never to the module's own function of that name. Ordinary functions use their bare name, including when referenced as values — see <a href="modules.html#calling-module-members">modules</a>.</p>
 <p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
 <h2 id="input-output-and-conversion">Input, output and conversion</h2>
 <table>
@@ -287,13 +287,13 @@
 <tr><td><code>bundledFiles()</code></td><td>List of the bare names of every included file</td></tr>
 </table>
 <p>Included files are written to a private temporary directory when the executable starts, and that directory is removed when the process exits.</p>
-<pre><code>global setup(){ import(&quot;fileIO&quot;); }
+<pre><code>fn setup(){ import(&quot;fileIO&quot;); }
 
-global main(){
+fn main(){
     list files = bundledFiles();
     println(files);                 // [] in an interpreted run
     if (returnLength(files) &gt; 0) {
-        println(global.fileIO.readFile(bundledFile(&quot;message.txt&quot;)));
+        println(fileIO.readFile(bundledFile(&quot;message.txt&quot;)));
     }
 }</code></pre>
 <h2 id="native-memory">Native memory</h2>
@@ -378,12 +378,12 @@ ffiCloseLibrary(lib);</code></pre>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
 <p>Named syscalls are <strong>target-gated</strong>. A program first declares the operating system and architecture it targets, then reaches every syscall through that architecture's namespace:</p>
-<pre><code>global setup(){ syscalls(&quot;Linux&quot;, &quot;amd64&quot;); }
+<pre><code>fn setup(){ syscalls(&quot;Linux&quot;, &quot;amd64&quot;); }
 
-global main(){
+fn main(){
     amd64.syscallRead(fd, buffer, 16);
 }</code></pre>
-<p><code>syscalls(...)</code> takes an operating system and an architecture. The OS is <code>Linux</code> (case-insensitive; <code>Windows</code> and <code>macOS</code> are recognised but no host can select them while named syscalls require Linux), and the architecture is <code>amd64</code> / <code>x86-64</code> or <code>arm64</code> / <code>aarch64</code>. Both must name the machine the program runs on, and only one target can be selected at a time: a different target, a second target, or a syscall call before <code>syscalls(...)</code> is a source-located error. An unknown keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>. The old flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form. <code>syscalls(global.sys.platform(), global.sys.architecture())</code> asserts the host.</p>
+<p><code>syscalls(...)</code> takes an operating system and an architecture. The OS is <code>Linux</code> (case-insensitive; <code>Windows</code> and <code>macOS</code> are recognised but no host can select them while named syscalls require Linux), and the architecture is <code>amd64</code> / <code>x86-64</code> or <code>arm64</code> / <code>aarch64</code>. Both must name the machine the program runs on, and only one target can be selected at a time: a different target, a second target, or a syscall call before <code>syscalls(...)</code> is a source-located error. An unknown keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>. The old flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form. <code>syscalls(sys.platform(), sys.architecture())</code> asserts the host.</p>
 <p>Syscall calls take integer arguments only (at most six). <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
 <p>On amd64 the portable <code>syscallPollFileDescriptors</code> / <code>syscallWaitForEvents</code> wrappers use <code>poll</code>/<code>epoll_wait</code>; on aarch64 they use <code>ppoll</code>/<code>epoll_pwait</code>. The explicit <code>ppoll</code>/<code>epoll_pwait</code> wrappers are available on both. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</p>
 <p>Every name below is called as <code>&lt;arch&gt;.&lt;name&gt;(...)</code>; the full reference, with the Linux syscall each maps to and its arguments, is <a href="syscalls.html">syscalls</a>.</p>
@@ -477,10 +477,10 @@ global main(){
 <p><code>stdlib/sound.so</code> must be reachable — next to the interpreter, in <code>stdlib/</code>, or under <code>lynxer/stdlib</code>. A <strong>compiled executable</strong> only carries it if the program also has <code>import(&quot;sound&quot;)</code>, because bundling follows imports.</p>
 <p>Three deliberate constraints, all recorded in <a href="limitations.html">limitations</a>: the backend's own failure text is not Arcade's; <code>soundPause</code>/<code>soundResume</code> work, where the reference fails by design; and <code>soundStop</code> works, where the reference's Arcade version has no <code>Player.stop</code>.</p>
 <h2 id="native-threads">Native threads</h2>
-<p><code>nativeThreadStart(function, arguments)</code> runs a Lynxer function on a <code>std::thread</code>. The function is named as a value — <code>nativeThreadStart(global.worker, [int 42])</code> — which is what makes <code>global.&lt;name&gt;</code> resolve to a callable when no variable has that name.</p>
+<p><code>nativeThreadStart(function, arguments)</code> runs a Lynxer function on a <code>std::thread</code>. The function is named as a value — <code>nativeThreadStart(worker, [int 42])</code> — which is what makes <code>global.&lt;name&gt;</code> resolve to a callable when no variable has that name.</p>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
-<tr><td><code>nativeThreadStart(function, arguments)</code></td><td>Returns a thread handle. <code>function</code> is a named global function; <code>arguments</code> is a list</td></tr>
+<tr><td><code>nativeThreadStart(function, arguments)</code></td><td>Returns a thread handle. <code>function</code> is a named function; <code>arguments</code> is a list</td></tr>
 <tr><td><code>nativeThreadJoin(handle)</code></td><td>Waits for the thread and returns <code>completed</code>, or the callback's error text. Joining releases the handle</td></tr>
 <tr><td><code>nativeThreadJoinAll()</code></td><td>Joins every thread that has neither been joined nor detached</td></tr>
 <tr><td><code>nativeThreadIsAlive(handle)</code></td><td>Whether the thread is still running</td></tr>

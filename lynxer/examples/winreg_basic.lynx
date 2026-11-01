@@ -5,37 +5,37 @@ Windows-only. It writes under HKCU and removes the test tree, so it needs no
 elevation and leaves the registry as it found it.
 ////
 
-global setup(){ import("winreg"); }
+fn setup(){ import("winreg"); }
 
-global main(){
+fn main(){
     str root = "HKCU";
     str key = "Software\\Lynxer\\Fixture";
 
-    global.winreg.deleteTree(root, key);
-    println(global.winreg.keyExists(root, key));
+    winreg.deleteTree(root, key);
+    println(winreg.keyExists(root, key));
 
-    println(global.winreg.createKey(root, key));
-    println(global.winreg.keyExists(root, key));
-    println(global.winreg.createKey(root, key + "\\Child"));
-    println(returnLength(global.winreg.listKeys(root, key)) > 0);
+    println(winreg.createKey(root, key));
+    println(winreg.keyExists(root, key));
+    println(winreg.createKey(root, key + "\\Child"));
+    println(returnLength(winreg.listKeys(root, key)) > 0);
 
-    println(global.winreg.writeString(root, key, "name", "value"));
-    println(global.winreg.readString(root, key, "name"));
-    println(global.winreg.valueExists(root, key, "name"));
-    println(global.winreg.writeExpandString(root, key, "expand", "%TEMP%"));
-    println(global.winreg.readString(root, key, "expand"));
-    println(global.winreg.writeInt(root, key, "count", 42));
-    println(global.winreg.readInt(root, key, "count"));
-    println(global.winreg.writeInt(root, key, "big", 5000000000));
-    println(global.winreg.readInt(root, key, "big"));
-    println(global.winreg.writeDefault(root, key, "default"));
-    println(global.winreg.readDefault(root, key));
-    println(returnLength(global.winreg.listValues(root, key)) > 0);
+    println(winreg.writeString(root, key, "name", "value"));
+    println(winreg.readString(root, key, "name"));
+    println(winreg.valueExists(root, key, "name"));
+    println(winreg.writeExpandString(root, key, "expand", "%TEMP%"));
+    println(winreg.readString(root, key, "expand"));
+    println(winreg.writeInt(root, key, "count", 42));
+    println(winreg.readInt(root, key, "count"));
+    println(winreg.writeInt(root, key, "big", 5000000000));
+    println(winreg.readInt(root, key, "big"));
+    println(winreg.writeDefault(root, key, "default"));
+    println(winreg.readDefault(root, key));
+    println(returnLength(winreg.listValues(root, key)) > 0);
 
-    println(global.winreg.deleteValue(root, key, "name"));
-    println(global.winreg.valueExists(root, key, "name"));
-    println(global.winreg.deleteKey(root, key + "\\Child"));
-    println(global.winreg.keyExists(root, key + "\\Child"));
-    println(global.winreg.deleteTree(root, key));
-    println(global.winreg.keyExists(root, key));
+    println(winreg.deleteValue(root, key, "name"));
+    println(winreg.valueExists(root, key, "name"));
+    println(winreg.deleteKey(root, key + "\\Child"));
+    println(winreg.keyExists(root, key + "\\Child"));
+    println(winreg.deleteTree(root, key));
+    println(winreg.keyExists(root, key));
 }

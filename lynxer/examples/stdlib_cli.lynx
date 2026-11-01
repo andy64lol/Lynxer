@@ -3,99 +3,99 @@ Fixture for the cli stdlib. Interpreted only (module imports are not
 bytecode-compilable). TTY-dependent helpers are not asserted because the test
 harness redirects stdout.
 ////
-global setup(){ import("cli"); import("os"); import("fileIO"); import("json"); import("text"); }
+fn setup(){ import("cli"); import("os"); import("fileIO"); import("json"); import("text"); }
 
-global main(){
-    println(global.cli.argCount() >= 2);
-    println(global.cli.getArg(0) isnt "");
-    println(global.cli.getArg(99) is "");
+fn main(){
+    println(cli.argCount() >= 2);
+    println(cli.getArg(0) isnt "");
+    println(cli.getArg(99) is "");
 
-    global.os.setenv("LYNXER_CLI_TEST", "hello");
-    println(global.cli.envGet("LYNXER_CLI_TEST"));
-    println(global.cli.envHas("LYNXER_CLI_TEST"));
-    println(global.cli.envHas("LYNXER_CLI_MISSING"));
-    println(returnLength(global.cli.envAll()) > 10);
+    os.setenv("LYNXER_CLI_TEST", "hello");
+    println(cli.envGet("LYNXER_CLI_TEST"));
+    println(cli.envHas("LYNXER_CLI_TEST"));
+    println(cli.envHas("LYNXER_CLI_MISSING"));
+    println(returnLength(cli.envAll()) > 10);
 
-    println(returnLength(global.cli.cwd()) > 0);
-    println(returnLength(global.cli.terminalSize()) > 2);
+    println(returnLength(cli.cwd()) > 0);
+    println(returnLength(cli.terminalSize()) > 2);
     // Scratch file, so this fixture does not depend on the working directory.
     str scratch = ".lynxer_scratch_cli";
-    global.fileIO.writeFile(scratch, "x");
-    println(global.cli.pathExists(scratch));
-    println(global.cli.pathExists("definitely-missing-file"));
-    println(global.cli.isFile(scratch));
-    println(global.cli.isDirectory("."));
-    global.fileIO.deleteFile(scratch);
-    println(global.cli.which("sh") isnt "");
-    println(global.cli.which("definitely-not-a-command") is "");
+    fileIO.writeFile(scratch, "x");
+    println(cli.pathExists(scratch));
+    println(cli.pathExists("definitely-missing-file"));
+    println(cli.isFile(scratch));
+    println(cli.isDirectory("."));
+    fileIO.deleteFile(scratch);
+    println(cli.which("sh") isnt "");
+    println(cli.which("definitely-not-a-command") is "");
 
-    global.cli.writeStdout("written\n");
-    println(global.cli.run("printf cli-ok", true));
-    println(global.cli.run("true", false));
-    println(global.cli.run("false", false));
-    println(global.cli.runCode("true"));
-    println(global.cli.runCode("false"));
+    cli.writeStdout("written\n");
+    println(cli.run("printf cli-ok", true));
+    println(cli.run("true", false));
+    println(cli.run("false", false));
+    println(cli.runCode("true"));
+    println(cli.runCode("false"));
 
     // Click-style builders: command, argument, flag, shell template, invoke.
-    global.cli.clickInit();
-    int greet = global.cli.clickCommandCreate("greet", "Greet a person");
+    cli.clickInit();
+    int greet = cli.clickCommandCreate("greet", "Greet a person");
     println(greet > 0);
-    println(global.cli.clickAddArgument(greet, "name", true, 1) is 1);
-    println(global.cli.clickAddOption(greet, "--shout,-s", "Use uppercase", "", true, false, "bool") is 1);
-    println(global.cli.clickCommandSetShell(greet, "printf 'Hello {name}'") is 1);
-    str greetResult = global.cli.clickInvoke(greet, "[\"Ada\", \"--shout\"]");
-    println(global.json.jsonGet(greetResult, "output") is "Hello Ada");
-    println(global.json.jsonGetInt(greetResult, "exitCode") is 0);
-    println(global.json.jsonGet(global.cli.clickLastParams(), "name") is "Ada");
-    println(global.json.jsonGetBool(global.cli.clickLastParams(), "shout"));
+    println(cli.clickAddArgument(greet, "name", true, 1) is 1);
+    println(cli.clickAddOption(greet, "--shout,-s", "Use uppercase", "", true, false, "bool") is 1);
+    println(cli.clickCommandSetShell(greet, "printf 'Hello {name}'") is 1);
+    str greetResult = cli.clickInvoke(greet, "[\"Ada\", \"--shout\"]");
+    println(json.jsonGet(greetResult, "output") is "Hello Ada");
+    println(json.jsonGetInt(greetResult, "exitCode") is 0);
+    println(json.jsonGet(cli.clickLastParams(), "name") is "Ada");
+    println(json.jsonGetBool(cli.clickLastParams(), "shout"));
 
     // A typed option and a group with a subcommand.
-    int count = global.cli.clickCommandCreate("count", "Count");
-    global.cli.clickAddOption(count, "--n", "How many", "1", false, false, "int");
-    global.cli.clickInvoke(count, "[\"--n\", \"7\"]");
-    println(global.json.jsonGetInt(global.cli.clickLastParams(), "n") is 7);
-    int group = global.cli.clickGroupCreate("tool", "Tool");
-    global.cli.clickGroupAddCommand(group, count, "count");
-    global.cli.clickGroupInvoke(group, "[\"count\", \"--n\", \"3\"]");
-    println(global.json.jsonGetInt(global.cli.clickLastParams(), "n") is 3);
+    int count = cli.clickCommandCreate("count", "Count");
+    cli.clickAddOption(count, "--n", "How many", "1", false, false, "int");
+    cli.clickInvoke(count, "[\"--n\", \"7\"]");
+    println(json.jsonGetInt(cli.clickLastParams(), "n") is 7);
+    int group = cli.clickGroupCreate("tool", "Tool");
+    cli.clickGroupAddCommand(group, count, "count");
+    cli.clickGroupInvoke(group, "[\"count\", \"--n\", \"3\"]");
+    println(json.jsonGetInt(cli.clickLastParams(), "n") is 3);
 
     // The error path returns {"error": "..."} rather than failing the process.
-    str bad = global.cli.clickInvoke(count, "[\"--nope\"]");
-    println(returnLength(global.json.jsonGet(bad, "error")) > 0);
+    str bad = cli.clickInvoke(count, "[\"--nope\"]");
+    println(returnLength(json.jsonGet(bad, "error")) > 0);
 
     // Typer-style builders: a single-command app is invoked without its name.
-    global.cli.typerInit();
-    int app = global.cli.typerAppCreate("app", "App", true);
-    int tgreet = global.cli.typerCommandCreate(app, "greet", "Greet");
-    global.cli.typerAddArgument(tgreet, "name", true, 1);
-    global.cli.typerAddOption(tgreet, "--loud", "Loud", "", true, false, "bool");
-    global.cli.typerCommandSetShell(tgreet, "printf 'hi {name}'");
-    str typerResult = global.cli.typerInvoke(app, "[\"Ada\"]");
-    println(global.json.jsonGet(typerResult, "output") is "hi Ada");
-    println(global.json.jsonGet(global.cli.typerLastParams(), "name") is "Ada");
+    cli.typerInit();
+    int app = cli.typerAppCreate("app", "App", true);
+    int tgreet = cli.typerCommandCreate(app, "greet", "Greet");
+    cli.typerAddArgument(tgreet, "name", true, 1);
+    cli.typerAddOption(tgreet, "--loud", "Loud", "", true, false, "bool");
+    cli.typerCommandSetShell(tgreet, "printf 'hi {name}'");
+    str typerResult = cli.typerInvoke(app, "[\"Ada\"]");
+    println(json.jsonGet(typerResult, "output") is "hi Ada");
+    println(json.jsonGet(cli.typerLastParams(), "name") is "Ada");
 
     // Help, flag negation, repeated options and environment defaults.
-    global.cli.clickInit();
-    int helpCommand = global.cli.clickCommandCreate("greet", "Greet a person");
-    global.cli.clickAddArgument(helpCommand, "name", true, 1, "Who to greet");
-    global.cli.clickAddOption(helpCommand, "--shout,-s", "Uppercase", "", true, false, "bool");
-    global.cli.clickAddOption(helpCommand, "--tag", "Tag", "", false, false, "text", "", true);
-    global.cli.clickAddOption(helpCommand, "--port", "Port", "0", false, false, "int", "LYNXER_CLI_PORT");
-    global.cli.clickCommandSetShell(helpCommand, "printf 'Hello {name} tags={tag}'");
-    str help = global.json.jsonGet(global.cli.clickInvoke(helpCommand, "[\"--help\"]"), "help");
-    println(global.text.contains(help, "Usage: greet"));
-    println(global.text.contains(help, "Who to greet"));
-    println(global.text.contains(help, "--shout, -s"));
-    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--no-shout\"]");
-    println(global.json.jsonGetBool(global.cli.clickLastParams(), "shout"));
-    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]");
-    println(global.json.jsonGet(global.cli.clickLastParams(), "tag") is "[\"a\", \"b\"]");
-    println(global.json.jsonGet(global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]"), "output") is "Hello Ada tags=a b");
-    global.os.setenv("LYNXER_CLI_PORT", "9");
-    global.cli.clickInvoke(helpCommand, "[\"Ada\"]");
-    println(global.json.jsonGetInt(global.cli.clickLastParams(), "port") is 9);
-    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--port\", \"5\"]");
-    println(global.json.jsonGetInt(global.cli.clickLastParams(), "port") is 5);
-    int noArgsApp = global.cli.typerAppCreate("tool", "Tool app", true);
-    println(global.text.contains(global.json.jsonGet(global.cli.typerInvoke(noArgsApp, "[]"), "help"), "Usage: tool"));
+    cli.clickInit();
+    int helpCommand = cli.clickCommandCreate("greet", "Greet a person");
+    cli.clickAddArgument(helpCommand, "name", true, 1, "Who to greet");
+    cli.clickAddOption(helpCommand, "--shout,-s", "Uppercase", "", true, false, "bool");
+    cli.clickAddOption(helpCommand, "--tag", "Tag", "", false, false, "text", "", true);
+    cli.clickAddOption(helpCommand, "--port", "Port", "0", false, false, "int", "LYNXER_CLI_PORT");
+    cli.clickCommandSetShell(helpCommand, "printf 'Hello {name} tags={tag}'");
+    str help = json.jsonGet(cli.clickInvoke(helpCommand, "[\"--help\"]"), "help");
+    println(text.contains(help, "Usage: greet"));
+    println(text.contains(help, "Who to greet"));
+    println(text.contains(help, "--shout, -s"));
+    cli.clickInvoke(helpCommand, "[\"Ada\", \"--no-shout\"]");
+    println(json.jsonGetBool(cli.clickLastParams(), "shout"));
+    cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]");
+    println(json.jsonGet(cli.clickLastParams(), "tag") is "[\"a\", \"b\"]");
+    println(json.jsonGet(cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]"), "output") is "Hello Ada tags=a b");
+    os.setenv("LYNXER_CLI_PORT", "9");
+    cli.clickInvoke(helpCommand, "[\"Ada\"]");
+    println(json.jsonGetInt(cli.clickLastParams(), "port") is 9);
+    cli.clickInvoke(helpCommand, "[\"Ada\", \"--port\", \"5\"]");
+    println(json.jsonGetInt(cli.clickLastParams(), "port") is 5);
+    int noArgsApp = cli.typerAppCreate("tool", "Tool app", true);
+    println(text.contains(json.jsonGet(cli.typerInvoke(noArgsApp, "[]"), "help"), "Usage: tool"));
 }

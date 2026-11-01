@@ -138,7 +138,7 @@
         </div>
 <h1 id="time">time</h1>
 <p>Date and time helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/time.so</code>, built from <code>stdlib/time.cpp</code> over <code>&lt;chrono&gt;</code> and <code>&lt;ctime&gt;</code>. <strong>Import:</strong> <code>import(&quot;time&quot;)</code> → <code>global.time.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/time.so</code>, built from <code>stdlib/time.cpp</code> over <code>&lt;chrono&gt;</code> and <code>&lt;ctime&gt;</code>. <strong>Import:</strong> <code>import(&quot;time&quot;)</code> → <code>time.*</code></p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>now</code></td><td><code>() -&gt; str</code></td><td><code>YYYY-MM-DD HH:MM:SS</code> local time</td></tr>
@@ -158,12 +158,12 @@
 <tr><td><code>daysInMonth</code></td><td><code>(int year, int month) -&gt; int</code></td><td><code>0</code> for an out-of-range month</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;time&quot;); }
+<pre><code>fn setup(){ import(&quot;time&quot;); }
 
-global main(){
-    println(global.time.getDate());
-    println(global.time.addDays(&quot;2026-02-27&quot;, 2));
-    println(global.time.daysInMonth(2024, 2));
+fn main(){
+    println(time.getDate());
+    println(time.addDays(&quot;2026-02-27&quot;, 2));
+    println(time.daysInMonth(2024, 2));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

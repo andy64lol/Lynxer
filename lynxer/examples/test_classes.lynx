@@ -1,26 +1,26 @@
-global setup(){}
+fn setup(){}
 
 class Counter {
     int value = 0;
 
-    local init(int initial){
+    fn init(int initial){
         this.value = initial;
     }
 
-    local increment(){
+    fn increment(){
         this.value = this.value + 1;
     }
 
-    local get(){
+    fn get(){
         return this.value;
     }
 }
 
-global readCounter(Counter counter){
+fn readCounter(Counter counter){
     return counter.get();
 }
 
-global main(){
+fn main(){
     Counter first = new Counter(2);
     Counter second = new Counter(10);
 
@@ -29,8 +29,8 @@ global main(){
 
     assert(first.get() is 3);
     assert(second.get() is 11);
-    assert(global.readCounter(first) is 3);
+    assert(readCounter(first) is 3);
     assert(returnType(first) is "Counter");
-    println(global.readCounter(first));
-    println(global.readCounter(second));
+    println(readCounter(first));
+    println(readCounter(second));
 }

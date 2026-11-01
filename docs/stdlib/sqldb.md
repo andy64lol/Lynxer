@@ -73,7 +73,7 @@ Catch database failures with the language's `try`/`catch` statement:
 
 ```lynx
 try {
-    global.sqldb.query("database.db", "SELECT * FROM missing_table");
+    sqldb.query("database.db", "SELECT * FROM missing_table");
 } catch(str error) {
     println("Database error: ", error);
 }
@@ -82,20 +82,20 @@ try {
 ## Example
 
 ```lynx
-global setup(){
+fn setup(){
     import("sqldb")
 }
 
-global main(){
-    global.sqldb.execute("database.db", "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
-    global.sqldb.execute("database.db", "INSERT INTO users (name) VALUES ('Alice')");
-    println(global.sqldb.query("database.db", "SELECT * FROM users"));
+fn main(){
+    sqldb.execute("database.db", "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+    sqldb.execute("database.db", "INSERT INTO users (name) VALUES ('Alice')");
+    println(sqldb.query("database.db", "SELECT * FROM users"));
 
     // Or keep one connection open across calls.
-    int db = global.sqldb.open("database.db");
-    global.sqldb.executeOn(db, "INSERT INTO users (name) VALUES ('Bob')");
-    println(global.sqldb.queryOn(db, "SELECT * FROM users ORDER BY id"));
-    global.sqldb.close(db);
+    int db = sqldb.open("database.db");
+    sqldb.executeOn(db, "INSERT INTO users (name) VALUES ('Bob')");
+    println(sqldb.queryOn(db, "SELECT * FROM users ORDER BY id"));
+    sqldb.close(db);
 }
 ```
 

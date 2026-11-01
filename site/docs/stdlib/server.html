@@ -138,7 +138,7 @@
         </div>
 <h1 id="server">server</h1>
 <p>HTTP and WebSocket server backed by Rust <a href="https://docs.rs/axum"><code>axum</code></a> on <a href="https://docs.rs/tokio"><code>tokio</code></a>. Pair it with <code>network</code> for local round-trip tests.</p>
-<pre><code>global setup(){
+<pre><code>fn setup(){
     import(&quot;server&quot;);
     import(&quot;network&quot;);
 }</code></pre>
@@ -163,10 +163,10 @@
 </table>
 <p>Paths must start with <code>/</code>. The listener binds to <code>127.0.0.1</code> only.</p>
 <p>HTML is supplied as a normal Lynxer string and is returned unchanged. For example:</p>
-<pre><code>global main(){
-    global.server.get(&quot;/&quot;, &quot;&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;h1&gt;Hello&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;&quot;);
-    println(global.server.start(8080));
-    while (global.server.running()) {}
+<pre><code>fn main(){
+    server.get(&quot;/&quot;, &quot;&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;h1&gt;Hello&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;&quot;);
+    println(server.start(8080));
+    while (server.running()) {}
 }</code></pre>
 <h2 id="routes">Routes</h2>
 <p>Register routes while the server is stopped. Paths must start with <code>/</code>, and a duplicate of the same verb and path is rejected.</p>
@@ -195,14 +195,14 @@
 </table>
 <p><code>HEAD</code> is served by the matching <code>GET</code> route.</p>
 <p>Callback handlers take no parameters. They run for each request under the interpreter lock; use the request readers below and then call <code>respond</code>. A callback that omits <code>respond</code> returns <code>204</code>; a callback error returns <code>500</code>. Fixed-string route registration and responses remain unchanged.</p>
-<pre><code>global greetRequest(){
-    str name = global.server.getArg(&quot;name&quot;);
-    global.server.respond(200, &quot;text/plain&quot;, &quot;Hello &quot; + name);
+<pre><code>fn greetRequest(){
+    str name = server.getArg(&quot;name&quot;);
+    server.respond(200, &quot;text/plain&quot;, &quot;Hello &quot; + name);
 }
 
-global setup(){
+fn setup(){
     import(&quot;server&quot;);
-    global.server.routeGetCallback(&quot;/greet&quot;, &quot;greetRequest&quot;);
+    server.routeGetCallback(&quot;/greet&quot;, &quot;greetRequest&quot;);
 }</code></pre>
 <h3 id="templates">Templates</h3>
 <p><code>dataJson</code> is a JSON object whose keys become template variables, addressed as <code>{{ key }}</code> and <code>{{ nested.key }}</code>. A Jinja-compatible subset is implemented:</p>
@@ -225,7 +225,7 @@ global setup(){
 <tr><td><code>request.form</code></td><td>The body parsed as a form (form-urlencoded only)</td></tr>
 </table>
 <p>The query-string arguments also overlay the root context, so <code>?name=Ada</code> makes <code>{{ name }}</code> render <code>Ada</code> even without the prefix.</p>
-<pre><code>global.server.templateString(
+<pre><code>server.templateString(
     &quot;/greet&quot;,
     &quot;&lt;h1&gt;Hello, {{ name | upper }}!&lt;/h1&gt;&quot;
     &quot;{% if request.args.n | default(\&quot;\&quot;) %}&lt;p&gt;n={{ request.args.n }}&lt;/p&gt;{% endif %}&quot;,

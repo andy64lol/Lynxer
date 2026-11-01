@@ -195,15 +195,15 @@ returns `false` when a string contains an unknown token.
 ## Example
 
 ```lynx
-global setup(){
+fn setup(){
     import("tui")
 }
 
-global main(){
-    global.tui.init("truecolor");
-    global.tui.printText("Hello, TUI!");
-    global.tui.panel("Hello", "Title");
-    global.tui.clear();
+fn main(){
+    tui.init("truecolor");
+    tui.printText("Hello, TUI!");
+    tui.panel("Hello", "Title");
+    tui.clear();
 }
 ```
 

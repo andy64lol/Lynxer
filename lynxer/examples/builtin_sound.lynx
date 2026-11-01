@@ -5,24 +5,24 @@ are device-independent; playback itself depends on the audio device, so
 `soundPlay`/`soundLoop` are exercised on a valid handle but their results are not
 asserted.
 ////
-global setup(){ import("fileIO"); }
+fn setup(){ import("fileIO"); }
 
-global main(){
+fn main(){
     // The fixture runs from `lynxer/` under `make test` and from the
     // repository root by hand, so resolve the asset against both layouts.
     str toneFile = "examples/assets/tone.wav";
-    if(not global.fileIO.fileExists(toneFile)){
+    if(not fileIO.fileExists(toneFile)){
         toneFile = "lynxer/examples/assets/tone.wav";
     }
 
     // Validation happens before the backend is touched. The not-an-audio file
     // is a scratch file under the cwd, so it exists from any directory.
     str notAudio = ".lynxer_scratch_not_audio.txt";
-    global.fileIO.writeFile(notAudio, "not audio\n");
+    fileIO.writeFile(notAudio, "not audio\n");
     try { soundLoad(".lynxer_scratch_missing.wav"); } catch(str e) { println("missing: ", e); }
     try { soundLoad(notAudio); } catch(str e) { println("format: ", e); }
     try { soundLoad(0); } catch(str e) { println("argtype: ", e); }
-    global.fileIO.deleteFile(notAudio);
+    fileIO.deleteFile(notAudio);
 
     // A real file loads and reports a handle.
     int handle = soundLoad(toneFile);

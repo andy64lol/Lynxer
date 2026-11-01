@@ -19,7 +19,7 @@ A module is always two files with the same stem:
 
 | File | Role |
 | --- | --- |
-| `stdlib/<name>.lynx` | The Lynxer-facing module. Defines `setup()` and one `global` function per operation, and forwards each one to the namespace its `setup()` imported. |
+| `stdlib/<name>.lynx` | The Lynxer-facing module. Defines `setup()` and one `fn` function per operation, and forwards each one to the namespace its `setup()` imported. |
 | `stdlib/<name>.so` | The native backend. Built from `stdlib/<name>.cpp` (C++) or `rust/<name>/` (Rust), and registers its operations through `lynxer_module_init_v1`. |
 
 The wrapper is the contract's public surface; the backend is an implementation
@@ -31,8 +31,9 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 
 ### Operation names
 
-- The backend registers each operation under the name the wrapper calls; the
-  Lynxer-facing name is a lowerCamelCase `global` function.
+- The backend registers each operation under the name the wrapper calls; new
+  wrappers declare the lowerCamelCase public function with `fn`. Existing
+  `global` declarations remain accepted as deprecated syntax.
 - The wrapper imports its backend once, in `setup()`, with
   `importAs("<name>.so", "native<Name>")`. Nothing else in the wrapper refers to
   the backend.

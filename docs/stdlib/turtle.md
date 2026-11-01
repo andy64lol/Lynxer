@@ -5,7 +5,7 @@ Classic turtle graphics: a pen that moves and turns, drawing as it goes.
 **Backend:** pure — `stdlib/turtle.lynx`, a thin wrapper over the `graphics`
 module's turtle state machine (`rust/graphics`). The drawing goes through the
 ordinary shape ops, so it works with a window *and* on the headless rasterizer.
-**Import:** `import("turtle")` → `global.turtle.*`
+**Import:** `import("turtle")` → `turtle.*`
 
 ## State lives in `graphics`
 
@@ -42,21 +42,21 @@ no failure sentinel because the default turtle always exists.
 ## Example
 
 ```lynx
-global setup(){ import("turtle"); import("graphics"); }
+fn setup(){ import("turtle"); import("graphics"); }
 
-global main(){
-    global.graphics.init("turtle", 400, 400);
-    global.graphics.clearBackground(255, 255, 255);
+fn main(){
+    graphics.init("turtle", 400, 400);
+    graphics.clearBackground(255, 255, 255);
 
-    global.turtle.setColor(0, 90, 200);
-    global.turtle.setWidth(2.0);
+    turtle.setColor(0, 90, 200);
+    turtle.setWidth(2.0);
     for (int i = 0; i < 4; i = i + 1){
-        global.turtle.forward(120.0);
-        global.turtle.turn(90.0);
+        turtle.forward(120.0);
+        turtle.turn(90.0);
     }
 
-    println(global.turtle.x(), ",", global.turtle.y());
-    println(global.turtle.heading());
+    println(turtle.x(), ",", turtle.y());
+    println(turtle.heading());
 }
 ```
 

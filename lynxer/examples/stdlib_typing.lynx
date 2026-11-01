@@ -1,87 +1,87 @@
 ////
 Fixture for the typing stdlib (pure Lynxer, no shared library).
 ////
-global setup(){ import("typing"); }
+fn setup(){ import("typing"); }
 
-global main(){
+fn main(){
     // Basic type inspection and conversion.
-    println(global.typing.typeOf(1));
-    println(global.typing.typeOf(1.5));
-    println(global.typing.typeOf("x"));
-    println(global.typing.typeOf(true));
-    println(global.typing.toStr(42));
-    println(global.typing.toInt("42"));
-    println(global.typing.toFloat("1.5"));
-    println(global.typing.toBool(1));
-    println(global.typing.isNumeric(3));
-    println(global.typing.isNumeric("3"));
-    println(global.typing.lenStr("abcd"));
-    println(global.typing.isByte(200));
-    println(global.typing.isByte(300));
-    println(global.typing.isInt8(200));
-    println(global.typing.isInt8(-5));
-    println(global.typing.isInt16(40000));
-    println(global.typing.isInt32(2147483647));
+    println(typing.typeOf(1));
+    println(typing.typeOf(1.5));
+    println(typing.typeOf("x"));
+    println(typing.typeOf(true));
+    println(typing.toStr(42));
+    println(typing.toInt("42"));
+    println(typing.toFloat("1.5"));
+    println(typing.toBool(1));
+    println(typing.isNumeric(3));
+    println(typing.isNumeric("3"));
+    println(typing.lenStr("abcd"));
+    println(typing.isByte(200));
+    println(typing.isByte(300));
+    println(typing.isInt8(200));
+    println(typing.isInt8(-5));
+    println(typing.isInt16(40000));
+    println(typing.isInt32(2147483647));
 
     // String-content predicates and numeric range checks.
-    println(global.typing.isAlpha("abc"), " ", global.typing.isAlpha("a1c"), " ", global.typing.isAlpha(""));
-    println(global.typing.isDigit("123"), " ", global.typing.isDigit("12a"));
-    println(global.typing.isAlphaNum("a1"), " ", global.typing.isAlphaNum("a-1"));
-    println(global.typing.isSpace(" \t"), " ", global.typing.isSpace(" x"));
-    println(global.typing.isNumBool(1), " ", global.typing.isNumBool(2), " ", global.typing.isBit(0));
-    println(global.typing.isInt64(3), " ", global.typing.isUInt8(255), " ", global.typing.isUInt8(256));
-    println(global.typing.isUInt16(65535), " ", global.typing.isUInt16(65536), " ", global.typing.isUInt32(4294967295));
-    println(global.typing.isUInt64(1), " ", global.typing.isUInt64(-1));
-    println(global.typing.isFloat32(1.5), " ", global.typing.isFloat64(1.5), " ", global.typing.isFloat32("x"));
-    println(global.typing.toFloat32(2), " ", global.typing.toFloat64(3));
+    println(typing.isAlpha("abc"), " ", typing.isAlpha("a1c"), " ", typing.isAlpha(""));
+    println(typing.isDigit("123"), " ", typing.isDigit("12a"));
+    println(typing.isAlphaNum("a1"), " ", typing.isAlphaNum("a-1"));
+    println(typing.isSpace(" \t"), " ", typing.isSpace(" x"));
+    println(typing.isNumBool(1), " ", typing.isNumBool(2), " ", typing.isBit(0));
+    println(typing.isInt64(3), " ", typing.isUInt8(255), " ", typing.isUInt8(256));
+    println(typing.isUInt16(65535), " ", typing.isUInt16(65536), " ", typing.isUInt32(4294967295));
+    println(typing.isUInt64(1), " ", typing.isUInt64(-1));
+    println(typing.isFloat32(1.5), " ", typing.isFloat64(1.5), " ", typing.isFloat32("x"));
+    println(typing.toFloat32(2), " ", typing.toFloat64(3));
 
     // Char helpers.
-    println(global.typing.charCodeOf("A"), " ", global.typing.charCodeOf(""), " ", global.typing.charCodeOf(1));
-    println(global.typing.charCode("Z"));
-    println(global.typing.charOf(66));
-    println(global.typing.charAt("hello", 1), " ", global.typing.charAt("hello", 9));
-    println(global.typing.toChar(67), " ", global.typing.toChar("D"));
+    println(typing.charCodeOf("A"), " ", typing.charCodeOf(""), " ", typing.charCodeOf(1));
+    println(typing.charCode("Z"));
+    println(typing.charOf(66));
+    println(typing.charAt("hello", 1), " ", typing.charAt("hello", 9));
+    println(typing.toChar(67), " ", typing.toChar("D"));
 
     // String helpers.
-    println(global.typing.trim("  hi  "), "|", global.typing.stripLeft("  hi  "), "|", global.typing.stripRight("  hi  "), "|");
-    println(global.typing.upper("abc"), " ", global.typing.lower("ABC"));
-    println(global.typing.titleCase("hello world"), " ", global.typing.swapCase("AbC"));
-    println(global.typing.repeat("ab", 3), " ", global.typing.repeatStr("x", 2));
-    println(global.typing.contains("hello", "ell"), " ", global.typing.contains("hello", "zz"));
-    println(global.typing.startsWith("hello", "he"), " ", global.typing.endsWith("hello", "lo"));
-    println(global.typing.replace("a-b-c", "-", "+"));
-    println(global.typing.indexOf("banana", "na"), " ", global.typing.indexOf("abc", "z"), " ", global.typing.countOccurrences("banana", "na"));
-    println(global.typing.substr("hello", 1, 4), " ", global.typing.substr("hello", -3, -1));
-    println(global.typing.padLeft("7", 3, "0"), " ", global.typing.padRight("7", 3, "."), " ", global.typing.center("7", 5, "-"));
-    println(global.typing.zfill("42", 5), " ", global.typing.zfill("-42", 5));
-    println(global.typing.strReverse("abc"), " ", global.typing.spaces(3), "|");
-    println(global.typing.wordWrap("the quick brown fox", 9));
-    println(global.typing.expandTabs("a\tb", 4), "|");
-    println(global.typing.splitFirst("a=b=c", "="), " ", global.typing.splitFirst("abc", "="));
-    println(global.typing.splitToList("a,b,c", ","));
-    println(global.typing.linesOf("a\nb\nc"), " ", global.typing.linesOf(""));
+    println(typing.trim("  hi  "), "|", typing.stripLeft("  hi  "), "|", typing.stripRight("  hi  "), "|");
+    println(typing.upper("abc"), " ", typing.lower("ABC"));
+    println(typing.titleCase("hello world"), " ", typing.swapCase("AbC"));
+    println(typing.repeat("ab", 3), " ", typing.repeatStr("x", 2));
+    println(typing.contains("hello", "ell"), " ", typing.contains("hello", "zz"));
+    println(typing.startsWith("hello", "he"), " ", typing.endsWith("hello", "lo"));
+    println(typing.replace("a-b-c", "-", "+"));
+    println(typing.indexOf("banana", "na"), " ", typing.indexOf("abc", "z"), " ", typing.countOccurrences("banana", "na"));
+    println(typing.substr("hello", 1, 4), " ", typing.substr("hello", -3, -1));
+    println(typing.padLeft("7", 3, "0"), " ", typing.padRight("7", 3, "."), " ", typing.center("7", 5, "-"));
+    println(typing.zfill("42", 5), " ", typing.zfill("-42", 5));
+    println(typing.strReverse("abc"), " ", typing.spaces(3), "|");
+    println(typing.wordWrap("the quick brown fox", 9));
+    println(typing.expandTabs("a\tb", 4), "|");
+    println(typing.splitFirst("a=b=c", "="), " ", typing.splitFirst("abc", "="));
+    println(typing.splitToList("a,b,c", ","));
+    println(typing.linesOf("a\nb\nc"), " ", typing.linesOf(""));
 
     // Number helpers.
-    println(global.typing.abs(-4), " ", global.typing.abs(-4.5), " ", global.typing.sign(-9), " ", global.typing.sign(0));
-    println(global.typing.maxOf(3, 7), " ", global.typing.minOf(3, 7));
-    println(global.typing.clamp(15.0, 0.0, 10.0), " ", global.typing.between(5, 1, 10));
-    println(global.typing.roundTo(3.14159, 2));
+    println(typing.abs(-4), " ", typing.abs(-4.5), " ", typing.sign(-9), " ", typing.sign(0));
+    println(typing.maxOf(3, 7), " ", typing.minOf(3, 7));
+    println(typing.clamp(15.0, 0.0, 10.0), " ", typing.between(5, 1, 10));
+    println(typing.roundTo(3.14159, 2));
 
     // List and tuple helpers, plus the previously broken paths.
-    println(global.typing.toByte(300), " ", global.typing.toByte(12));
-    println(global.typing.listFirst([int 7, int 8]), " ", global.typing.listLast([int 7, int 8]));
-    println(global.typing.listHead([int 1, int 2, int 3], 2), " ", global.typing.listTail([int 1, int 2, int 3], 2));
-    println(global.typing.listChunk([int 1, int 2, int 3, int 4, int 5], 2));
-    println(global.typing.listZip([int 1, int 2], [int 3, int 4]));
-    println(global.typing.tupleZip((int 1, int 2), (int 3, int 4)));
-    println(global.typing.unique([int 1, int 1, int 2]));
+    println(typing.toByte(300), " ", typing.toByte(12));
+    println(typing.listFirst([int 7, int 8]), " ", typing.listLast([int 7, int 8]));
+    println(typing.listHead([int 1, int 2, int 3], 2), " ", typing.listTail([int 1, int 2, int 3], 2));
+    println(typing.listChunk([int 1, int 2, int 3, int 4, int 5], 2));
+    println(typing.listZip([int 1, int 2], [int 3, int 4]));
+    println(typing.tupleZip((int 1, int 2), (int 3, int 4)));
+    println(typing.unique([int 1, int 1, int 2]));
 
     // Characters are code points, up to the Unicode maximum.
-    println(global.typing.charCode("€"), " ", global.typing.charCodeOf("€"));
-    println(global.typing.charOf(233), " ", global.typing.charOf(8364));
-    println(global.typing.charAt("café", 3), " ", global.typing.charAt("café", 9));
-    println(global.typing.isAlpha("café"), " ", global.typing.isAlpha("cafe"));
+    println(typing.charCode("€"), " ", typing.charCodeOf("€"));
+    println(typing.charOf(233), " ", typing.charOf(8364));
+    println(typing.charAt("café", 3), " ", typing.charAt("café", 9));
+    println(typing.isAlpha("café"), " ", typing.isAlpha("cafe"));
     // A code outside the valid range falls back to a NUL char.
-    println(global.typing.charCodeOf(global.typing.charOf(1114112)) is 0, " ",
-            global.typing.charCodeOf(global.typing.charOf(55296)) is 0);
+    println(typing.charCodeOf(typing.charOf(1114112)) is 0, " ",
+            typing.charCodeOf(typing.charOf(55296)) is 0);
 }

@@ -4,7 +4,7 @@ A robust HTTP, WebSocket, and TCP client built with Rust, using [`ureq`](https:/
 This module replaces the older `http` and `net` modules, eliminating the need for a system OpenSSL dependency.
 
 ```lynx
-global setup() {
+fn setup() {
     import("network");
 }
 ```

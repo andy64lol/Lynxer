@@ -4,7 +4,7 @@ Extended regular-expression helpers with a named compiled-pattern cache.
 
 **Backend:** Rust — `stdlib/regex.so`, built from `rust/regex` over the shared
 `rust/regex_engine` (`fancy-regex`). **Import:** `import("regex")` →
-`global.regex.*`
+`regex.*`
 
 Compiled patterns live in a module-local cache keyed by name, and `cacheKeys`
 reports the names sorted. This module mirrors the `re`-fallback path:
@@ -43,12 +43,12 @@ Pattern syntax is the same engine as [re](re.md).
 ## Example
 
 ```lynx
-global setup(){ import("regex"); }
+fn setup(){ import("regex"); }
 
-global main(){
-    global.regex.compile("digits", "\\d+", "");
-    println(global.regex.testCompiled("digits", "abc123"));
-    println(global.regex.findallCompiled("digits", "a1 b22"));
+fn main(){
+    regex.compile("digits", "\\d+", "");
+    println(regex.testCompiled("digits", "abc123"));
+    println(regex.findallCompiled("digits", "a1 b22"));
 }
 ```
 

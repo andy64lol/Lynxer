@@ -1,13 +1,13 @@
-global setup(){
+fn setup(){
     overrideMain("start");
 }
 
-func add(int left, int right = 2) -> int {
+fn add(int left, int right = 2) -> int {
     return left + right;
 }
 
-global start(){
-    local square(int value) -> int {
+fn start(){
+    fn square(int value) -> int {
         return value * value;
     }
     println(add(3));

@@ -5,7 +5,7 @@ TOML parsing and serialization.
 **Backend:** native — `stdlib/toml.so`, built from the Rust crate `rust/toml`
 over `toml`.
 
-**Import:** `import("toml")` → `global.toml.*`
+**Import:** `import("toml")` → `toml.*`
 
 ## How documents travel
 
@@ -35,17 +35,17 @@ or a `null`) makes `tomlSerialize` answer `""`.
 ## Example
 
 ```lynx
-global setup(){ import("toml"); import("json"); }
+fn setup(){ import("toml"); import("json"); }
 
-global main(){
+fn main(){
     str text = "answer = 42\nname = \"lynxer\"\n[server]\nhost = \"localhost\"\n";
 
     // The whole document as JSON, and a single value.
-    println(global.toml.tomlParse(text));
-    println(global.toml.tomlGet(text, "server.host"));
+    println(toml.tomlParse(text));
+    println(toml.tomlGet(text, "server.host"));
 
     // Build a document from JSON, including tagged TOML datetimes.
-    println(global.toml.tomlSerialize("{\"answer\":42,\"name\":\"lynxer\"}"));
+    println(toml.tomlSerialize("{\"answer\":42,\"name\":\"lynxer\"}"));
 }
 ```
 

@@ -5,7 +5,7 @@ Run shell commands in parallel.
 **Backend:** native + pure — `stdlib/multiprocessing.so`
 (`stdlib/multiprocessing.cpp`) runs the commands; `stdlib/multiprocessing.lynx`
 reads the results back into Lynxer lists.
-**Import:** `import("multiprocessing")` → `global.multiprocessing.*`
+**Import:** `import("multiprocessing")` → `multiprocessing.*`
 
 Commands run in worker threads, each spawning its own shell subprocess. Results
 are always returned in input order, whatever order they finish in. A command's
@@ -39,14 +39,14 @@ handles return their invalid-handle sentinels.
 ## Example
 
 ```lynx
-global setup(){ import("multiprocessing"); }
+fn setup(){ import("multiprocessing"); }
 
-global main(){
+fn main(){
     list commands = listPush(listPush(listRepeat("", 0), "printf a"), "printf b");
-    println(global.multiprocessing.runParallel(commands));
+    println(multiprocessing.runParallel(commands));
 
     list items = listPush(listPush(listRepeat("", 0), "x"), "y");
-    println(global.multiprocessing.mapShell("printf {}", items));
+    println(multiprocessing.mapShell("printf {}", items));
 }
 ```
 

@@ -21,26 +21,26 @@ game-oriented layer over the same backend (sprites, scenes, tilemaps, physics);
 the two do not share state and can be imported together.
 
 ```lynx
-global setup(){ import("graphics"); }
+fn setup(){ import("graphics"); }
 
-global onStart(){
-    global.graphics.loadFont("assets/font.ttf");
+fn onStart(){
+    graphics.loadFont("assets/font.ttf");
 }
 
-global onUpdate(float dt){ }
+fn onUpdate(float dt){ }
 
-global onDraw(){
-    global.graphics.clearBackground(20, 20, 30, 255);
-    global.graphics.drawCircle(160.0, 120.0, 40.0, 220, 80, 80);
-    global.graphics.drawText("hello", 8.0, 24.0, 24.0, 255, 255, 255);
+fn onDraw(){
+    graphics.clearBackground(20, 20, 30, 255);
+    graphics.drawCircle(160.0, 120.0, 40.0, 220, 80, 80);
+    graphics.drawText("hello", 8.0, 24.0, 24.0, 255, 255, 255);
 }
 
-global main(){
-    global.graphics.init("demo", 800, 600);
-    global.graphics.setStartCallback("onStart");
-    global.graphics.setUpdateCallback("onUpdate");
-    global.graphics.setDrawCallback("onDraw");
-    global.graphics.run();
+fn main(){
+    graphics.init("demo", 800, 600);
+    graphics.setStartCallback("onStart");
+    graphics.setUpdateCallback("onUpdate");
+    graphics.setDrawCallback("onDraw");
+    graphics.run();
 }
 ```
 

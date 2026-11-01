@@ -2,11 +2,11 @@
 Fixture for the per-user configuration, data and cache roots. Portable: the
 paths differ per host, so only shape and distinctness are asserted.
 ////
-global setup(){ import("os"); }
+fn setup(){ import("os"); }
 
-global main(){
-    println(returnLength(global.os.configDir()) > 0);
-    println(returnLength(global.os.dataDir()) > 0);
-    println(returnLength(global.os.cacheDir()) > 0);
-    println(global.os.configDir() isnt global.os.dataDir());
+fn main(){
+    println(returnLength(os.configDir()) > 0);
+    println(returnLength(os.dataDir()) > 0);
+    println(returnLength(os.cacheDir()) > 0);
+    println(os.configDir() isnt os.dataDir());
 }

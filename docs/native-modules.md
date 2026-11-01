@@ -47,13 +47,13 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
 Import a shared library from `setup()` like any other module:
 
 ```lynx
-global setup() {
+fn setup() {
     import("mylib.so");
 }
 
-global main() {
-    println(global.mylib.version);   // a registered constant
-    println(global.mylib.add(2, 3)); // a registered function
+fn main() {
+    println(mylib.version);   // a registered constant
+    println(mylib.add(2, 3)); // a registered function
 }
 ```
 

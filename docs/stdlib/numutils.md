@@ -5,7 +5,7 @@ Exact decimal and rational (fraction) arithmetic.
 **Backend:** native — `stdlib/numutils.so`, built from the Rust crate
 `rust/numutils` over [`rust_decimal`](https://docs.rs/rust_decimal) and
 [`num-rational`](https://docs.rs/num-rational).
-**Import:** `import("numutils")` → `global.numutils.*`
+**Import:** `import("numutils")` → `numutils.*`
 
 ## Why
 
@@ -99,14 +99,14 @@ normalized through `fractionToFraction` first.
 ## Example
 
 ```lynx
-global setup(){ import("numutils"); }
+fn setup(){ import("numutils"); }
 
-global main(){
-    println(global.numutils.decimalAdd(0.1, 0.2));        // 0.3
-    println(global.numutils.decimalMul("0.1", "0.2"));    // 0.02
-    println(global.numutils.fraction(1, 3));              // 1/3
-    println(global.numutils.fractionAdd("1/3", "1/6"));   // 1/2
-    println(global.numutils.fractionToDecimal("1/3", 6)); // 0.333333
+fn main(){
+    println(numutils.decimalAdd(0.1, 0.2));        // 0.3
+    println(numutils.decimalMul("0.1", "0.2"));    // 0.02
+    println(numutils.fraction(1, 3));              // 1/3
+    println(numutils.fractionAdd("1/3", "1/6"));   // 1/2
+    println(numutils.fractionToDecimal("1/3", 6)); // 0.333333
 }
 ```
 

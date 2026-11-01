@@ -1,13 +1,13 @@
 ////
 Client half of winpipe.lynx. Launched by the parent; not a standalone fixture.
 ////
-global setup(){ import("winpipe"); }
+fn setup(){ import("winpipe"); }
 
-global main(){
+fn main(){
     str name = "lynxer-winpipe-fixture";
-    int client = global.winpipe.open(name);
+    int client = winpipe.open(name);
     println("client-open=" + strOf(client > 0));
-    println("client-write=" + strOf(global.winpipe.write(client, "ping") is 4));
-    println("client-read=" + global.winpipe.read(client, 16));
-    global.winpipe.close(client);
+    println("client-write=" + strOf(winpipe.write(client, "ping") is 4));
+    println("client-read=" + winpipe.read(client, 16));
+    winpipe.close(client);
 }

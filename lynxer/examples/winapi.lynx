@@ -6,9 +6,9 @@ It asserts shape (`> 0`, lengths) rather than exact values, so the expected
 output is stable across machines.
 ////
 
-global setup(){ syscalls("winAPI", "__ARCH__"); }
+fn setup(){ syscalls("winAPI", "__ARCH__"); }
 
-global main(){
+fn main(){
     println(winAPI.getProcessId() > 0);
     println(returnLength(winAPI.getCurrentDirectory()) > 0);
     println(returnLength(winAPI.getComputerName()) > 0);

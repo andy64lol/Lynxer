@@ -69,12 +69,12 @@ namespace so registered function pointers cannot dangle.
 Import the library from `setup()` with any of the `import` forms:
 
 ```lynx
-global setup(){
+fn setup(){
     importAs("math.so", "nativeMath");
 }
 
-global main(){
-    println(global.nativeMath.abs(-3));
+fn main(){
+    println(nativeMath.abs(-3));
 }
 ```
 
@@ -420,10 +420,10 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
 ```
 
 ```lynx
-global setup(){ importAs("pair.so", "pair"); }
-global main(){
-    println(global.pair.sum(2, 3));
-    println(global.pair.label("items", 4));
+fn setup(){ importAs("pair.so", "pair"); }
+fn main(){
+    println(pair.sum(2, 3));
+    println(pair.label("items", 4));
 }
 ```
 

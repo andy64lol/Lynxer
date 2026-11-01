@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     ///
         This block is ignored.
         It can span multiple lines.

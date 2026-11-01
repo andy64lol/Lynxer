@@ -4,9 +4,9 @@ the working directory, which it removes again, so it runs from any directory.
 The `filesystemStat` result carries wall-clock timestamps, so only its
 deterministic fields are asserted.
 ////
-global setup(){ import("json"); }
+fn setup(){ import("json"); }
 
-global main(){
+fn main(){
     str dir = ".lynxer_scratch_fs";
     str file = dir + "/notes.txt";
     str link = dir + "/notes.link";
@@ -28,19 +28,19 @@ global main(){
 
     // Stat reports type/size/mode; list is sorted.
     str info = filesystemStat(file);
-    println(global.json.jsonGet(info, "type"), " ", global.json.jsonGet(info, "size"), " ", global.json.jsonGet(info, "mode"));
+    println(json.jsonGet(info, "type"), " ", json.jsonGet(info, "size"), " ", json.jsonGet(info, "mode"));
     println(filesystemList(dir));
 
     // Symlinks are reported as symlinks, not followed.
     println(filesystemLink(file, link, true));
     println(filesystemReadLink(link));
-    println(global.json.jsonGet(filesystemStat(link), "type"));
+    println(json.jsonGet(filesystemStat(link), "type"));
     println(filesystemRemove(link));
 
     println(filesystemRename(file, dir + "/renamed.txt"));
     println(filesystemList(dir));
     println(filesystemChmod(dir + "/renamed.txt", 384));
-    println(global.json.jsonGet(filesystemStat(dir + "/renamed.txt"), "mode"));
+    println(json.jsonGet(filesystemStat(dir + "/renamed.txt"), "mode"));
 
     // Every failure is a runtime error preserving the operation and errno.
     try { filesystemOpen(file, "x"); } catch(str e) { println("mode: ", e); }

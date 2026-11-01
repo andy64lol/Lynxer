@@ -3,16 +3,16 @@ Fixture for the colorlib stdlib (pure Lynxer, no shared library). Raw escape
 sequences are not printed; the assertions compare styled output against the
 low-level ansi() helper instead.
 ////
-global setup(){ import("colorlib"); }
+fn setup(){ import("colorlib"); }
 
-global main(){
-    println(global.colorlib.red("x") is global.colorlib.ansi("x", "31"));
-    println(global.colorlib.bgBlue("x") is global.colorlib.ansi("x", "44"));
-    println(global.colorlib.bold("x") is global.colorlib.ansi("x", "1"));
-    println(global.colorlib.error("x") is global.colorlib.ansi("x", "1;31"));
-    println(global.colorlib.success("x") is global.colorlib.ansi("x", "1;32"));
-    println(returnLength(global.colorlib.reset()) > 0);
-    println(returnLength(global.colorlib.clearScreen()) > 0);
-    println(returnLength(global.colorlib.cursorHome()) > 0);
-    println(global.colorlib.ansi("x", "90") isnt global.colorlib.ansi("x", "30"));
+fn main(){
+    println(colorlib.red("x") is colorlib.ansi("x", "31"));
+    println(colorlib.bgBlue("x") is colorlib.ansi("x", "44"));
+    println(colorlib.bold("x") is colorlib.ansi("x", "1"));
+    println(colorlib.error("x") is colorlib.ansi("x", "1;31"));
+    println(colorlib.success("x") is colorlib.ansi("x", "1;32"));
+    println(returnLength(colorlib.reset()) > 0);
+    println(returnLength(colorlib.clearScreen()) > 0);
+    println(returnLength(colorlib.cursorHome()) > 0);
+    println(colorlib.ansi("x", "90") isnt colorlib.ansi("x", "30"));
 }

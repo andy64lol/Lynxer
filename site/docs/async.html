@@ -140,16 +140,16 @@
 <p>Lynxer runs Lynxer code under a single global interpreter lock (the GIL): exactly one thread evaluates code at a time. Within that model, <code>async*</code> now provides <strong>real concurrency</strong> — <code>asyncRun</code> starts a function on a worker thread, <code>await</code> joins it, and every blocking or joining operation releases the GIL so the other work makes progress.</p>
 <h2 id="tasks">Tasks</h2>
 <p><code>asyncRun(function, arguments?)</code> starts <code>function(arguments...)</code> on a worker thread and returns an integer <strong>task handle</strong> immediately:</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global fetch(int n){
+fn fetch(int n){
     asyncSleep(0.2);       // releases the GIL while it sleeps
     return n + 1;
 }
 
-global main(){
-    int a = asyncRun(global.fetch, [1]);   // returns at once
-    int b = asyncRun(global.fetch, [2]);
+fn main(){
+    int a = asyncRun(fetch, [1]);   // returns at once
+    int b = asyncRun(fetch, [2]);
     println(await a);                      // 2, after joining a
     println(await b);                      // 3
 }</code></pre>
@@ -157,10 +157,10 @@ global main(){
 <p>A task cannot await itself (that is reported, not deadlocked). Two tasks that await each other still deadlock, the same as two threads that join each other.</p>
 <h2 id="asyncgather"><code>asyncGather</code></h2>
 <p><code>asyncGather(a, b, ...)</code> joins every argument that is a task handle and returns the results as a list. Because arguments are evaluated before the call and <code>asyncRun</code> returns after spawning, the tasks start together:</p>
-<pre><code>any results = asyncGather(asyncRun(global.fetch, [1]), asyncRun(global.fetch, [2]));
+<pre><code>any results = asyncGather(asyncRun(fetch, [1]), asyncRun(fetch, [2]));
 // two 200 ms sleeps finish in a little over 200 ms, not 400 ms</code></pre>
-<h2 id="local-async-sub-functions">Local async sub-functions</h2>
-<p>Inside a <code>global</code> function you may declare a local sub-function with <code>async</code> and call it as <code>async.name(args)</code>:</p>
+<h2 id="nested-async-sub-functions">Nested async sub-functions</h2>
+<p>Inside an <code>fn</code> function you may declare a local sub-function with <code>async</code> and call it as <code>async.name(args)</code>:</p>
 <pre><code>async greet(str name) {
     await asyncSleep(0.01);
     return &quot;hi &quot; + name;
@@ -183,7 +183,7 @@ println(async.greet(&quot;Ada&quot;));   // hi Ada</code></pre>
 <p><code>asyncPollWait</code> returns a JSON array of event records; each has a <code>kind</code> (<code>io</code>, <code>timer</code>, <code>wakeup</code>) and a <code>token</code>, and <code>io</code> records carry <code>fd</code> and an <code>events</code> array.</p>
 <h2 id="threads-and-interleaving">Threads and interleaving</h2>
 <p><code>nativeThreadStart</code> runs a function on a worker thread (see <a href="builtins.html">builtins</a>). Because of the GIL, a worker evaluates only while the thread that holds the GIL is not evaluating — which is exactly what happens during joins, blocking sync waits, <code>asyncSleep</code>, <code>asyncPollWait</code>, and the explicit <code>nativeThreadYield(seconds?)</code>. So a program that wants a worker to make progress while the main body is doing other work can yield:</p>
-<pre><code>int handle = nativeThreadStart(global.worker, []);
+<pre><code>int handle = nativeThreadStart(worker, []);
 while (not done) { nativeThreadYield(0.01); }
 nativeThreadJoin(handle);</code></pre>
 <p>The GIL is deliberate: global state is not synchronized, so letting two threads evaluate at once would be a data race. The trade-off is that CPU-bound tasks do not run in parallel; use <code>nativeThreadYield</code> to interleave them.</p>

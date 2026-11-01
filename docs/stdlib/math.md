@@ -4,7 +4,7 @@ Integer, floating-point, number-theory, rounding, logarithmic and
 trigonometric helpers.
 
 **Backend:** native — `stdlib/math.so`, built from `stdlib/math.cpp` over
-`<cmath>`. **Import:** `import("math")` → `global.math.*`
+`<cmath>`. **Import:** `import("math")` → `math.*`
 
 ## Integers and number theory
 
@@ -63,7 +63,7 @@ trigonometric helpers.
 | `randFloat(float low, float high) -> float` | Uniform float in `[low, high]` |
 
 `maxInt` and `minInt` are exposed as functions returning the largest and
-smallest 64-bit integers: `global.math.maxInt()` / `global.math.minInt()`.
+smallest 64-bit integers: `math.maxInt()` / `math.minInt()`.
 
 ## Statistics and vector helpers
 
@@ -97,13 +97,13 @@ list-returning helpers.
 ## Example
 
 ```lynx
-global setup(){ import("math"); }
+fn setup(){ import("math"); }
 
-global main(){
-    println(global.math.pi());
-    println(global.math.mean(seqFromTo(1, 5, 1)));   // [1,2,3,4] -> 2.5
-    println(global.math.linspace(0.0, 1.0, 5));
-    println(global.math.cumsum(seqFromTo(1, 4, 1)));
+fn main(){
+    println(math.pi());
+    println(math.mean(seqFromTo(1, 5, 1)));   // [1,2,3,4] -> 2.5
+    println(math.linspace(0.0, 1.0, 5));
+    println(math.cumsum(seqFromTo(1, 4, 1)));
 }
 ```
 

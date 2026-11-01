@@ -10,15 +10,15 @@ failed operation.
 > QOI, TGA, PNM, HDR, OpenEXR, and farbfeld, and rasterises SVG.
 
 ```lynx
-global setup(){ import("image"); }
+fn setup(){ import("image"); }
 
-global main(){
-    int picture = global.image.create(64, 64, "RGBA", 20, 30, 40);
-    global.image.setPixel(picture, 0, 0, 255, 0, 0);
-    println(global.image.getPixel(picture, 0, 0));
-    println(global.image.getWidth(picture), "x", global.image.getHeight(picture));
-    global.image.save(picture, "picture.png");
-    global.image.close(picture);
+fn main(){
+    int picture = image.create(64, 64, "RGBA", 20, 30, 40);
+    image.setPixel(picture, 0, 0, 255, 0, 0);
+    println(image.getPixel(picture, 0, 0));
+    println(image.getWidth(picture), "x", image.getHeight(picture));
+    image.save(picture, "picture.png");
+    image.close(picture);
 }
 ```
 

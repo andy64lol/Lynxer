@@ -6,9 +6,9 @@ throughout its declaring source file, including before its declaration:
 ```lynx
 macro printAll!(*args){println(*args)}
 
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     printAll!("value", 42);
 }
 ```
@@ -38,23 +38,23 @@ brace signature as a function. In the macro template, `{{name}}` inserts the
 caller's block, including its braces:
 
 ```lynx
-func apply(int value){body}{
+fn apply(int value){body}{
     exec(value){{body}}
 }
 
 macro applyNow!(*args){body}{apply(*args){{body}}}
 
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     applyNow!(42){
         println(value);
     };
 }
 ```
 
-Functions declared with `global`, `func`, or `local` can also receive
-caller-supplied codeblocks. Their parameters are declared as `{name}` after
-their regular parameters and are invoked with `exec(...){{name}}`; callers
-provide inline blocks at the call site. See [functions.md](functions.md) and
-[codeblocks.md](codeblocks.md).
+Any `fn` declaration can receive caller-supplied codeblocks. Their parameters
+are declared as `{name}` after the regular parameters and invoked with
+`exec(...){{name}}`; callers provide inline blocks at the call site. The legacy
+`global`, `func`, and `local` declaration forms also support codeblocks, but are
+deprecated. See [functions.md](functions.md) and [codeblocks.md](codeblocks.md).

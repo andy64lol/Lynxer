@@ -6,9 +6,9 @@ program closes them or when the process exits. Errors include the original
 operating-system errno.
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int client = networkingOpen("tcp");
     networkingConnect(client, "127.0.0.1", 9000);
     networkingSend(client, "hello");

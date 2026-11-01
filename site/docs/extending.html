@@ -168,17 +168,17 @@ Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
 useful and do not leave placeholder prose in a shipped module.
 ////
 
-global setup(){ importAs(&quot;example.so&quot;, &quot;nativeExample&quot;); }
+fn setup(){ importAs(&quot;example.so&quot;, &quot;nativeExample&quot;); }
 
 // Double the value. Returns the result, or -1 on failure.
-global doubleIt(int value) -&gt; int { return global.nativeExample.doubleIt(value); }
+fn doubleIt(int value) -&gt; int { return nativeExample.doubleIt(value); }
 
 // Join two words. Returns the joined string.
-global join(str left, str right) -&gt; str { return global.nativeExample.join(left, right); }</code></pre>
+fn join(str left, str right) -&gt; str { return nativeExample.join(left, right); }</code></pre>
 <p>Rules the wrapper must follow:</p>
 <ul>
 <li><strong><code>setup()</code> is the only import.</strong> Import the backend once, with <code>importAs(&quot;&lt;name&gt;.so&quot;, &quot;native&lt;Name&gt;&quot;)</code>.</li>
-<li><strong>One <code>global</code> function per operation</strong>, named as the user calls it.</li>
+<li><strong>One <code>fn</code> function per operation</strong>, named as the user calls it.</li>
 <li><strong>Convert the backend's flat results here.</strong> A backend returns <code>int64</code> <code>0</code>/<code>1</code> for booleans, so the wrapper writes <code>!= 0</code> and declares <code>-&gt; bool</code>.</li>
 <li><strong>Never expose a backend type.</strong> No crate names, no pointers, no structs.</li>
 <li><strong>Do not add logic.</strong> If the wrapper starts computing, the calculation belongs in the backend where it can be tested and reused.</li>

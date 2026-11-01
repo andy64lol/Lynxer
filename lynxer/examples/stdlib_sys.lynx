@@ -3,24 +3,24 @@
 line, so entry 0 is this script and there is nothing after it when the suite
 runs the fixture directly. Only invocation-independent facts are asserted.
 ////
-global setup(){ import("sys"); }
+fn setup(){ import("sys"); }
 
-global main(){
+fn main(){
     // The program's own command line always has at least the script itself.
-    println(global.sys.argCount() > 0);
-    println(global.sys.getArg(0) isnt "");
-    println(global.sys.getArg(-1) is "");
-    println(global.sys.getArg(999) is "");
+    println(sys.argCount() > 0);
+    println(sys.getArg(0) isnt "");
+    println(sys.getArg(-1) is "");
+    println(sys.getArg(999) is "");
 
-    println(global.sys.platform() isnt "");
-    println(global.sys.architecture() isnt "");
-    println(global.sys.implementation());
-    println(global.sys.versionInfo());
-    println(global.sys.cpuCount() > 0);
-    println(global.sys.pageSize() > 0);
-    println(global.sys.memoryTotal() > 0);
-    println(global.sys.memoryAvailable() >= 0);
-    println(global.sys.uptime() >= 0);
-    println(global.sys.bootTime() >= 0);
-    println(global.sys.loadAverage() isnt "");
+    println(sys.platform() isnt "");
+    println(sys.architecture() isnt "");
+    println(sys.implementation());
+    println(sys.versionInfo());
+    println(sys.cpuCount() > 0);
+    println(sys.pageSize() > 0);
+    println(sys.memoryTotal() > 0);
+    println(sys.memoryAvailable() >= 0);
+    println(sys.uptime() >= 0);
+    println(sys.bootTime() >= 0);
+    println(sys.loadAverage() isnt "");
 }

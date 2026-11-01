@@ -3,7 +3,7 @@
 Runtime, process and platform information.
 
 **Backend:** native — `stdlib/sys.so`, built from `stdlib/sys.cpp`.
-**Import:** `import("sys")` → `global.sys.*`
+**Import:** `import("sys")` → `sys.*`
 
 | Function | Signature | Notes |
 | --- | --- | --- |
@@ -50,13 +50,13 @@ the table rather than fabricating a result.
 ## Example
 
 ```lynx
-global setup(){ import("sys"); }
+fn setup(){ import("sys"); }
 
-global main(){
-    println(global.sys.platform());
-    println(global.sys.architecture());
-    println(global.sys.version());
-    println(global.sys.argCount());
+fn main(){
+    println(sys.platform());
+    println(sys.architecture());
+    println(sys.version());
+    println(sys.argCount());
 }
 ```
 

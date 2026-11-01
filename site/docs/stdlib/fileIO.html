@@ -138,7 +138,7 @@
         </div>
 <h1 id="fileio">fileIO</h1>
 <p>File reading, writing, copying, moving and metadata helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/fileIO.so</code>, built from <code>stdlib/fileIO.cpp</code> over <code>&lt;fstream&gt;</code> and <code>&lt;filesystem&gt;</code>. <strong>Import:</strong> <code>import(&quot;fileIO&quot;)</code> → <code>global.fileIO.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/fileIO.so</code>, built from <code>stdlib/fileIO.cpp</code> over <code>&lt;fstream&gt;</code> and <code>&lt;filesystem&gt;</code>. <strong>Import:</strong> <code>import(&quot;fileIO&quot;)</code> → <code>fileIO.*</code></p>
 <p>Functions return <code>&quot;&quot;</code>, <code>false</code> or <code>-1</code> on error.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
@@ -163,13 +163,13 @@
 </table>
 <p><code>readLines</code> splits the raw file content on <code>\n</code>, so a file that ends with a newline produces a trailing empty element — by design.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;fileIO&quot;); }
+<pre><code>fn setup(){ import(&quot;fileIO&quot;); }
 
-global main(){
-    global.fileIO.writeFile(&quot;/tmp/notes.txt&quot;, &quot;alpha\nbeta\n&quot;);
-    println(global.fileIO.readLines(&quot;/tmp/notes.txt&quot;));
-    println(global.fileIO.countLines(&quot;/tmp/notes.txt&quot;));
-    println(global.fileIO.readFileLines(&quot;/tmp/notes.txt&quot;, &quot; | &quot;));
+fn main(){
+    fileIO.writeFile(&quot;/tmp/notes.txt&quot;, &quot;alpha\nbeta\n&quot;);
+    println(fileIO.readLines(&quot;/tmp/notes.txt&quot;));
+    println(fileIO.countLines(&quot;/tmp/notes.txt&quot;));
+    println(fileIO.readFileLines(&quot;/tmp/notes.txt&quot;, &quot; | &quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

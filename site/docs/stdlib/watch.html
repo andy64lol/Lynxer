@@ -139,7 +139,7 @@
 <h1 id="watch">watch</h1>
 <p>Filesystem change events over inotify (Linux), kqueue <code>EVFILT_VNODE</code> (macOS and the BSDs) or <code>ReadDirectoryChangesW</code> (Windows).</p>
 <p><strong>Backend:</strong> native — <code>stdlib/watch.so</code>, built from the Rust crate <code>rust/watch</code>.</p>
-<p><strong>Import:</strong> <code>import(&quot;watch&quot;)</code> → <code>global.watch.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;watch&quot;)</code> → <code>watch.*</code></p>
 <h2 id="how-events-reach-lynxer">How events reach Lynxer</h2>
 <ol>
 <li><code>watchAdd</code> returns an integer handle.</li>
@@ -160,25 +160,25 @@
 <tr><td><code>watchClose</code></td><td><code>(int handle)</code></td><td><code>true</code> / <code>false</code> (alias of <code>watchRemove</code>)</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;watch&quot;); import(&quot;fileIO&quot;); import(&quot;os&quot;); }
+<pre><code>fn setup(){ import(&quot;watch&quot;); import(&quot;fileIO&quot;); import(&quot;os&quot;); }
 
-global main(){
+fn main(){
     str root = &quot;watched&quot;;
-    if(global.os.exists(root)){ global.os.rmTree(root); }
-    global.os.mkdir(root);
+    if(os.exists(root)){ os.rmTree(root); }
+    os.mkdir(root);
 
-    int handle = global.watch.watchAdd(root, true);
+    int handle = watch.watchAdd(root, true);
 
     // Block until events are ready (the lock is released while it waits),
     // then drain. On POSIX you can alternatively register the descriptor with
-    // `asyncPollRegister(global.watch.watchFd(handle))` and wait with
+    // `asyncPollRegister(watch.watchFd(handle))` and wait with
     // `asyncPollWait(1000)`.
-    global.fileIO.writeFile(root + &quot;/a.txt&quot;, &quot;hi&quot;);
-    println(global.watch.watchWait(handle, 1000));
-    println(global.watch.watchDrain(handle));
+    fileIO.writeFile(root + &quot;/a.txt&quot;, &quot;hi&quot;);
+    println(watch.watchWait(handle, 1000));
+    println(watch.watchDrain(handle));
 
-    println(global.watch.watchClose(handle));
-    global.os.rmTree(root);
+    println(watch.watchClose(handle));
+    os.rmTree(root);
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

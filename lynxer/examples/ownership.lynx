@@ -8,9 +8,9 @@ constant cannot be moved, and so on. Every printed value is a property or an
 error message, so the expected output is stable on amd64 and arm64.
 ////
 
-global setup() {}
+fn setup() {}
 
-global main() {
+fn main() {
     println("== transfer ==");
     int source = 42;
     int destination = 0;

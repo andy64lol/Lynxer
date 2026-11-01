@@ -12,16 +12,16 @@ work makes progress.
 thread and returns an integer **task handle** immediately:
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global fetch(int n){
+fn fetch(int n){
     asyncSleep(0.2);       // releases the GIL while it sleeps
     return n + 1;
 }
 
-global main(){
-    int a = asyncRun(global.fetch, [1]);   // returns at once
-    int b = asyncRun(global.fetch, [2]);
+fn main(){
+    int a = asyncRun(fetch, [1]);   // returns at once
+    int b = asyncRun(fetch, [2]);
     println(await a);                      // 2, after joining a
     println(await b);                      // 3
 }
@@ -42,13 +42,13 @@ the results as a list. Because arguments are evaluated before the call and
 `asyncRun` returns after spawning, the tasks start together:
 
 ```lynx
-any results = asyncGather(asyncRun(global.fetch, [1]), asyncRun(global.fetch, [2]));
+any results = asyncGather(asyncRun(fetch, [1]), asyncRun(fetch, [2]));
 // two 200 ms sleeps finish in a little over 200 ms, not 400 ms
 ```
 
-## Local async sub-functions
+## Nested async sub-functions
 
-Inside a `global` function you may declare a local sub-function with `async` and
+Inside an `fn` function you may declare a local sub-function with `async` and
 call it as `async.name(args)`:
 
 ```lynx
@@ -90,7 +90,7 @@ explicit `nativeThreadYield(seconds?)`. So a program that wants a worker to make
 progress while the main body is doing other work can yield:
 
 ```lynx
-int handle = nativeThreadStart(global.worker, []);
+int handle = nativeThreadStart(worker, []);
 while (not done) { nativeThreadYield(0.01); }
 nativeThreadJoin(handle);
 ```

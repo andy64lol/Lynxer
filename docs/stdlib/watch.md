@@ -5,7 +5,7 @@ the BSDs) or `ReadDirectoryChangesW` (Windows).
 
 **Backend:** native — `stdlib/watch.so`, built from the Rust crate `rust/watch`.
 
-**Import:** `import("watch")` → `global.watch.*`
+**Import:** `import("watch")` → `watch.*`
 
 ## How events reach Lynxer
 
@@ -38,25 +38,25 @@ A failure is a scalar sentinel: `watchAdd`, `watchFd` and `watchWait` yield `-1`
 ## Example
 
 ```lynx
-global setup(){ import("watch"); import("fileIO"); import("os"); }
+fn setup(){ import("watch"); import("fileIO"); import("os"); }
 
-global main(){
+fn main(){
     str root = "watched";
-    if(global.os.exists(root)){ global.os.rmTree(root); }
-    global.os.mkdir(root);
+    if(os.exists(root)){ os.rmTree(root); }
+    os.mkdir(root);
 
-    int handle = global.watch.watchAdd(root, true);
+    int handle = watch.watchAdd(root, true);
 
     // Block until events are ready (the lock is released while it waits),
     // then drain. On POSIX you can alternatively register the descriptor with
-    // `asyncPollRegister(global.watch.watchFd(handle))` and wait with
+    // `asyncPollRegister(watch.watchFd(handle))` and wait with
     // `asyncPollWait(1000)`.
-    global.fileIO.writeFile(root + "/a.txt", "hi");
-    println(global.watch.watchWait(handle, 1000));
-    println(global.watch.watchDrain(handle));
+    fileIO.writeFile(root + "/a.txt", "hi");
+    println(watch.watchWait(handle, 1000));
+    println(watch.watchDrain(handle));
 
-    println(global.watch.watchClose(handle));
-    global.os.rmTree(root);
+    println(watch.watchClose(handle));
+    os.rmTree(root);
 }
 ```
 

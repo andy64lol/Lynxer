@@ -4,7 +4,7 @@ Filesystem, process, environment and platform helpers.
 
 **Backend:** native — `stdlib/os.so`, built from `stdlib/os.cpp` over
 `<filesystem>` and the host APIs (POSIX or Win32). **Import:** `import("os")` →
-`global.os.*`
+`os.*`
 
 Functions return safe defaults on failure (`false`, `""`, `-1`, an empty list).
 
@@ -71,13 +71,13 @@ introspect, and a standing `""`/`"Lynxer"` value was a lie. See
 ## Example
 
 ```lynx
-global setup(){ import("os"); }
+fn setup(){ import("os"); }
 
-global main(){
-    println(global.os.getcwd());
-    list entries = global.os.listdir(".");
+fn main(){
+    println(os.getcwd());
+    list entries = os.listdir(".");
     println(returnLength(entries));
-    println(global.os.getSystemName());
+    println(os.getSystemName());
 }
 ```
 

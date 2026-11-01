@@ -139,7 +139,7 @@
 <h1 id="xml">xml</h1>
 <p>XML parsing and serialization.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/xml.so</code>, built from the Rust crate <code>rust/xml</code> over <code>quick-xml</code>.</p>
-<p><strong>Import:</strong> <code>import(&quot;xml&quot;)</code> → <code>global.xml.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;xml&quot;)</code> → <code>xml.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
 <p>An XML document maps onto a <strong>JSON element tree</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>):</p>
 <pre><code>{&quot;name&quot;: &quot;root&quot;, &quot;attributes&quot;: {&quot;a&quot;: &quot;1&quot;}, &quot;text&quot;: &quot;hi&quot;, &quot;children&quot;: [ ... ]}</code></pre>
@@ -155,17 +155,17 @@
 <tr><td><code>xmlUnescape</code></td><td><code>(str text)</code></td><td>the text with entities decoded, or <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;xml&quot;); }
+<pre><code>fn setup(){ import(&quot;xml&quot;); }
 
-global main(){
+fn main(){
     str text = &quot;&lt;a x=\&quot;1\&quot;&gt;hi&lt;b/&gt;&lt;/a&gt;&quot;;
 
-    println(global.xml.xmlParse(text));
-    println(global.xml.xmlValid(text));
-    println(global.xml.xmlEscape(&quot;a&lt;b&amp;c&quot;));
+    println(xml.xmlParse(text));
+    println(xml.xmlValid(text));
+    println(xml.xmlEscape(&quot;a&lt;b&amp;c&quot;));
 
     // Parse then serialize is a round trip.
-    println(global.xml.xmlSerialize(global.xml.xmlParse(text)));
+    println(xml.xmlSerialize(xml.xmlParse(text)));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

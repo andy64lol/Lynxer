@@ -718,7 +718,7 @@ expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	output="$$($(CLYX) $(LYNXER_MODULE_ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \
 	set -e; \
-expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of range"; \
+expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:19: charAt() index is out of range"; \
 	case "$$output" in "$$expected"*) ;; \
 	*) echo "expected module-located error: $$expected"; \
 	echo "received (status $$status): $$output"; exit 1;; \

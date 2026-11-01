@@ -139,7 +139,7 @@
 <h1 id="compress">compress</h1>
 <p>gzip, zlib, zstd, bzip2, brotli and lz4 streams, plus ZIP and TAR archives.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/compress.so</code>, built from the Rust crate <code>rust/compress</code> over <code>flate2</code>, <code>zstd</code>, <code>bzip2</code>, <code>brotli</code>, <code>lz4_flex</code>, <code>zip</code> and <code>tar</code>.</p>
-<p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>global.compress.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>compress.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
 <p>An in-memory <strong><code>&lt;codec&gt;Compress</code></strong> takes <code>bytes</code> and returns <code>bytes</code>, and its <strong><code>&lt;codec&gt;Decompress</code></strong> does the same, so a payload that is not valid UTF-8 is representable. The <strong><code>*File</code></strong> operations work on paths and read and write the bytes themselves.</p>
 <p>A decompress is capped at <strong>64 MiB</strong> of output, for the in-memory stream operations and the <code>*File</code> operations alike; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded. Archive extraction is capped too — a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and a total entry budget on <code>tarExtract</code> and <code>tarGzExtract</code> — so a crafted archive cannot exhaust memory or disk.</p>
@@ -173,31 +173,31 @@
 <tr><td><code>tarGzExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;compress&quot;); import(&quot;fileIO&quot;); }
+<pre><code>fn setup(){ import(&quot;compress&quot;); import(&quot;fileIO&quot;); }
 
-global main(){
+fn main(){
     str text = &quot;the quick brown fox jumps over the lazy dog&quot;;
     bytes payload = bytesOf(text);
 
     // In-memory round trip.
-    bytes packed = global.compress.gzipCompress(payload);
-    println(bytesToStr(global.compress.gzipDecompress(packed)) is text);
+    bytes packed = compress.gzipCompress(payload);
+    println(bytesToStr(compress.gzipDecompress(packed)) is text);
 
     // File round trip (binary-safe).
-    global.fileIO.writeFile(&quot;data.txt&quot;, text);
-    println(global.compress.zstdCompressFile(&quot;data.txt&quot;, &quot;data.zst&quot;));
-    println(global.compress.zstdDecompressFile(&quot;data.zst&quot;, &quot;data.out&quot;));
-    println(global.fileIO.readFile(&quot;data.out&quot;) is text);
+    fileIO.writeFile(&quot;data.txt&quot;, text);
+    println(compress.zstdCompressFile(&quot;data.txt&quot;, &quot;data.zst&quot;));
+    println(compress.zstdDecompressFile(&quot;data.zst&quot;, &quot;data.out&quot;));
+    println(fileIO.readFile(&quot;data.out&quot;) is text);
 
     // BZIP2 is supported too, when the dependency is compiled in.
-    bytes bzipPack = global.compress.bzip2Compress(bytesOf(text));
-    println(bytesToStr(global.compress.bzip2Decompress(bzipPack)) is text);
+    bytes bzipPack = compress.bzip2Compress(bytesOf(text));
+    println(bytesToStr(compress.bzip2Decompress(bzipPack)) is text);
 
     // Build a ZIP containing a file and an inline entry.
     str manifest = &quot;[{\&quot;name\&quot;:\&quot;a.txt\&quot;,\&quot;path\&quot;:\&quot;data.txt\&quot;},{\&quot;name\&quot;:\&quot;b.txt\&quot;,\&quot;base64\&quot;:\&quot;aGVsbG8=\&quot;}]&quot;;
-    println(global.compress.zipCreate(&quot;archive.zip&quot;, manifest));
-    println(global.compress.zipList(&quot;archive.zip&quot;));
-    println(global.compress.zipExtract(&quot;archive.zip&quot;, &quot;unpacked&quot;));
+    println(compress.zipCreate(&quot;archive.zip&quot;, manifest));
+    println(compress.zipList(&quot;archive.zip&quot;));
+    println(compress.zipExtract(&quot;archive.zip&quot;, &quot;unpacked&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

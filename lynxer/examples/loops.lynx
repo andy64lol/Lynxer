@@ -1,8 +1,8 @@
-global setup(){
+fn setup(){
     foreverDelay(0);
 }
 
-global main(){
+fn main(){
     int i = 0;
     while(i < 3){
         if(i is 1){

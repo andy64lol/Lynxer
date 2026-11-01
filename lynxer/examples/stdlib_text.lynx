@@ -1,48 +1,48 @@
 ////
 Fixture for the text stdlib, including the native Unicode backend.
 ////
-global setup(){ import("text"); }
+fn setup(){ import("text"); }
 
-global main(){
-    println(global.text.reverse("abc"));
-    println(global.text.repeat("ab", 3));
-    println(global.text.trim("  hi  "));
-    println(global.text.contains("hello", "ell"));
-    println(global.text.contains("hello", ""));
-    println(global.text.contains("hello", "z"));
-    println(global.text.startsWith("hello", "he"));
-    println(global.text.startsWith("hello", "lo"));
-    println(global.text.endsWith("hello", "lo"));
-    println(global.text.count("banana", "na"));
-    println(global.text.count("banana", ""));
-    println(global.text.replace("aaa", "a", "b"));
-    println(global.text.upper("abc"));
-    println(global.text.lower("ABC"));
-    println(global.text.upper("Straße"));
-    println(global.text.lower("İΣ"));
-    println(global.text.upperAscii("café"));
-    println(global.text.lowerAscii("ABC"));
-    println(global.text.isAlpha("café"));
-    println(global.text.isAlpha("é"));
-    println(global.text.isAlphaAscii("café"));
-    println(global.text.isNumeric("１２٣"));
-    println(global.text.isDigit("١"));
-    println(global.text.isNumericAscii("１２٣"));
-    println(global.text.isAlphaNumeric("café١"));
-    println(global.text.isAlphaNumericAscii("café١"));
-    println(global.text.isEmpty(""));
-    println(global.text.isEmpty("a"));
-    println(global.text.isBlank("  "));
-    println(global.text.isBlank(" a "));
+fn main(){
+    println(text.reverse("abc"));
+    println(text.repeat("ab", 3));
+    println(text.trim("  hi  "));
+    println(text.contains("hello", "ell"));
+    println(text.contains("hello", ""));
+    println(text.contains("hello", "z"));
+    println(text.startsWith("hello", "he"));
+    println(text.startsWith("hello", "lo"));
+    println(text.endsWith("hello", "lo"));
+    println(text.count("banana", "na"));
+    println(text.count("banana", ""));
+    println(text.replace("aaa", "a", "b"));
+    println(text.upper("abc"));
+    println(text.lower("ABC"));
+    println(text.upper("Straße"));
+    println(text.lower("İΣ"));
+    println(text.upperAscii("café"));
+    println(text.lowerAscii("ABC"));
+    println(text.isAlpha("café"));
+    println(text.isAlpha("é"));
+    println(text.isAlphaAscii("café"));
+    println(text.isNumeric("１２٣"));
+    println(text.isDigit("١"));
+    println(text.isNumericAscii("１２٣"));
+    println(text.isAlphaNumeric("café١"));
+    println(text.isAlphaNumericAscii("café١"));
+    println(text.isEmpty(""));
+    println(text.isEmpty("a"));
+    println(text.isBlank("  "));
+    println(text.isBlank(" a "));
 
     // Search, padding and splitting helpers.
-    println(global.text.indexOf("banana", "na"));
-    println(global.text.indexOf("abc", "z"));
-    println(global.text.spaces(3), "|");
-    println(global.text.zfill("42", 5), " ", global.text.zfill("-42", 5));
-    println(global.text.wordWrap("the quick brown fox", 9));
-    println(global.text.expandTabs("a\tb\tc", 4), "|");
-    println(global.text.splitFirst("a=b=c", "="), " ", global.text.splitFirst("abc", "="));
+    println(text.indexOf("banana", "na"));
+    println(text.indexOf("abc", "z"));
+    println(text.spaces(3), "|");
+    println(text.zfill("42", 5), " ", text.zfill("-42", 5));
+    println(text.wordWrap("the quick brown fox", 9));
+    println(text.expandTabs("a\tb\tc", 4), "|");
+    println(text.splitFirst("a=b=c", "="), " ", text.splitFirst("abc", "="));
 
     // Strings count code points, not bytes: one character is one code point,
     // so a non-ASCII string is handled as text rather than as its bytes.
@@ -50,8 +50,8 @@ global main(){
     println(returnLength(accented), " ", returnLength("plain"));
     println(charAt(accented, 3), " ", charCode(charAt(accented, 3)));
     println(substring(accented, 0, 3), " ", substring(accented, 3, 4));
-    println(global.text.reverse(accented));
-    println(global.text.repeat(accented, 2));
-    println(global.text.padLeft(accented, 6, "."));
-    println(global.text.indexOf(accented, "f"), " ", global.text.contains(accented, "é"));
+    println(text.reverse(accented));
+    println(text.repeat(accented, 2));
+    println(text.padLeft(accented, 6, "."));
+    println(text.indexOf(accented, "f"), " ", text.contains(accented, "é"));
 }

@@ -6,23 +6,23 @@ Windows-only: it starts the server and client helpers through
 pipe, so the order the two commands start in does not matter.
 ////
 
-global setup(){
+fn setup(){
     import("os");
     import("text");
     import("multiprocessing");
 }
 
-global main(){
-    str directory = global.os.absPath("lynxer/examples");
-    str server = global.os.joinPath(directory, "winpipe_server.lynx");
-    str client = global.os.joinPath(directory, "winpipe_client.lynx");
-    str exe = global.os.normPath(global.os.joinPath(directory, "../lynxer.exe"));
+fn main(){
+    str directory = os.absPath("lynxer/examples");
+    str server = os.joinPath(directory, "winpipe_server.lynx");
+    str client = os.joinPath(directory, "winpipe_client.lynx");
+    str exe = os.normPath(os.joinPath(directory, "../lynxer.exe"));
     list commands = listPush(
         listPush(listRepeat("", 0), "\"" + exe + "\" \"" + server + "\""),
         "\"" + exe + "\" \"" + client + "\"");
-    list outputs = global.multiprocessing.runParallel(commands);
-    list serverLines = global.text.splitLines(listGet(outputs, 0));
-    list clientLines = global.text.splitLines(listGet(outputs, 1));
+    list outputs = multiprocessing.runParallel(commands);
+    list serverLines = text.splitLines(listGet(outputs, 0));
+    list clientLines = text.splitLines(listGet(outputs, 1));
     println(listGet(serverLines, 0));
     println(listGet(serverLines, 1));
     println(listGet(serverLines, 2));

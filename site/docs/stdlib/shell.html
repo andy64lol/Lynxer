@@ -138,7 +138,7 @@
         </div>
 <h1 id="shell">shell</h1>
 <p>Run external shell commands and inspect available shells.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/shell.so</code>, built from <code>stdlib/shell.cpp</code> over <code>popen</code> and <code>std::system</code>. <strong>Import:</strong> <code>import(&quot;shell&quot;)</code> → <code>global.shell.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/shell.so</code>, built from <code>stdlib/shell.cpp</code> over <code>popen</code> and <code>std::system</code>. <strong>Import:</strong> <code>import(&quot;shell&quot;)</code> → <code>shell.*</code></p>
 <p>Commands run through the platform shell (<code>/bin/sh -c</code>).</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
@@ -157,13 +157,13 @@
 <tr><td><code>currentShell</code></td><td><code>() -&gt; str</code></td><td><code>$SHELL</code>, or <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;shell&quot;); }
+<pre><code>fn setup(){ import(&quot;shell&quot;); }
 
-global main(){
-    println(global.shell.runShellCapture(&quot;printf hello&quot;));
-    println(global.shell.shellPath(&quot;sh&quot;));
-    println(global.shell.availableShells());
-    println(global.shell.runShellCode(&quot;exit 3&quot;));
+fn main(){
+    println(shell.runShellCapture(&quot;printf hello&quot;));
+    println(shell.shellPath(&quot;sh&quot;));
+    println(shell.availableShells());
+    println(shell.runShellCode(&quot;exit 3&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

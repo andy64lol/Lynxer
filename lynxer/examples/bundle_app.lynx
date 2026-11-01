@@ -4,12 +4,12 @@ modules that live in `examples/bundle_extras/`, which the interpreter cannot
 resolve on its own — they are only reachable when they are passed to
 `--compile` as extra input files.
 ////
-global setup(){
+fn setup(){
     import("greeter");
     import("counter");
 }
 
-global main(){
-    println(global.greeter.greet("lynxer"));
-    println(global.counter.countTo(3));
+fn main(){
+    println(greeter.greet("lynxer"));
+    println(counter.countTo(3));
 }

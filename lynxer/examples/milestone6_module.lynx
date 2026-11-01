@@ -1,4 +1,4 @@
-global setup(){
+fn setup(){
     import("milestone6_lib.lynx");
     import("milestone6_lib.lynx");
     importAs("milestone6_lib.lynx", "lib");
@@ -9,14 +9,14 @@ global setup(){
     import("text");
 }
 
-global main(){
-    println(global.milestone6_lib.VERSION);
-    println(global.milestone6_lib.double(21));
-    println(global.lib.double(3));
-    println(global.math.gcd(84, 30));
-    println(global.typing.toStr(7));
-    println(global.colorlib.red("ok"));
-    println(global.math.isPrime(97));
-    println(global.text.reverse("abc"));
-    println(global.random.randint(4, 4));
+fn main(){
+    println(milestone6_lib.VERSION);
+    println(milestone6_lib.double(21));
+    println(lib.double(3));
+    println(math.gcd(84, 30));
+    println(typing.toStr(7));
+    println(colorlib.red("ok"));
+    println(math.isPrime(97));
+    println(text.reverse("abc"));
+    println(random.randint(4, 4));
 }

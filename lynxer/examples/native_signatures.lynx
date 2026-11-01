@@ -1,38 +1,38 @@
 ////
 Native-call signature coverage fixture. Not a user-facing stdlib module.
 ////
-global setup(){ importAs("native_signatures.so", "sigs"); }
+fn setup(){ importAs("native_signatures.so", "sigs"); }
 
-global main(){
-    println(global.sigs.v());
-    println(global.sigs.d());
-    println(global.sigs.s());
-    println(global.sigs.ii(3, 4));
-    println(global.sigs.i(9));
-    println(global.sigs.ssArg("copy"));
-    println(global.sigs.si("abcd"));
-    println(global.sigs.ssEq("a", "a"));
-    println(global.sigs.sn("-", 3));
-    println(global.sigs.iii(1, 2, 3));
-    println(global.sigs.ddArg(1.25));
-    println(global.sigs.dd(1.5, 2.5));
-    println(global.sigs.ddd(1.0, 2.0, 3.5));
-    println(global.sigs.di(4.9));
-    println(global.sigs.ddI(1.5, 2));
-    println(global.sigs.ds(1.5));
-    println(global.sigs.sd("2.75"));
-    println(global.sigs.ss("ab", "cd"));
-    println(global.sigs.sdd("1.5", "2.25"));
-    println(global.sigs.sss("a", "b", "c"));
-    println(global.sigs.ssi("a", "b", 5));
-    println(global.sigs.sssi("a", "b", "c", 5));
-    println(global.sigs.siN("abc", 4));
-    println(global.sigs.is(12));
-    println(global.sigs.id(3));
-    println(global.sigs.sii("ab", 3, 4));
-    println(global.sigs.sis("ab", 5, "cde"));
-    println(global.sigs.quad(1, 2, 3, 4));
-    println(global.sigs.sink(7));
-    println(global.sigs.bytesLen(bytesOf("hello")));
-    println(bytesToStr(global.sigs.bytesUpper(bytesOf("abc"))));
+fn main(){
+    println(sigs.v());
+    println(sigs.d());
+    println(sigs.s());
+    println(sigs.ii(3, 4));
+    println(sigs.i(9));
+    println(sigs.ssArg("copy"));
+    println(sigs.si("abcd"));
+    println(sigs.ssEq("a", "a"));
+    println(sigs.sn("-", 3));
+    println(sigs.iii(1, 2, 3));
+    println(sigs.ddArg(1.25));
+    println(sigs.dd(1.5, 2.5));
+    println(sigs.ddd(1.0, 2.0, 3.5));
+    println(sigs.di(4.9));
+    println(sigs.ddI(1.5, 2));
+    println(sigs.ds(1.5));
+    println(sigs.sd("2.75"));
+    println(sigs.ss("ab", "cd"));
+    println(sigs.sdd("1.5", "2.25"));
+    println(sigs.sss("a", "b", "c"));
+    println(sigs.ssi("a", "b", 5));
+    println(sigs.sssi("a", "b", "c", 5));
+    println(sigs.siN("abc", 4));
+    println(sigs.is(12));
+    println(sigs.id(3));
+    println(sigs.sii("ab", 3, 4));
+    println(sigs.sis("ab", 5, "cde"));
+    println(sigs.quad(1, 2, 3, 4));
+    println(sigs.sink(7));
+    println(sigs.bytesLen(bytesOf("hello")));
+    println(bytesToStr(sigs.bytesUpper(bytesOf("abc"))));
 }

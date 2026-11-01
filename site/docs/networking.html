@@ -138,9 +138,9 @@
         </div>
 <h1 id="networking-api">Networking API</h1>
 <p>Managed TCP, UDP and Unix-domain sockets exposed through the <code>networking*</code> built-ins. Sockets are opened with <code>networkingOpen</code> and are released when the program closes them or when the process exits. Errors include the original operating-system errno.</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     int client = networkingOpen(&quot;tcp&quot;);
     networkingConnect(client, &quot;127.0.0.1&quot;, 9000);
     networkingSend(client, &quot;hello&quot;);

@@ -1,4 +1,4 @@
-global setup(){}
+fn setup(){}
 
 struct Player {
     int health;
@@ -8,22 +8,22 @@ struct Player {
 class Counter {
     int value = 0;
 
-    local init(int initial) {
+    fn init(int initial) {
         this.value = initial;
     }
 
-    local increment() {
+    fn increment() {
         this.value = this.value + 1;
     }
 
-    local get() {
+    fn get() {
         return this.value;
     }
 }
 
 enum result = [Ok(int value), Err(str message)]{}
 
-global main(){
+fn main(){
     numBool enabled = 1;
     bit ready = 0;
     byte mask = 255;

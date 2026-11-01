@@ -13,9 +13,9 @@ strings; those keys override the inherited parent environment while the rest is
 inherited. It returns a numeric process handle.
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int child = processSpawn(
         "/bin/sh",
         [str "-c", str "printf hi"],

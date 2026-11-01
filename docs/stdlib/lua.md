@@ -8,12 +8,12 @@ system Lua installation.
 > `make buildLynxer`.
 
 ```lynx
-global setup(){ import("lua"); }
+fn setup(){ import("lua"); }
 
-global main(){
-    println(global.lua.luaVersion());
-    println(global.lua.evalLua("1 + 2 * 3"));
-    println(global.lua.runLua("print('hello from Lua')"));
+fn main(){
+    println(lua.luaVersion());
+    println(lua.evalLua("1 + 2 * 3"));
+    println(lua.runLua("print('hello from Lua')"));
 }
 ```
 

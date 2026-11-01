@@ -5,7 +5,7 @@ Seeded pseudo-random number and character helpers.
 **Backend:** native — `stdlib/random.so`, built from `stdlib/random.cpp`. The
 generator is a linear congruential sequence, so a given seed always produces the
 same sequence (there is no process-global `random` state).
-**Import:** `import("random")` → `global.random.*`
+**Import:** `import("random")` → `random.*`
 
 | Function | Signature | Notes |
 | --- | --- | --- |
@@ -25,13 +25,13 @@ ported.
 ## Example
 
 ```lynx
-global setup(){ import("random"); }
+fn setup(){ import("random"); }
 
-global main(){
-    global.random.seed(7);
-    println(global.random.randint(1, 6));   // 4
-    println(global.random.choice("abc"));   // b
-    println(global.random.uniform(0.0, 1.0));
+fn main(){
+    random.seed(7);
+    println(random.randint(1, 6));   // 4
+    println(random.choice("abc"));   // b
+    println(random.uniform(0.0, 1.0));
 }
 ```
 

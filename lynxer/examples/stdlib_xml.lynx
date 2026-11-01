@@ -3,19 +3,19 @@ Fixture for the xml stdlib. A document maps onto a JSON element tree and every
 assertion is fixed, so the output is deterministic. Part of the import-parity
 gate.
 ////
-global setup(){ import("xml"); }
+fn setup(){ import("xml"); }
 
-global main(){
+fn main(){
     str text = "<a x=\"1\">hi<b/></a>";
-    println(global.xml.xmlParse(text));
-    println(global.xml.xmlValid(text));
-    println(global.xml.xmlValid("<a><b></a>"));
-    println(global.xml.xmlEscape("a<b&c>d"));
-    println(global.xml.xmlUnescape("a&lt;b&amp;c&gt;d"));
-    println(global.xml.xmlUnescape("a&nope;"));
-    println(global.xml.xmlSerialize(global.xml.xmlParse(text)));
-    println(global.xml.xmlParse("<a><b></a>"));
+    println(xml.xmlParse(text));
+    println(xml.xmlValid(text));
+    println(xml.xmlValid("<a><b></a>"));
+    println(xml.xmlEscape("a<b&c>d"));
+    println(xml.xmlUnescape("a&lt;b&amp;c&gt;d"));
+    println(xml.xmlUnescape("a&nope;"));
+    println(xml.xmlSerialize(xml.xmlParse(text)));
+    println(xml.xmlParse("<a><b></a>"));
     str document = "<root a=\"x&amp;y\"><item>one</item></root>";
-    println(global.xml.xmlSerialize(global.xml.xmlParse(document)));
-    println(global.xml.xmlParse(global.xml.xmlSerialize(global.xml.xmlParse(document))));
+    println(xml.xmlSerialize(xml.xmlParse(document)));
+    println(xml.xmlParse(xml.xmlSerialize(xml.xmlParse(document))));
 }

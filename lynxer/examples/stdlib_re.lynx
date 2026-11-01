@@ -2,55 +2,55 @@
 Fixture for the re stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("re"); }
+fn setup(){ import("re"); }
 
-global main(){
-    println(global.re.test("\\d+", "abc123"));
-    println(global.re.test("^\\d+$", "abc"));
-    println(global.re.match("\\d+", "42abc"));
-    println(global.re.matchFull("\\d+", "42abc"));
-    println(global.re.search("\\d+", "abc123def"));
-    println(global.re.findall("\\d+", "a1 b22 c333"));
-    println(global.re.count("\\d+", "a1 b22 c333"));
-    println(global.re.groups("(\\w+)@(\\w+)", "user@host"));
-    println(global.re.groupsAll("(\\w+)=(\\d+)", "x=1 y=2"));
-    println(global.re.named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
-    println(global.re.sub("\\d+", "#", "a1b22"));
-    println(global.re.subN("\\d+", "#", "a1b22", 1));
-    println(global.re.subn("\\d+", "#", "a1b22"));
-    println(global.re.split("\\s+", "one  two   three"));
-    println(global.re.splitN("\\s+", "a b c d", 2));
-    println(global.re.escape("a.b+c"));
-    println(global.re.matchStart("\\d+", "ab12"));
-    println(global.re.matchEnd("\\d+", "ab12"));
-    println(global.re.findSpans("\\d+", "a12b34"));
-    println(global.re.testIgnoreCase("abc", "ABC"));
-    println(global.re.searchIgnoreCase("abc", "xABCy"));
-    println(global.re.subIgnoreCase("abc", "-", "aBc"));
-    println(global.re.findallMultiline("^\\w+", "ab\ncd"));
-    println(global.re.subMultiline("^", "> ", "a\nb"));
-    println(global.re.searchDotall("a.b", "a\nb"));
-    println(global.re.split("", "abc"));
-    println(global.re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
-    println(global.re.matchFull("[a-z]+", "hello"));
-    println(global.re.matchStart("x", "🙂éx"));
-    println(global.re.matchStartChar("x", "🙂éx"));
-    println(global.re.matchEnd("x", "🙂éx"));
-    println(global.re.matchEndChar("x", "🙂éx"));
-    println(global.re.findSpans("\\p{L}+", "🙂éx"));
-    println(global.re.findSpansChar("\\p{L}+", "🙂éx"));
-    println(global.re.groups("(\\p{L}+)", "🙂éx"));
-    println(global.re.sub("(\\p{L}+)", "[\\1]", "🙂éx"));
-    println(global.re.test("(", "abc"));
-    println(global.re.findall("(", "abc"));
-    println(global.re.matchStart("(", "abc"));
+fn main(){
+    println(re.test("\\d+", "abc123"));
+    println(re.test("^\\d+$", "abc"));
+    println(re.match("\\d+", "42abc"));
+    println(re.matchFull("\\d+", "42abc"));
+    println(re.search("\\d+", "abc123def"));
+    println(re.findall("\\d+", "a1 b22 c333"));
+    println(re.count("\\d+", "a1 b22 c333"));
+    println(re.groups("(\\w+)@(\\w+)", "user@host"));
+    println(re.groupsAll("(\\w+)=(\\d+)", "x=1 y=2"));
+    println(re.named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
+    println(re.sub("\\d+", "#", "a1b22"));
+    println(re.subN("\\d+", "#", "a1b22", 1));
+    println(re.subn("\\d+", "#", "a1b22"));
+    println(re.split("\\s+", "one  two   three"));
+    println(re.splitN("\\s+", "a b c d", 2));
+    println(re.escape("a.b+c"));
+    println(re.matchStart("\\d+", "ab12"));
+    println(re.matchEnd("\\d+", "ab12"));
+    println(re.findSpans("\\d+", "a12b34"));
+    println(re.testIgnoreCase("abc", "ABC"));
+    println(re.searchIgnoreCase("abc", "xABCy"));
+    println(re.subIgnoreCase("abc", "-", "aBc"));
+    println(re.findallMultiline("^\\w+", "ab\ncd"));
+    println(re.subMultiline("^", "> ", "a\nb"));
+    println(re.searchDotall("a.b", "a\nb"));
+    println(re.split("", "abc"));
+    println(re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
+    println(re.matchFull("[a-z]+", "hello"));
+    println(re.matchStart("x", "🙂éx"));
+    println(re.matchStartChar("x", "🙂éx"));
+    println(re.matchEnd("x", "🙂éx"));
+    println(re.matchEndChar("x", "🙂éx"));
+    println(re.findSpans("\\p{L}+", "🙂éx"));
+    println(re.findSpansChar("\\p{L}+", "🙂éx"));
+    println(re.groups("(\\p{L}+)", "🙂éx"));
+    println(re.sub("(\\p{L}+)", "[\\1]", "🙂éx"));
+    println(re.test("(", "abc"));
+    println(re.findall("(", "abc"));
+    println(re.matchStart("(", "abc"));
 
     // Constructs the previous engine (std::regex / ECMAScript) could not run.
-    println(global.re.test("(?<=a)b", "ab"));
-    println(global.re.search("(?<=ab+)c", "abbc"));
-    println(global.re.test("(?>a+)b", "aab"));
-    println(global.re.findall("(?<=\\$)\\d+", "$1 and $22"));
-    println(global.re.test("\\p{Greek}+", "αβγ"));
-    println(global.re.test("a(?i)bc", "aBC"));
-    println(global.re.test("(?P<w>\\w)(?P=w)", "aa"));
+    println(re.test("(?<=a)b", "ab"));
+    println(re.search("(?<=ab+)c", "abbc"));
+    println(re.test("(?>a+)b", "aab"));
+    println(re.findall("(?<=\\$)\\d+", "$1 and $22"));
+    println(re.test("\\p{Greek}+", "αβγ"));
+    println(re.test("a(?i)bc", "aBC"));
+    println(re.test("(?P<w>\\w)(?P=w)", "aa"));
 }

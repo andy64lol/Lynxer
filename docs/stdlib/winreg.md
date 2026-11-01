@@ -5,7 +5,7 @@ Windows registry reader/writer.
 **Backend:** native — `stdlib/winreg.so`, built from `stdlib/winreg.cpp`.
 Windows-only; the module is not built or available on Linux or macOS.
 
-**Import:** `import("winreg")` → `global.winreg.*`
+**Import:** `import("winreg")` → `winreg.*`
 
 Roots are named `HKCU`, `HKLM`, `HKCR`, `HKU` or `HKCC`; the long `HKEY_*`
 spellings are accepted too. Writes create the key when it does not exist, so a
@@ -40,14 +40,14 @@ newlines), `REG_DWORD` and `REG_QWORD` (decimal text). `readInt` understands
 ## Example
 
 ```lynx
-global setup(){ import("winreg"); }
+fn setup(){ import("winreg"); }
 
-global main(){
+fn main(){
     str key = "Software\\Lynxer\\Example";
-    global.winreg.writeString("HKCU", key, "name", "Lynxer");
-    global.winreg.writeInt("HKCU", key, "version", 1);
-    println(global.winreg.readString("HKCU", key, "name"));
-    println(global.winreg.readInt("HKCU", key, "version"));
-    global.winreg.deleteTree("HKCU", key);
+    winreg.writeString("HKCU", key, "name", "Lynxer");
+    winreg.writeInt("HKCU", key, "version", 1);
+    println(winreg.readString("HKCU", key, "name"));
+    println(winreg.readInt("HKCU", key, "version"));
+    winreg.deleteTree("HKCU", key);
 }
 ```

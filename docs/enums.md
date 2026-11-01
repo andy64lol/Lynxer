@@ -40,7 +40,7 @@ An enum value is normally consumed with a `switch` pattern, which destructures
 the payload and binds the field names for the case body:
 
 ```lynx
-func describe(status value) -> str {
+fn describe(status value) -> str {
     switch (value) {
         case(status.Ready){ return "ready"; }
         case(status.Failed(reason)){ return "failed: " + reason; }
@@ -71,14 +71,14 @@ Use `switch` patterns to test which variant a value is; do not use `is`.
 ## Full example
 
 ```lynx
-global setup(){}
+fn setup(){}
 
 enum status = [
     Ready,
     Failed(str reason)
 ]{}
 
-func describe(status value) -> str {
+fn describe(status value) -> str {
     switch (value) {
         case(status.Ready){ return "ready"; }
         case(status.Failed(reason)){ return "failed: " + reason; }
@@ -86,7 +86,7 @@ func describe(status value) -> str {
     return "unknown";
 }
 
-global main(){
+fn main(){
     any a = status.Ready;
     any b = status.Failed("disk");
     println(a);              // status.Ready

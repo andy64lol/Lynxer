@@ -35,16 +35,16 @@ fields:
 
 ```lynx
 // DrawRectangleRec(Rectangle, Color) becomes eight scalars.
-global.raylib.drawRectangleRec(x, y, w, h, r, g, b, a);
+raylib.drawRectangleRec(x, y, w, h, r, g, b, a);
 ```
 
 A function returning one returns an **opaque `int` handle** you read with the
 struct's field accessors and release with `<struct>Free`:
 
 ```lynx
-int c = global.raylib.colorFromHSV(0.0, 1.0, 1.0); // Color handle
-float red = global.raylib.colorGetR(c);            // 255.0
-global.raylib.colorFree(c);
+int c = raylib.colorFromHSV(0.0, 1.0, 1.0); // Color handle
+float red = raylib.colorGetR(c);            // 255.0
+raylib.colorFree(c);
 ```
 
 ### Other structs are handles
@@ -89,16 +89,16 @@ The table is illustrative, not exhaustive — see the generated wrapper for all
 ```lynx
 import("raylib")
 
-global main(){
-    global.raylib.initWindow(800, 450, "Lynxer + raylib");
-    global.raylib.setTargetFPS(60);
-    while(not global.raylib.windowShouldClose()){
-        global.raylib.beginDrawing();
-        global.raylib.clearBackground(245, 245, 245, 255);
-        global.raylib.drawText("hello from Lynxer", 20, 20, 20, 0, 0, 0, 255);
-        global.raylib.endDrawing();
+fn main(){
+    raylib.initWindow(800, 450, "Lynxer + raylib");
+    raylib.setTargetFPS(60);
+    while(not raylib.windowShouldClose()){
+        raylib.beginDrawing();
+        raylib.clearBackground(245, 245, 245, 255);
+        raylib.drawText("hello from Lynxer", 20, 20, 20, 0, 0, 0, 255);
+        raylib.endDrawing();
     }
-    global.raylib.closeWindow();
+    raylib.closeWindow();
 }
 ```
 

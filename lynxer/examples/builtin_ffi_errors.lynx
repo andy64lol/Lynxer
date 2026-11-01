@@ -5,9 +5,9 @@
 // mismatch, and each argument type mismatch. `try`/`catch` keeps the run going
 // and exits 0 so the fixture diffs as normal output.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int libc = ffiLoadLibrary("libc.so.6");
     functionAddress strlen = ffiLookup(libc, "strlen");
 

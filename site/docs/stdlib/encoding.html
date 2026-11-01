@@ -138,7 +138,7 @@
         </div>
 <h1 id="encoding">encoding</h1>
 <p>Base64, hex, base32, base58, ascii85, percent-encoding and quoted-printable codecs.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/encoding.so</code>, built from the Rust crate <code>rust/encoding</code> over <a href="https://docs.rs/base64"><code>base64</code></a>, <a href="https://docs.rs/hex"><code>hex</code></a>, <a href="https://docs.rs/data-encoding"><code>data-encoding</code></a>, <a href="https://docs.rs/bs58"><code>bs58</code></a>, <a href="https://docs.rs/ascii85"><code>ascii85</code></a>, <a href="https://docs.rs/percent-encoding"><code>percent-encoding</code></a> and <a href="https://docs.rs/quoted_printable"><code>quoted_printable</code></a>. <strong>Import:</strong> <code>import(&quot;encoding&quot;)</code> → <code>global.encoding.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/encoding.so</code>, built from the Rust crate <code>rust/encoding</code> over <a href="https://docs.rs/base64"><code>base64</code></a>, <a href="https://docs.rs/hex"><code>hex</code></a>, <a href="https://docs.rs/data-encoding"><code>data-encoding</code></a>, <a href="https://docs.rs/bs58"><code>bs58</code></a>, <a href="https://docs.rs/ascii85"><code>ascii85</code></a>, <a href="https://docs.rs/percent-encoding"><code>percent-encoding</code></a> and <a href="https://docs.rs/quoted_printable"><code>quoted_printable</code></a>. <strong>Import:</strong> <code>import(&quot;encoding&quot;)</code> → <code>encoding.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
 <p>The encoded form of a payload is always text and the raw form is always a <code>bytes</code> value: an <strong>encode</strong> takes <code>bytes</code> and returns a <code>str</code>, a <strong>decode</strong> takes a <code>str</code> and returns <code>bytes</code>. A payload that is not valid UTF-8 is therefore representable — a decode that used to yield <code>&quot;&quot;</code> now returns those bytes — so a decode failure is an empty <code>bytes</code>. <code>*Valid</code> reports whether the input is well formed in its codec.</p>
 <p>Test a decode with <code>bytesLength(result) is 0</code> rather than expecting an exception: there is no error channel across the native ABI.</p>
@@ -181,14 +181,14 @@
 </table>
 <p><code>percentEncode</code> uses <code>encodeURIComponent</code> semantics: <code>A-Z a-z 0-9 - _ . ! ~ * &#x27; ( )</code> stay unescaped and everything else, including <code>/ ? = &amp;</code>, is escaped.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;encoding&quot;); }
+<pre><code>fn setup(){ import(&quot;encoding&quot;); }
 
-global main(){
-    println(global.encoding.base64Encode(&quot;Lynxer&quot;));
-    println(global.encoding.base64Decode(&quot;THlueA&quot;));   // padding is optional
-    println(global.encoding.hexEncode(&quot;Lynxer&quot;));
-    println(global.encoding.percentEncode(&quot;a b/c?d=e&amp;f&quot;));
-    println(global.encoding.percentValid(&quot;%2&quot;));        // truncated escape
+fn main(){
+    println(encoding.base64Encode(&quot;Lynxer&quot;));
+    println(encoding.base64Decode(&quot;THlueA&quot;));   // padding is optional
+    println(encoding.hexEncode(&quot;Lynxer&quot;));
+    println(encoding.percentEncode(&quot;a b/c?d=e&amp;f&quot;));
+    println(encoding.percentValid(&quot;%2&quot;));        // truncated escape
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

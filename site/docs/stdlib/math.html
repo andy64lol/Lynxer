@@ -138,7 +138,7 @@
         </div>
 <h1 id="math">math</h1>
 <p>Integer, floating-point, number-theory, rounding, logarithmic and trigonometric helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/math.so</code>, built from <code>stdlib/math.cpp</code> over <code>&lt;cmath&gt;</code>. <strong>Import:</strong> <code>import(&quot;math&quot;)</code> → <code>global.math.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/math.so</code>, built from <code>stdlib/math.cpp</code> over <code>&lt;cmath&gt;</code>. <strong>Import:</strong> <code>import(&quot;math&quot;)</code> → <code>math.*</code></p>
 <h2 id="integers-and-number-theory">Integers and number theory</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
@@ -187,7 +187,7 @@
 <tr><td><code>randInt(int low, int high) -&gt; int</code></td><td>Uniform integer in <code>[low, high]</code></td></tr>
 <tr><td><code>randFloat(float low, float high) -&gt; float</code></td><td>Uniform float in <code>[low, high]</code></td></tr>
 </table>
-<p><code>maxInt</code> and <code>minInt</code> are exposed as functions returning the largest and smallest 64-bit integers: <code>global.math.maxInt()</code> / <code>global.math.minInt()</code>.</p>
+<p><code>maxInt</code> and <code>minInt</code> are exposed as functions returning the largest and smallest 64-bit integers: <code>math.maxInt()</code> / <code>math.minInt()</code>.</p>
 <h2 id="statistics-and-vector-helpers">Statistics and vector helpers</h2>
 <p>These were previously a separate <code>mathPlus</code> module; they now live in <code>math</code>. These were originally implemented with NumPy, which Lynxer does not need — the results match NumPy's defaults. List arguments cross the native ABI as a <code>bytes</code> buffer of little-endian <code>f64</code> (the <code>listToBytes</code> / <code>bytesToList</code> encoding), and list results come back as Lynxer lists of <code>float</code>.</p>
 <table>
@@ -210,13 +210,13 @@
 </table>
 <p>Empty input yields <code>0.0</code> for the scalar helpers and an empty list for the list-returning helpers.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;math&quot;); }
+<pre><code>fn setup(){ import(&quot;math&quot;); }
 
-global main(){
-    println(global.math.pi());
-    println(global.math.mean(seqFromTo(1, 5, 1)));   // [1,2,3,4] -&gt; 2.5
-    println(global.math.linspace(0.0, 1.0, 5));
-    println(global.math.cumsum(seqFromTo(1, 4, 1)));
+fn main(){
+    println(math.pi());
+    println(math.mean(seqFromTo(1, 5, 1)));   // [1,2,3,4] -&gt; 2.5
+    println(math.linspace(0.0, 1.0, 5));
+    println(math.cumsum(seqFromTo(1, 4, 1)));
 }</code></pre>
 <p><code>seqFromTo</code> and <code>range</code> exclude their <code>stop</code> value, so <code>seqFromTo(1, 5, 1)</code> is <code>[1, 2, 3, 4]</code>.</p>
 <hr>

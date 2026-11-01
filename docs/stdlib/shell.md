@@ -3,7 +3,7 @@
 Run external shell commands and inspect available shells.
 
 **Backend:** native — `stdlib/shell.so`, built from `stdlib/shell.cpp` over
-`popen` and `std::system`. **Import:** `import("shell")` → `global.shell.*`
+`popen` and `std::system`. **Import:** `import("shell")` → `shell.*`
 
 Commands run through the platform shell (`/bin/sh -c`).
 
@@ -26,13 +26,13 @@ Commands run through the platform shell (`/bin/sh -c`).
 ## Example
 
 ```lynx
-global setup(){ import("shell"); }
+fn setup(){ import("shell"); }
 
-global main(){
-    println(global.shell.runShellCapture("printf hello"));
-    println(global.shell.shellPath("sh"));
-    println(global.shell.availableShells());
-    println(global.shell.runShellCode("exit 3"));
+fn main(){
+    println(shell.runShellCapture("printf hello"));
+    println(shell.shellPath("sh"));
+    println(shell.availableShells());
+    println(shell.runShellCode("exit 3"));
 }
 ```
 

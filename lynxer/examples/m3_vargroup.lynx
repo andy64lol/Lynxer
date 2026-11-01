@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     vargroup profile = {
         str title = "Engineer",
         int years = 5

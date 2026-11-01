@@ -3,7 +3,7 @@
 Type inspection, conversion, range, string, number and sequence helpers.
 
 **Backend:** pure — `stdlib/typing.lynx` only, over the interpreter's builtins.
-**Import:** `import("typing")` → `global.typing.*`
+**Import:** `import("typing")` → `typing.*`
 
 The interpreter's strings hold UTF-8, and `returnLength`, `charAt`, `substring`
 and the `charCode`/`charOf` builtins work on **code points**, so a character is
@@ -146,26 +146,26 @@ These compose the language-level tuple built-ins.
 ## Example
 
 ```lynx
-global setup(){ import("typing"); }
+fn setup(){ import("typing"); }
 
-global main(){
+fn main(){
     any x = 42;
-    if(global.typing.isInt(x)){   print("integer\n"); }
+    if(typing.isInt(x)){   print("integer\n"); }
 
-    println(global.typing.abs(-4));            // 4
-    println(global.typing.clamp(15.0, 0.0, 10.0)); // 10
-    println(global.typing.roundTo(3.14159, 2));    // 3.14
-    println(global.typing.charCodeOf("A"));    // 65
-    println(global.typing.charAt("hello", 1)); // e
-    println(global.typing.zfill("42", 5));     // 00042
+    println(typing.abs(-4));            // 4
+    println(typing.clamp(15.0, 0.0, 10.0)); // 10
+    println(typing.roundTo(3.14159, 2));    // 3.14
+    println(typing.charCodeOf("A"));    // 65
+    println(typing.charAt("hello", 1)); // e
+    println(typing.zfill("42", 5));     // 00042
 
     list nums = range(6);
-    println(global.typing.listHead(nums, 3));  // [0, 1, 2]
-    println(global.typing.listChunk(nums, 2)); // [[0, 1], [2, 3], [4, 5]]
+    println(typing.listHead(nums, 3));  // [0, 1, 2]
+    println(typing.listChunk(nums, 2)); // [[0, 1], [2, 3], [4, 5]]
 
     tuple coords = (int 10, int 20);
-    println(global.typing.tupleJoin(coords, "-")); // 10-20
-    println(global.typing.toList(coords));     // [10, 20]
+    println(typing.tupleJoin(coords, "-")); // 10-20
+    println(typing.toList(coords));     // [10, 20]
 }
 ```
 

@@ -3,9 +3,9 @@ Fixture for the `bytes` value type: construction, length, indexing, hex,
 concatenation, equality, the float-array encoding, and the out-of-range
 sentinel. Only deterministic values are printed.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     bytes b = bytesOf("AB");
     println(returnType(b));
     println(bytesLength(b));

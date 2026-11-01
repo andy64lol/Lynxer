@@ -4,9 +4,9 @@ and always reaps them, and asserts exit statuses rather than process ids, so the
 output is deterministic. Commands are named explicitly: `processSpawn` never
 shell-parses.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     // Success: capture stdout, then wait, poll and close.
     int echo = processSpawn("/bin/echo", [str "hello", str "world"]);
     println(echo > 0);

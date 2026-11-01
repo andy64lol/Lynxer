@@ -138,7 +138,7 @@
         </div>
 <h1 id="path">path</h1>
 <p><code>pathlib</code>-style path manipulation and filesystem helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/path.so</code>, built from <code>stdlib/path.cpp</code> over <code>&lt;filesystem&gt;</code> and POSIX <code>stat</code>. <strong>Import:</strong> <code>import(&quot;path&quot;)</code> → <code>global.path.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/path.so</code>, built from <code>stdlib/path.cpp</code> over <code>&lt;filesystem&gt;</code> and POSIX <code>stat</code>. <strong>Import:</strong> <code>import(&quot;path&quot;)</code> → <code>path.*</code></p>
 <p>Paths are plain strings. Functions return <code>&quot;&quot;</code>, an empty list, <code>false</code> or <code>-1</code> when the underlying operation fails.</p>
 <p><code>platform()</code> reports the POSIX host (<code>linux</code>, <code>darwin</code>, <code>freebsd</code>, <code>netbsd</code>, <code>openbsd</code> or <code>dragonfly</code>, otherwise <code>unknown</code>). <code>separator()</code> returns <code>/</code> and <code>listSeparator()</code> returns <code>:</code> for the supported POSIX hosts.</p>
 <h2 id="construction">Construction</h2>
@@ -205,12 +205,12 @@
 <tr><td><code>asUri</code></td><td><code>(str path) -&gt; str</code></td><td><code>file://</code> URI of the absolute path</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;path&quot;); }
+<pre><code>fn setup(){ import(&quot;path&quot;); }
 
-global main(){
-    println(global.path.name(&quot;/tmp/notes.txt&quot;));
-    println(global.path.suffixes(&quot;archive.tar.gz&quot;));
-    println(global.path.rglob(&quot;.&quot;, &quot;*.lynx&quot;));
+fn main(){
+    println(path.name(&quot;/tmp/notes.txt&quot;));
+    println(path.suffixes(&quot;archive.tar.gz&quot;));
+    println(path.rglob(&quot;.&quot;, &quot;*.lynx&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

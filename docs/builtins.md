@@ -4,8 +4,9 @@ Functions implemented directly by the Lynxer interpreter. They can be called
 by their bare name or with a `global.` prefix (`print(...)` and
 `global.print(...)` are the same call).
 
-Inside a module, `global.name(...)` always resolves to a *core builtin*, never to
-the module's own function of that name — see
+Inside a module, the legacy `global.name(...)` form always resolves to a *core
+builtin*, never to the module's own function of that name. Ordinary functions
+use their bare name, including when referenced as values — see
 [modules.md](modules.md#calling-module-members).
 
 Names that Lynxer recognises but does not implement fail with a source-located
@@ -188,13 +189,13 @@ Included files are written to a private temporary directory when the executable
 starts, and that directory is removed when the process exits.
 
 ```lynx
-global setup(){ import("fileIO"); }
+fn setup(){ import("fileIO"); }
 
-global main(){
+fn main(){
     list files = bundledFiles();
     println(files);                 // [] in an interpreted run
     if (returnLength(files) > 0) {
-        println(global.fileIO.readFile(bundledFile("message.txt")));
+        println(fileIO.readFile(bundledFile("message.txt")));
     }
 }
 ```
@@ -316,9 +317,9 @@ system and architecture it targets, then reaches every syscall through that
 architecture's namespace:
 
 ```lynx
-global setup(){ syscalls("Linux", "amd64"); }
+fn setup(){ syscalls("Linux", "amd64"); }
 
-global main(){
+fn main(){
     amd64.syscallRead(fd, buffer, 16);
 }
 ```
@@ -332,7 +333,7 @@ target, a second target, or a syscall call before `syscalls(...)` is a
 source-located error. An unknown keyword or namespace prefix reports the closest
 match, e.g. `unknown syscall architecture 'amd6'. You meant: amd64?`. The old
 flat `syscallRead(...)` spelling is gone; it fails with a pointer to the
-namespaced form. `syscalls(global.sys.platform(), global.sys.architecture())`
+namespaced form. `syscalls(sys.platform(), sys.architecture())`
 asserts the host.
 
 Syscall calls take integer arguments only (at most six).
@@ -514,13 +515,13 @@ Three deliberate constraints, all recorded in
 ## Native threads
 
 `nativeThreadStart(function, arguments)` runs a Lynxer function on a
-`std::thread`. The function is named as a value — `nativeThreadStart(global.worker, [int 42])`
+`std::thread`. The function is named as a value — `nativeThreadStart(worker, [int 42])`
 — which is what makes `global.<name>` resolve to a callable when no variable has
 that name.
 
 | Builtin | Notes |
 | --- | --- |
-| `nativeThreadStart(function, arguments)` | Returns a thread handle. `function` is a named global function; `arguments` is a list |
+| `nativeThreadStart(function, arguments)` | Returns a thread handle. `function` is a named function; `arguments` is a list |
 | `nativeThreadJoin(handle)` | Waits for the thread and returns `completed`, or the callback's error text. Joining releases the handle |
 | `nativeThreadJoinAll()` | Joins every thread that has neither been joined nor detached |
 | `nativeThreadIsAlive(handle)` | Whether the thread is still running |

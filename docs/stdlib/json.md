@@ -6,7 +6,7 @@ JSON encoding, decoding, querying and mutation.
 over [`serde_json`](https://docs.rs/serde_json) with the `preserve_order`
 feature so object keys keep their insertion order. Output spacing and the
 pretty-print indents match the previous nlohmann-based backend byte for byte.
-**Import:** `import("json")` → `global.json.*`
+**Import:** `import("json")` → `json.*`
 
 Objects preserve key insertion order, including when updated: replacing a key
 keeps its position and a new key is appended. JSON input follows the JSON
@@ -44,13 +44,13 @@ valid JSON.
 ## Example
 
 ```lynx
-global setup(){ import("json"); }
+fn setup(){ import("json"); }
 
-global main(){
+fn main(){
     str doc = "{\"name\": \"Ada\", \"age\": 36}";
-    println(global.json.jsonGet(doc, "name"));
-    println(global.json.jsonSetInt(doc, "age", 37));
-    println(global.json.jsonParse("[1,2]"));
+    println(json.jsonGet(doc, "name"));
+    println(json.jsonSetInt(doc, "age", 37));
+    println(json.jsonParse("[1,2]"));
 }
 ```
 

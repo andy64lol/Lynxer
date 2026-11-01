@@ -138,7 +138,7 @@
         </div>
 <h1 id="os">os</h1>
 <p>Filesystem, process, environment and platform helpers.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/os.so</code>, built from <code>stdlib/os.cpp</code> over <code>&lt;filesystem&gt;</code> and the host APIs (POSIX or Win32). <strong>Import:</strong> <code>import(&quot;os&quot;)</code> → <code>global.os.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/os.so</code>, built from <code>stdlib/os.cpp</code> over <code>&lt;filesystem&gt;</code> and the host APIs (POSIX or Win32). <strong>Import:</strong> <code>import(&quot;os&quot;)</code> → <code>os.*</code></p>
 <p>Functions return safe defaults on failure (<code>false</code>, <code>&quot;&quot;</code>, <code>-1</code>, an empty list).</p>
 <h2 id="files-and-directories">Files and directories</h2>
 <table>
@@ -190,13 +190,13 @@
 </table>
 <p>The Python-compat getters (<code>getPythonVersion</code>, <code>getPythonImplementation</code>) and the <code>python*</code> fields of <code>getSystemInfo</code> are gone: there is no Python runtime to introspect, and a standing <code>&quot;&quot;</code>/<code>&quot;Lynxer&quot;</code> value was a lie. See <a href="../removed-features.html#python-introspection-getters">removed-features</a>.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;os&quot;); }
+<pre><code>fn setup(){ import(&quot;os&quot;); }
 
-global main(){
-    println(global.os.getcwd());
-    list entries = global.os.listdir(&quot;.&quot;);
+fn main(){
+    println(os.getcwd());
+    list entries = os.listdir(&quot;.&quot;);
     println(returnLength(entries));
-    println(global.os.getSystemName());
+    println(os.getSystemName());
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

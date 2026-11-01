@@ -4,9 +4,9 @@ Fixture for the range `for` loop:
 `..` excludes the end value, `..=` includes it, and the third value is the step
 (1 by default). The C-style `for (init; condition; update)` form is unchanged.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     list values = [];
 
     // Inclusive end (0..=10) with step 2.

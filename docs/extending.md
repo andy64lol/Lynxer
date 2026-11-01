@@ -50,20 +50,20 @@ Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
 useful and do not leave placeholder prose in a shipped module.
 ////
 
-global setup(){ importAs("example.so", "nativeExample"); }
+fn setup(){ importAs("example.so", "nativeExample"); }
 
 // Double the value. Returns the result, or -1 on failure.
-global doubleIt(int value) -> int { return global.nativeExample.doubleIt(value); }
+fn doubleIt(int value) -> int { return nativeExample.doubleIt(value); }
 
 // Join two words. Returns the joined string.
-global join(str left, str right) -> str { return global.nativeExample.join(left, right); }
+fn join(str left, str right) -> str { return nativeExample.join(left, right); }
 ```
 
 Rules the wrapper must follow:
 
 - **`setup()` is the only import.** Import the backend once, with
   `importAs("<name>.so", "native<Name>")`.
-- **One `global` function per operation**, named as the user calls it.
+- **One `fn` function per operation**, named as the user calls it.
 - **Convert the backend's flat results here.** A backend returns `int64` `0`/`1`
   for booleans, so the wrapper writes `!= 0` and declares `-> bool`.
 - **Never expose a backend type.** No crate names, no pointers, no structs.

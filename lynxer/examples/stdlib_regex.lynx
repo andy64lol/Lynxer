@@ -2,46 +2,46 @@
 Fixture for the regex stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("regex"); }
+fn setup(){ import("regex"); }
 
-global main(){
-    global.regex.compile("digits", "\\d+", "");
-    println(global.regex.testCompiled("digits", "abc123"));
-    println(global.regex.matchCompiled("digits", "abc123def"));
-    println(global.regex.findallCompiled("digits", "a1 b22"));
-    println(global.regex.subCompiled("digits", "#", "a1 b22"));
-    global.regex.compile("shout", "abc", "I");
-    println(global.regex.testCompiled("shout", "ABC"));
-    println(global.regex.cacheKeys());
-    println(global.regex.isValid("\\d+"));
-    println(global.regex.isValid("(unclosed"));
-    println(global.regex.extract("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
-    println(global.regex.extractAll("(?P<k>\\w+)=(?P<v>\\d+)", "x=1 y=2"));
-    println(global.regex.unique("\\w", "aabbc"));
-    println(global.regex.lastMatch("\\d+", "a1 b22"));
-    println(global.regex.findallOverlapping("aa", "aaaa"));
-    println(global.regex.replaceNth("\\d", "#", "a1b2c3", 2));
-    println(global.regex.replaceAllLiteral("\\d+", "\\1", "a1b22"));
-    println(global.regex.highlight("\\d+", "**", "**", "score: 42"));
-    println(global.regex.splitKeep("[,;]", "a,b;c"));
-    println(global.regex.findLetters("ab12cd"));
-    println(global.regex.findDigits("ab12cd"));
-    println(global.regex.globToRegex("*.txt"));
-    println(global.regex.countMatches("\\d+", "a1 b22 c333"));
-    println(global.regex.firstMatchPos("\\d+", "ab12"));
-    println(global.regex.firstMatchPos("\\p{L}+", "🙂éx"));
-    println(global.regex.firstMatchCharPos("\\p{L}+", "🙂éx"));
-    println(global.regex.extract("(?P<letters>\\p{L}+)", "🙂éx"));
-    println(global.regex.replaceAllLiteral("\\p{L}+", "[$&]", "🙂éx"));
-    println(global.regex.isValid("("));
-    println(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
-    println(global.regex.countWords("the quick brown fox"));
+fn main(){
+    regex.compile("digits", "\\d+", "");
+    println(regex.testCompiled("digits", "abc123"));
+    println(regex.matchCompiled("digits", "abc123def"));
+    println(regex.findallCompiled("digits", "a1 b22"));
+    println(regex.subCompiled("digits", "#", "a1 b22"));
+    regex.compile("shout", "abc", "I");
+    println(regex.testCompiled("shout", "ABC"));
+    println(regex.cacheKeys());
+    println(regex.isValid("\\d+"));
+    println(regex.isValid("(unclosed"));
+    println(regex.extract("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
+    println(regex.extractAll("(?P<k>\\w+)=(?P<v>\\d+)", "x=1 y=2"));
+    println(regex.unique("\\w", "aabbc"));
+    println(regex.lastMatch("\\d+", "a1 b22"));
+    println(regex.findallOverlapping("aa", "aaaa"));
+    println(regex.replaceNth("\\d", "#", "a1b2c3", 2));
+    println(regex.replaceAllLiteral("\\d+", "\\1", "a1b22"));
+    println(regex.highlight("\\d+", "**", "**", "score: 42"));
+    println(regex.splitKeep("[,;]", "a,b;c"));
+    println(regex.findLetters("ab12cd"));
+    println(regex.findDigits("ab12cd"));
+    println(regex.globToRegex("*.txt"));
+    println(regex.countMatches("\\d+", "a1 b22 c333"));
+    println(regex.firstMatchPos("\\d+", "ab12"));
+    println(regex.firstMatchPos("\\p{L}+", "🙂éx"));
+    println(regex.firstMatchCharPos("\\p{L}+", "🙂éx"));
+    println(regex.extract("(?P<letters>\\p{L}+)", "🙂éx"));
+    println(regex.replaceAllLiteral("\\p{L}+", "[$&]", "🙂éx"));
+    println(regex.isValid("("));
+    println(regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
+    println(regex.countWords("the quick brown fox"));
     // The engine now runs what std::regex could not, and the X flag is honoured.
-    global.regex.compile("after", "(?<==)\\d+", "");
-    println(global.regex.findallCompiled("after", "a=1 b=22"));
-    global.regex.compile("verbose", "a  b", "X");
-    println(global.regex.testCompiled("verbose", "ab"));
-    println(global.regex.extract("(?<year>\\d{4})-(?<month>\\d{2})", "2026-09"));
-    global.regex.clearCache();
-    println(global.regex.cacheKeys());
+    regex.compile("after", "(?<==)\\d+", "");
+    println(regex.findallCompiled("after", "a=1 b=22"));
+    regex.compile("verbose", "a  b", "X");
+    println(regex.testCompiled("verbose", "ab"));
+    println(regex.extract("(?<year>\\d{4})-(?<month>\\d{2})", "2026-09"));
+    regex.clearCache();
+    println(regex.cacheKeys());
 }

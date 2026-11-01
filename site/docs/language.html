@@ -199,13 +199,13 @@ fn main() {
 </ul>
 <p>Comment markers inside string literals are ordinary text.</p>
 <h2 id="variables-and-declarations">Variables and declarations</h2>
-<pre><code>global setup() {
+<pre><code>fn setup() {
     int count = 0;
     const str APP = &quot;demo&quot;;
     println(APP, &quot; &quot;, count);   // demo 0
 }
 
-global main() {
+fn main() {
     float ratio = 1.5;
     ratio += 0.5;
     println(ratio);             // 2
@@ -306,7 +306,7 @@ fn main() {
 </ul>
 <h3 id="return-annotations">Return annotations</h3>
 <p>Only the arrow form is accepted:</p>
-<pre><code>global f(int x) -&gt; int { return x + 1; }</code></pre>
+<pre><code>fn f(int x) -&gt; int { return x + 1; }</code></pre>
 <ul>
 <li><code>: int</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
 <li>Omit the annotation, or use <code>-&gt; any</code>, to leave the result unchecked.</li>
@@ -323,36 +323,36 @@ fn main() {
 <li>Declaring the same name again overwrites the previous value rather than shadowing it.</li>
 <li>A function or method call gets a fresh scope for its parameters and locals. Those do not leak out, but the function can read and update the top-level variables it closes over.</li>
 </ul>
-<pre><code>global setup() {
+<pre><code>fn setup() {
     int total = 0;
 }
 
-func add(int n) {
+fn add(int n) {
     total += n;        // updates the top-level variable
     int scratch = n;   // local to add(); not visible outside
 }
 
-global main() {
+fn main() {
     add(2);
     add(3);
     println(total);    // 5
 }</code></pre>
 <h2 id="string-interpolation">String interpolation</h2>
 <p><code>inter&quot;...&quot;</code> interpolates <code>{expr}</code> inside a string, with <code>\{</code>, <code>\}</code>, and <code>\\</code> as escapes:</p>
-<pre><code>global main() {
+<pre><code>fn main() {
     int n = 3;
     str message = inter&quot;n is {n}&quot;;
     println(message);          // n is 3
     println(inter&quot;also {n}&quot;); // also 3
 }</code></pre>
 <p><code>inter&quot;...&quot;</code> is a string expression, so it can be used wherever a string value is accepted, including output calls, assignments, and return values:</p>
-<pre><code>global describe(int n) -&gt; str {
+<pre><code>fn describe(int n) -&gt; str {
     return inter&quot;value: {n}\n&quot;;
 }</code></pre>
 <p>The embedded expressions run when the string is evaluated. Each result is converted to text and inserted between the literal parts.</p>
 <h3 id="interpolating-output-calls">Interpolating output calls</h3>
 <p><code>printf(...)</code> and <code>printlnf(...)</code> are the interpolating counterparts of <code>print(...)</code> and <code>println(...)</code>. A double-quoted string literal written directly as an argument is treated as if it had an <code>inter</code> prefix, so <code>{expr}</code> is evaluated without constructing an explicit <code>inter&quot;...&quot;</code> value:</p>
-<pre><code>global main() {
+<pre><code>fn main() {
     int n = 3;
     str name = &quot;Ada&quot;;
     printf(&quot;n is {n} and name is {name}\n&quot;);
@@ -367,7 +367,7 @@ printlnf(pattern); // n is {n}</code></pre>
 <h2 id="aggregate-types">Aggregate types</h2>
 <ul>
 <li><a href="structs.html">structs</a> — data-only records built with <code>new</code>.</li>
-<li><a href="templates.html">templates</a> — header constructors, <code>build ... named</code>, fields, <code>local</code> methods, and <code>extending</code>.</li>
+<li><a href="templates.html">templates</a> — header constructors, <code>build ... named</code>, fields, <code>fn</code> methods, and <code>extending</code>.</li>
 <li><a href="classes.html">classes</a> — deprecated class form.</li>
 <li><a href="enums.html">enums</a> — tagged unions with payloads and <code>switch</code> patterns.</li>
 <li><a href="vargroups.html">vargroups</a> — typed records with defaults and dot access.</li>

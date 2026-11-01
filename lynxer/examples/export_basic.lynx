@@ -4,7 +4,7 @@ Export fixture: one function per v1 C ABI type, an alias spelling, and a
 Built into a shared library by `lynxer --emit-library` and exercised by
 `export_test.cpp` and `export_test.py`.
 ////
-global setup(){
+fn setup(){
     // Runs once, before the first exported call, and may itself call exports.
     println("setup-ran");
     println(add(20, 22));

@@ -1,15 +1,15 @@
-global setup(){
+fn setup(){
     import("sys");
 }
 
-global worker(){
+fn worker(){
     println("worker requesting exit");
-    global.sys.exit(31);
+    sys.exit(31);
 }
 
-global main(){
+fn main(){
     println("before worker");
-    int thread = nativeThreadStart(global.worker, []);
+    int thread = nativeThreadStart(worker, []);
     nativeThreadJoin(thread);
     println("after worker");
 }

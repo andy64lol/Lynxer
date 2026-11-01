@@ -6,9 +6,9 @@
 > `extending`. The `class` form remains fully supported for compatibility,
 > including `new`, `extends`, and `super(...)`.
 
-A `class` is a named type with typed fields and `local` methods, constructed
-with `new`. A class can extend one previously declared class. Declare classes
-between `global setup()` and `global main()`.
+A `class` is a named type with typed fields and `fn` methods, constructed with
+`new`. A class can extend one previously declared class. Declare classes
+between `fn setup()` and `fn main()`.
 
 ## Declaration
 
@@ -17,15 +17,15 @@ class Counter {
     int value = 0;
     const int step = 1;
 
-    local init(int initial) {
+    fn init(int initial) {
         this.value = initial;
     }
 
-    local increment() {
+    fn increment() {
         this.value += this.step;
     }
 
-    local get() {
+    fn get() {
         return this.value;
     }
 }
@@ -34,7 +34,7 @@ class Counter {
 - Fields are `type name = initialValue;`. A field may be `const`, which makes
   later writes an error:
   `Field 'step' of instance 'Counter' is const and cannot be changed`.
-- `local init(...)` is the constructor. It runs on `new` and receives the
+- `fn init(...)` is the constructor. It runs on `new` and receives the
   constructor arguments through `this`.
 - Methods use `this.field` to read and write fields.
 
@@ -46,17 +46,17 @@ Use JavaScript-style `extends` to derive a class from one previously declared:
 class Animal {
     str name = "";
 
-    local init(str name) {
+    fn init(str name) {
         this.name = name;
     }
 
-    local speak() {
+    fn speak() {
         return "...";
     }
 }
 
 class Dog extends Animal {
-    local speak() {
+    fn speak() {
         return "woof";
     }
 }
@@ -82,14 +82,14 @@ parent constructor with `super(arguments);`:
 ```lynx
 class Animal {
     str name;
-    local init(str name) {
+    fn init(str name) {
         this.name = name;
     }
 }
 
 class Dog extends Animal {
     str breed;
-    local init(str name, str breed) {
+    fn init(str name, str breed) {
         super(name);
         this.breed = breed;
     }
@@ -123,10 +123,10 @@ println(first.get());   // 2
 
 Two restrictions distinguish methods from [ordinary functions](language.md#functions):
 
-- Methods take **no** return annotation. `local get() -> int { ... }` fails with
+- Methods take **no** return annotation. `fn get() -> int { ... }` fails with
   `expected '{' before method body`. Return the value with a bare `return`.
 - Method parameters may be typed but may **not** have default values.
-  `local set(int x = 2)` fails with `expected ')' after parameters`.
+  `fn set(int x = 2)` fails with `expected ')' after parameters`.
 
 ## Fields and assignment
 
@@ -147,26 +147,26 @@ this.value += this.step;
 ## Full example
 
 ```lynx
-global setup(){}
+fn setup(){}
 
 class Counter {
     int value = 0;
     const int step = 1;
 
-    local init(int initial) {
+    fn init(int initial) {
         this.value = initial;
     }
 
-    local increment() {
+    fn increment() {
         this.value += this.step;
     }
 
-    local get() {
+    fn get() {
         return this.value;
     }
 }
 
-global main(){
+fn main(){
     Counter first = new Counter(1);
     first.increment();
     println(first.get());     // 2

@@ -5,7 +5,7 @@ UUID generation, parsing and formatting.
 **Backend:** native — `stdlib/uuid.so`, built from the Rust crate
 `rust/uuid` over [`uuid`](https://docs.rs/uuid) with the `v3`, `v4`, `v5` and
 `v7` features.
-**Import:** `import("uuid")` → `global.uuid.*`
+**Import:** `import("uuid")` → `uuid.*`
 
 ## How UUIDs travel
 
@@ -71,14 +71,14 @@ for a time-based UUID and `-1` for v3, v4, v5 and nil.
 ## Example
 
 ```lynx
-global setup(){ import("uuid"); }
+fn setup(){ import("uuid"); }
 
-global main(){
-    str namespace = global.uuid.uuidNamespace("dns");
-    println(global.uuid.uuidV3(namespace, "www.example.com"));
-    println(global.uuid.uuidV5(namespace, "www.example.com"));
-    println(global.uuid.uuidVersion(global.uuid.uuidV7()));
-    println(global.uuid.uuidValid("nope"));
+fn main(){
+    str namespace = uuid.uuidNamespace("dns");
+    println(uuid.uuidV3(namespace, "www.example.com"));
+    println(uuid.uuidV5(namespace, "www.example.com"));
+    println(uuid.uuidVersion(uuid.uuidV7()));
+    println(uuid.uuidValid("nope"));
 }
 ```
 

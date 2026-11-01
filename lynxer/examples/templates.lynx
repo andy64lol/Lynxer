@@ -3,16 +3,16 @@ Templates: constructor parameters in the declaration header, `build ... named`
 construction, and `extending` inheritance. Header parameters become fields, so
 methods read them through `this`.
 ////
-global setup(){}
+fn setup(){}
 
 template Greeter(str name, int times) {
     str greeting = "Hello";
 
-    local line() {
+    fn line() {
         return this.greeting + ", " + this.name + "!";
     }
 
-    local speak() {
+    fn speak() {
         int index = 0;
         while (index < this.times) {
             println(this.line());
@@ -24,7 +24,7 @@ template Greeter(str name, int times) {
 template Polite(str name, int times) extending Greeter {
     str greeting = "Good day";
 
-    local farewell() {
+    fn farewell() {
         return "Goodbye, " + this.name;
     }
 }
@@ -32,18 +32,18 @@ template Polite(str name, int times) extending Greeter {
 template Quiet(str name) extending Greeter {
     str greeting = "Hi";
 
-    local speak() {
+    fn speak() {
         println(this.line());
     }
 }
 
 template Marker() {
-    local mark() {
+    fn mark() {
         return "mark";
     }
 }
 
-global main(){
+fn main(){
     build Greeter("Andy", 2) named greeter;
     greeter.speak();
 

@@ -150,7 +150,7 @@ println(plain.show());    // plain:none
 
 | | `template` | legacy `class` |
 | --- | --- | --- |
-| Constructor | header parameters | `local init(...)` |
+| Constructor | header parameters | `fn init(...)` |
 | Construction | `build T(args) named x;` | `T x = new T(args);` |
 | Inheritance keyword | `extending` | `extends` |
 | Parent constructor | none | `super(...)` inside `init` |

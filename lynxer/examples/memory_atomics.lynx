@@ -7,9 +7,9 @@ Only host-independent values are printed. `memoryProtect` is exercised with
 modes are page-granular and can affect unrelated bytes in the same page (see
 docs/builtins.md).
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int buffer = memoryAllocate(32);
 
     atomicStore(buffer, 0, "int64", 10);

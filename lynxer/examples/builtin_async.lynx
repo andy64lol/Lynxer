@@ -1,22 +1,22 @@
-global setup(){}
+fn setup(){}
 
-global onEvent(str event){
+fn onEvent(str event){
     println(returnLength(event) > 0);
 }
 
-global worker(int n){
+fn worker(int n){
     return n + 1;
 }
 
-global main(){
+fn main(){
     // Real tasks: `asyncRun` starts the function on a worker thread and returns
     // a handle; `await` joins it. `asyncGather` joins the handles among its
     // arguments, so its `asyncRun` calls run together.
-    int first = asyncRun(global.worker, [41]);
-    int second = asyncRun(global.worker, [0]);
+    int first = asyncRun(worker, [41]);
+    int second = asyncRun(worker, [0]);
     println(await first);
     println(await second);
-    any gathered = asyncGather(asyncRun(global.worker, [1]), asyncRun(global.worker, [2]));
+    any gathered = asyncGather(asyncRun(worker, [1]), asyncRun(worker, [2]));
     println(returnLength(gathered));
     println(await 1 + 1);
 
@@ -39,7 +39,7 @@ global main(){
         any wakeEvents = await asyncPollWait(poll, 1000);
         println(returnLength(wakeEvents) > 0);
         asyncWakeupSignal(wakeup);
-        await asyncPollDispatch(poll, global.onEvent, 1000, 1);
+        await asyncPollDispatch(poll, onEvent, 1000, 1);
         asyncWakeupClose(wakeup);
     }
     async.run();

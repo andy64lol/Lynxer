@@ -6,9 +6,9 @@ responsibility. Every wrapper is **target-gated** and reached through the
 architecture's namespace.
 
 ```lynx
-global setup(){ syscalls("Linux", "amd64"); }
+fn setup(){ syscalls("Linux", "amd64"); }
 
-global main(){
+fn main(){
     println(amd64.syscallGetProcessId());
     println(amd64.syscallYieldProcessor());
 }
@@ -32,7 +32,7 @@ operating system and architecture the program targets.
   `syscalls("Linux", "amd64")` on a non-Linux host and
   `syscalls("winAPI", "amd64")` on a non-Windows host.
 - Matching is **case-insensitive**, and `winAPI`/`windows`/`win32` are synonyms,
-  so `syscalls(global.sys.platform(), global.sys.architecture())` asserts the
+  so `syscalls(sys.platform(), sys.architecture())` asserts the
   host (see [stdlib/sys.md](stdlib/sys.md)); `sys.platform()` returns `win32` on
   Windows.
 - Only **one target at a time** may be selected; re-selecting the same one is a
@@ -52,9 +52,9 @@ a Windows host. It makes the `winAPI.*` namespace available — the Win32 calls 
 program needs, in the camelCase Win32 naming:
 
 ```lynx
-global setup(){ syscalls("winAPI", "amd64"); }
+fn setup(){ syscalls("winAPI", "amd64"); }
 
-global main(){
+fn main(){
     println(winAPI.getProcessId());
     println(winAPI.getCurrentDirectory());
     println(winAPI.getComputerName());
@@ -362,7 +362,7 @@ its tiny allowlist.
 ## See also
 
 - [builtins.md](builtins.md#syscalls) — the summary table and the gate rules.
-- [stdlib/sys.md](stdlib/sys.md) — `global.sys.architecture()`, the keyword to
+- [stdlib/sys.md](stdlib/sys.md) — `sys.architecture()`, the keyword to
   pass.
 - [legacy-surface.md](legacy-surface.md) — how the original flat naming maps
   onto the namespaced form.

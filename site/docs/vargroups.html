@@ -163,9 +163,9 @@ println(player.coins);      // 500</code></pre>
 <pre><code>vargroup nested = { int n = 1, vargroup sub = { str k = &quot;x&quot; } };
 println(nested.sub.k);   // x</code></pre>
 <h2 id="full-example">Full example</h2>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     vargroup player = {
         str username = &quot;Ada&quot;,
         int coins = 250,

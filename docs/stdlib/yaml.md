@@ -6,7 +6,7 @@ YAML parsing and serialization.
 over `serde_yml`, a maintained fork of the archived `serde_yaml` (the
 substitution is recorded here per **D5** in [todo.md](../../todo.md)).
 
-**Import:** `import("yaml")` → `global.yaml.*`
+**Import:** `import("yaml")` → `yaml.*`
 
 ## How documents travel
 
@@ -35,15 +35,15 @@ A failure is a scalar sentinel: a document operation yields `""` and
 ## Example
 
 ```lynx
-global setup(){ import("yaml"); }
+fn setup(){ import("yaml"); }
 
-global main(){
+fn main(){
     str text = "name: lynxer\nitems:\n  - 1\n  - 2\n";
 
-    println(global.yaml.yamlParse(text));
-    println(global.yaml.yamlGet(text, "name"));
+    println(yaml.yamlParse(text));
+    println(yaml.yamlGet(text, "name"));
 
-    println(global.yaml.yamlSerialize("{\"name\":\"lynxer\",\"items\":[1,2]}"));
+    println(yaml.yamlSerialize("{\"name\":\"lynxer\",\"items\":[1,2]}"));
 }
 ```
 

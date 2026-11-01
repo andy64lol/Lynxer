@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     str answer = inputln("Hello, world!");
     println(answer);
 }

@@ -4,224 +4,224 @@ runner sets LYNXER_GAME_HEADLESS=1), so no window is opened and drawing calls
 are no-ops, but the whole API surface and the frame-callback bridge are
 exercised deterministically.
 ////
-global setup(){ import("game"); }
+fn setup(){ import("game"); }
 
-global onUpdate(float dt){
+fn onUpdate(float dt){
     println("update ", dt);
 }
 
-global onDraw(){
+fn onDraw(){
     println("draw");
 }
 
-global main(){
-    global.game.init("smoke", 320, 200);
-    println(global.game.getWidth(), "x", global.game.getHeight());
+fn main(){
+    game.init("smoke", 320, 200);
+    println(game.getWidth(), "x", game.getHeight());
 
     // Drawing is a no-op headless but must not fail.
-    global.game.beginDraw();
-    global.game.drawRect(10.0, 10.0, 20.0, 20.0, 255, 0, 0);
-    global.game.drawCircle(50.0, 50.0, 5.0, 0, 255, 0);
-    global.game.drawLine(0.0, 0.0, 100.0, 100.0, 0, 0, 255, 1.0);
-    global.game.drawTriangle(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 255, 255, 0);
-    global.game.drawText("hi", 5.0, 5.0, 255, 255, 255, 12);
-    global.game.drawPolygon("0,0,10,0,5,8", 0, 255, 255);
-    global.game.endDraw();
+    game.beginDraw();
+    game.drawRect(10.0, 10.0, 20.0, 20.0, 255, 0, 0);
+    game.drawCircle(50.0, 50.0, 5.0, 0, 255, 0);
+    game.drawLine(0.0, 0.0, 100.0, 100.0, 0, 0, 255, 1.0);
+    game.drawTriangle(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 255, 255, 0);
+    game.drawText("hi", 5.0, 5.0, 255, 255, 255, 12);
+    game.drawPolygon("0,0,10,0,5,8", 0, 255, 255);
+    game.endDraw();
 
-    int a = global.game.makeSolidSprite(10, 20, 255, 0, 0, 0.0, 0.0);
-    int b = global.game.makeSolidSprite(10, 20, 0, 255, 0, 3.0, 4.0);
-    println("a=", a, " b=", b, " exists=", global.game.spriteExists(a));
-    println("size=", global.game.getSpriteWidth(a), "x", global.game.getSpriteHeight(a));
-    println("dist=", global.game.spriteDistance(a, b));
-    println("near=", global.game.spriteNear(a, 3.0, 4.0, 5.0));
+    int a = game.makeSolidSprite(10, 20, 255, 0, 0, 0.0, 0.0);
+    int b = game.makeSolidSprite(10, 20, 0, 255, 0, 3.0, 4.0);
+    println("a=", a, " b=", b, " exists=", game.spriteExists(a));
+    println("size=", game.getSpriteWidth(a), "x", game.getSpriteHeight(a));
+    println("dist=", game.spriteDistance(a, b));
+    println("near=", game.spriteNear(a, 3.0, 4.0, 5.0));
 
-    global.game.setSpritePos(b, 8.0, 0.0);
-    println("pos=", global.game.getSpritePosition(b));
-    println("collide=", global.game.spriteCollides(a, b));
+    game.setSpritePos(b, 8.0, 0.0);
+    println("pos=", game.getSpritePosition(b));
+    println("collide=", game.spriteCollides(a, b));
 
-    global.game.setSpriteVelocity(b, 5.0, 0.0);
-    println("vx=", global.game.getSpriteVX(b));
-    global.game.stopSprite(b);
-    println("vx2=", global.game.getSpriteVX(b));
+    game.setSpriteVelocity(b, 5.0, 0.0);
+    println("vx=", game.getSpriteVX(b));
+    game.stopSprite(b);
+    println("vx2=", game.getSpriteVX(b));
 
-    int list = global.game.makeSpriteList();
-    global.game.addToList(list, a);
-    global.game.addToList(list, b);
-    println("count=", global.game.getSpriteListCount(list));
-    global.game.removeSpriteFromList(list, a);
-    println("count2=", global.game.getSpriteListCount(list));
+    int list = game.makeSpriteList();
+    game.addToList(list, a);
+    game.addToList(list, b);
+    println("count=", game.getSpriteListCount(list));
+    game.removeSpriteFromList(list, a);
+    println("count2=", game.getSpriteListCount(list));
 
-    int cam = global.game.makeCamera();
-    global.game.setCameraPos(cam, 100.0, 50.0);
-    global.game.zoomCamera(cam, 2.0);
-    println("cam=", global.game.getCameraX(cam), ",", global.game.getCameraY(cam), " zoom=", global.game.getCameraZoom(cam));
-    global.game.resetCamera();
+    int cam = game.makeCamera();
+    game.setCameraPos(cam, 100.0, 50.0);
+    game.zoomCamera(cam, 2.0);
+    println("cam=", game.getCameraX(cam), ",", game.getCameraY(cam), " zoom=", game.getCameraZoom(cam));
+    game.resetCamera();
 
-    println("key=", global.game.keyDown("SPACE"), " mouse=", global.game.mouseButtonDown("LEFT"));
+    println("key=", game.keyDown("SPACE"), " mouse=", game.mouseButtonDown("LEFT"));
 
-    println(global.game.screenToTile(80.0, 40.0, 16));
-    println(global.game.tileToScreen(1, 2, 16));
+    println(game.screenToTile(80.0, 40.0, 16));
+    println(game.tileToScreen(1, 2, 16));
 
     // --- extended coverage --------------------------------------------------
 
     // Window helpers.
-    global.game.setBackground(10, 20, 30);
-    global.game.setFPSCap(60);
-    global.game.setResizable(true);
-    global.game.setFullscreen(false);
-    global.game.setMouseVisible(true);
-    global.game.setWindowSize(400, 300);
-    println("resized=", global.game.getWidth(), "x", global.game.getHeight());
-    println("fps=", global.game.getFPS(), " open=", global.game.isOpen());
+    game.setBackground(10, 20, 30);
+    game.setFPSCap(60);
+    game.setResizable(true);
+    game.setFullscreen(false);
+    game.setMouseVisible(true);
+    game.setWindowSize(400, 300);
+    println("resized=", game.getWidth(), "x", game.getHeight());
+    println("fps=", game.getFPS(), " open=", game.isOpen());
 
     // Sprite transforms and state.
-    global.game.setSpriteAngle(a, 90.0);
-    global.game.setSpriteScale(a, 2.0);
-    global.game.setSpriteAlpha(a, 128);
-    global.game.setSpriteVisible(a, false);
-    println("angle=", global.game.getSpriteAngle(a), " scale=", global.game.getSpriteScale(a), " alpha=", global.game.getSpriteAlpha(a));
-    println("scaled=", global.game.getSpriteWidth(a), "x", global.game.getSpriteHeight(a), " visible=", global.game.getSpriteVisible(a));
-    global.game.setSpriteVisible(a, true);
-    global.game.setSpriteAngularVelocity(b, 45.0);
-    println("angVel=", global.game.getSpriteAngularVelocity(b));
-    global.game.moveSpriteToward(b, 0.0, 0.0, 4.0);
-    println("toward=", global.game.getSpriteVX(b), ",", global.game.getSpriteVY(b));
-    global.game.faceSpriteTo(b, 16.0, 0.0);
-    println("facing=", global.game.getSpriteAngle(b));
-    println("near2=", global.game.spriteNear(a, 100.0, 100.0, 5.0));
+    game.setSpriteAngle(a, 90.0);
+    game.setSpriteScale(a, 2.0);
+    game.setSpriteAlpha(a, 128);
+    game.setSpriteVisible(a, false);
+    println("angle=", game.getSpriteAngle(a), " scale=", game.getSpriteScale(a), " alpha=", game.getSpriteAlpha(a));
+    println("scaled=", game.getSpriteWidth(a), "x", game.getSpriteHeight(a), " visible=", game.getSpriteVisible(a));
+    game.setSpriteVisible(a, true);
+    game.setSpriteAngularVelocity(b, 45.0);
+    println("angVel=", game.getSpriteAngularVelocity(b));
+    game.moveSpriteToward(b, 0.0, 0.0, 4.0);
+    println("toward=", game.getSpriteVX(b), ",", game.getSpriteVY(b));
+    game.faceSpriteTo(b, 16.0, 0.0);
+    println("facing=", game.getSpriteAngle(b));
+    println("near2=", game.spriteNear(a, 100.0, 100.0, 5.0));
 
     // Collision queries against a sprite list.
-    println("listHit=", global.game.spriteCollidesWithList(a, list));
-    println(global.game.getCollidingSprites(a, list));
+    println("listHit=", game.spriteCollidesWithList(a, list));
+    println(game.getCollidingSprites(a, list));
 
     // Removing a sprite also drops it from the lists.
-    global.game.destroySprite(b);
-    println("gone=", global.game.spriteExists(b), " count3=", global.game.getSpriteListCount(list));
+    game.destroySprite(b);
+    println("gone=", game.spriteExists(b), " count3=", game.getSpriteListCount(list));
 
     // A missing image cannot be loaded (headless mode never touches the GPU).
-    println("tex=", global.game.loadTexture("missing.png"), " spr=", global.game.loadSprite("missing.png", 1.0, 0.0, 0.0));
+    println("tex=", game.loadTexture("missing.png"), " spr=", game.loadSprite("missing.png", 1.0, 0.0, 0.0));
 
     // Camera activation and smoothing.
-    global.game.useCamera(cam);
-    global.game.smoothScrollCamera(cam, 200.0, 50.0, 0.5);
-    println("smooth=", global.game.getCameraX(cam), ",", global.game.getCameraY(cam), " zoom=", global.game.getCameraZoom(cam));
-    global.game.resetCamera();
+    game.useCamera(cam);
+    game.smoothScrollCamera(cam, 200.0, 50.0, 0.5);
+    println("smooth=", game.getCameraX(cam), ",", game.getCameraY(cam), " zoom=", game.getCameraZoom(cam));
+    game.resetCamera();
 
     // Every remaining draw primitive. Headless no-ops, but they exercise the
     // packed-argument ABI, including the long argument lists and the
     // coordinate/text forms.
-    global.game.beginDraw();
-    global.game.drawRectOutline(10.0, 10.0, 20.0, 20.0, 255, 0, 0, 1.0);
-    global.game.drawCircleOutline(50.0, 50.0, 5.0, 0, 255, 0, 1.0);
-    global.game.drawEllipse(20.0, 20.0, 30.0, 10.0, 1, 2, 3);
-    global.game.drawEllipseOutline(20.0, 20.0, 30.0, 10.0, 1, 2, 3, 1.0);
-    global.game.drawTriangleOutline(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 1, 2, 3, 1.0);
-    global.game.drawPoint(1.0, 2.0, 1, 2, 3, 2.0);
-    global.game.drawRectRoundedFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0);
-    global.game.drawRectRoundedOutline(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0, 1.0);
-    global.game.drawStar(10.0, 10.0, 8.0, 4.0, 5, 1, 2, 3);
-    global.game.drawDashedLine(0.0, 0.0, 10.0, 0.0, 1, 2, 3, 1.0, 2.0);
-    global.game.drawCross(5.0, 5.0, 3.0, 1, 2, 3, 1.0);
-    global.game.drawGradientRect(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4, 5, 6);
-    global.game.drawArc(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0, 1.0);
-    global.game.drawArcFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0);
-    global.game.drawPolygonOutline("0,0,10,0,5,8", 1, 2, 3, 1.0);
-    global.game.drawPolyline("0,0,5,5,10,0", 1, 2, 3, 1.0);
-    global.game.drawPoints("1,2 3,4", 1, 2, 3, 2.0);
-    global.game.drawLines("0,0,10,10", 1, 2, 3, 1.0);
-    global.game.drawTextStyled("styled", 5.0, 5.0, 255, 255, 255, 12, "sans", true, false, "center");
-    global.game.drawTextAnchored("anchored", 50.0, 50.0, 255, 255, 255, 12, "center", "top");
-    global.game.setSpriteTexture(a, 0);
-    global.game.drawSprite(a);
-    global.game.drawTexture(0, 10.0, 10.0, 4.0, 4.0, 0.0);
-    global.game.drawTextureAt("missing.png", 10.0, 10.0, 1.0);
-    global.game.drawTextureRect(0, 0.0, 0.0, 4.0, 4.0);
-    global.game.endDraw();
+    game.beginDraw();
+    game.drawRectOutline(10.0, 10.0, 20.0, 20.0, 255, 0, 0, 1.0);
+    game.drawCircleOutline(50.0, 50.0, 5.0, 0, 255, 0, 1.0);
+    game.drawEllipse(20.0, 20.0, 30.0, 10.0, 1, 2, 3);
+    game.drawEllipseOutline(20.0, 20.0, 30.0, 10.0, 1, 2, 3, 1.0);
+    game.drawTriangleOutline(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 1, 2, 3, 1.0);
+    game.drawPoint(1.0, 2.0, 1, 2, 3, 2.0);
+    game.drawRectRoundedFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0);
+    game.drawRectRoundedOutline(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0, 1.0);
+    game.drawStar(10.0, 10.0, 8.0, 4.0, 5, 1, 2, 3);
+    game.drawDashedLine(0.0, 0.0, 10.0, 0.0, 1, 2, 3, 1.0, 2.0);
+    game.drawCross(5.0, 5.0, 3.0, 1, 2, 3, 1.0);
+    game.drawGradientRect(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4, 5, 6);
+    game.drawArc(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0, 1.0);
+    game.drawArcFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0);
+    game.drawPolygonOutline("0,0,10,0,5,8", 1, 2, 3, 1.0);
+    game.drawPolyline("0,0,5,5,10,0", 1, 2, 3, 1.0);
+    game.drawPoints("1,2 3,4", 1, 2, 3, 2.0);
+    game.drawLines("0,0,10,10", 1, 2, 3, 1.0);
+    game.drawTextStyled("styled", 5.0, 5.0, 255, 255, 255, 12, "sans", true, false, "center");
+    game.drawTextAnchored("anchored", 50.0, 50.0, 255, 255, 255, 12, "center", "top");
+    game.setSpriteTexture(a, 0);
+    game.drawSprite(a);
+    game.drawTexture(0, 10.0, 10.0, 4.0, 4.0, 0.0);
+    game.drawTextureAt("missing.png", 10.0, 10.0, 1.0);
+    game.drawTextureRect(0, 0.0, 0.0, 4.0, 4.0);
+    game.endDraw();
 
     // Title/cursor helpers and timing.
-    global.game.setTitle("renamed");
-    global.game.hideCursor();
-    global.game.showCursor();
-    println("dt>0=", global.game.deltaTime() > 0.0, " t=", global.game.getTime());
+    game.setTitle("renamed");
+    game.hideCursor();
+    game.showCursor();
+    println("dt>0=", game.deltaTime() > 0.0, " t=", game.getTime());
 
     // Sprite reads, aliases and mutation.
-    println("xy=", global.game.getSpriteX(a), ",", global.game.getSpriteY(a));
-    global.game.setSpritePosition(a, 1.0, 2.0);
-    println("moved=", global.game.getSpritePosition(a));
-    global.game.setSpriteColor(a, 1, 2, 3, 255);
-    global.game.flipSpriteH(a);
-    global.game.flipSpriteV(a);
-    global.game.updateSprite(a);
-    println("after=", global.game.getSpriteX(a), ",", global.game.getSpriteY(a));
+    println("xy=", game.getSpriteX(a), ",", game.getSpriteY(a));
+    game.setSpritePosition(a, 1.0, 2.0);
+    println("moved=", game.getSpritePosition(a));
+    game.setSpriteColor(a, 1, 2, 3, 255);
+    game.flipSpriteH(a);
+    game.flipSpriteV(a);
+    game.updateSprite(a);
+    println("after=", game.getSpriteX(a), ",", game.getSpriteY(a));
 
     // Sprite lists: update, draw and clear.
-    int big = global.game.makeSpriteList();
-    global.game.addToList(big, a);
-    global.game.updateSpriteList(big);
-    global.game.drawSpriteList(big);
-    println("bigCount=", global.game.getSpriteListCount(big));
-    global.game.clearSpriteList(big);
-    println("cleared=", global.game.getSpriteListCount(big));
+    int big = game.makeSpriteList();
+    game.addToList(big, a);
+    game.updateSpriteList(big);
+    game.drawSpriteList(big);
+    println("bigCount=", game.getSpriteListCount(big));
+    game.clearSpriteList(big);
+    println("cleared=", game.getSpriteListCount(big));
 
     // Input reads are deterministic in headless mode.
-    println("mouse=", global.game.mouseX(), ",", global.game.mouseY(), " scroll=", global.game.mouseScrollX(), ",", global.game.mouseScrollY());
-    println("deltas=", global.game.mouseDeltaX(), ",", global.game.mouseDeltaY());
-    println("keys=", global.game.keyPressed("A"), " ", global.game.keyReleased("A"), " ", global.game.keyUp("A"));
-    println("buttons=", global.game.mouseLeft(), " ", global.game.mouseMiddle(), " ", global.game.mouseRight(), " ", global.game.mouseButtonPressed("LEFT"), " ", global.game.mouseButtonReleased("LEFT"), " ", global.game.mouseButtonCode("LEFT"));
-    println("keyCode=", global.game.keyCode("SPACE"));
+    println("mouse=", game.mouseX(), ",", game.mouseY(), " scroll=", game.mouseScrollX(), ",", game.mouseScrollY());
+    println("deltas=", game.mouseDeltaX(), ",", game.mouseDeltaY());
+    println("keys=", game.keyPressed("A"), " ", game.keyReleased("A"), " ", game.keyUp("A"));
+    println("buttons=", game.mouseLeft(), " ", game.mouseMiddle(), " ", game.mouseRight(), " ", game.mouseButtonPressed("LEFT"), " ", game.mouseButtonReleased("LEFT"), " ", game.mouseButtonCode("LEFT"));
+    println("keyCode=", game.keyCode("SPACE"));
 
     // --- Physics: horizontal collision, slopes and one-way platforms --------
     // A floor, a wall to walk into, a ramp and a one-way platform.
-    int floor = global.game.makeSolidSprite(200, 20, 255, 255, 255, 100.0, 0.0);
-    int brick = global.game.makeSolidSprite(20, 40, 255, 255, 255, 80.0, 30.0);
-    int ramp = global.game.makeSolidSprite(20, 40, 255, 255, 255, 30.0, 40.0);
-    global.game.setSpriteAngle(ramp, 30.0);
-    int ledge = global.game.makeSolidSprite(60, 10, 255, 255, 255, 150.0, 40.0);
+    int floor = game.makeSolidSprite(200, 20, 255, 255, 255, 100.0, 0.0);
+    int brick = game.makeSolidSprite(20, 40, 255, 255, 255, 80.0, 30.0);
+    int ramp = game.makeSolidSprite(20, 40, 255, 255, 255, 30.0, 40.0);
+    game.setSpriteAngle(ramp, 30.0);
+    int ledge = game.makeSolidSprite(60, 10, 255, 255, 255, 150.0, 40.0);
 
-    int walls = global.game.makeSpriteList();
-    global.game.addToList(walls, floor);
-    global.game.addToList(walls, brick);
-    global.game.addToList(walls, ramp);
-    int platforms = global.game.makeSpriteList();
-    global.game.addToList(platforms, ledge);
+    int walls = game.makeSpriteList();
+    game.addToList(walls, floor);
+    game.addToList(walls, brick);
+    game.addToList(walls, ramp);
+    int platforms = game.makeSpriteList();
+    game.addToList(platforms, ledge);
 
     // Walking right: the player stops against the wall instead of passing
     // through it, and settles on the floor.
-    int walker = global.game.makeSolidSprite(10, 20, 0, 0, 255, 50.0, 30.0);
-    int engine = global.game.makePhysicsEngine(100.0, walls, platforms);
-    global.game.setPhysicsPlayer(engine, walker);
-    global.game.setSpriteVelocity(walker, 100.0, 0.0);
+    int walker = game.makeSolidSprite(10, 20, 0, 0, 255, 50.0, 30.0);
+    int engine = game.makePhysicsEngine(100.0, walls, platforms);
+    game.setPhysicsPlayer(engine, walker);
+    game.setSpriteVelocity(walker, 100.0, 0.0);
     int i = 0;
-    while(i < 120){ global.game.updatePhysics(engine); i = i + 1; }
-    println("walkX=", global.game.getSpriteX(walker), " walkY=", global.game.getSpriteY(walker));
-    println("grounded=", global.game.canJump(engine), " vx=", global.game.getSpriteVX(walker));
+    while(i < 120){ game.updatePhysics(engine); i = i + 1; }
+    println("walkX=", game.getSpriteX(walker), " walkY=", game.getSpriteY(walker));
+    println("grounded=", game.canJump(engine), " vx=", game.getSpriteVX(walker));
 
     // Jumping up through the one-way platform: it is solid only from above.
-    int jumper = global.game.makeSolidSprite(10, 20, 0, 255, 0, 150.0, 20.0);
-    int jumpEngine = global.game.makePhysicsEngine(100.0, walls, platforms);
-    global.game.setPhysicsPlayer(jumpEngine, jumper);
-    global.game.setSpriteVelocity(jumper, 0.0, 200.0);
+    int jumper = game.makeSolidSprite(10, 20, 0, 255, 0, 150.0, 20.0);
+    int jumpEngine = game.makePhysicsEngine(100.0, walls, platforms);
+    game.setPhysicsPlayer(jumpEngine, jumper);
+    game.setSpriteVelocity(jumper, 0.0, 200.0);
     i = 0;
-    while(i < 20){ global.game.updatePhysics(jumpEngine); i = i + 1; }
-    println("through=", global.game.getSpriteY(jumper) > 45.0, " vy=", global.game.getPlayerVY(jumpEngine) > 0.0);
+    while(i < 20){ game.updatePhysics(jumpEngine); i = i + 1; }
+    println("through=", game.getSpriteY(jumper) > 45.0, " vy=", game.getPlayerVY(jumpEngine) > 0.0);
     // ...and it catches the player once they fall back from above.
-    global.game.setSpriteVelocity(jumper, 0.0, 0.0);
+    game.setSpriteVelocity(jumper, 0.0, 0.0);
     i = 0;
-    while(i < 120){ global.game.updatePhysics(jumpEngine); i = i + 1; }
-    println("landedOn=", global.game.getSpriteY(jumper), " grounded=", global.game.canJump(jumpEngine));
+    while(i < 120){ game.updatePhysics(jumpEngine); i = i + 1; }
+    println("landedOn=", game.getSpriteY(jumper), " grounded=", game.canJump(jumpEngine));
 
     // Falling onto the 30-degree ramp: the surface under x=30 is 25.77, so the
     // player's centre rests one half-height above it.
-    int slider = global.game.makeSolidSprite(10, 20, 255, 0, 255, 30.0, 70.0);
-    int slopeEngine = global.game.makePhysicsEngine(100.0, walls, -1);
-    global.game.setPhysicsPlayer(slopeEngine, slider);
+    int slider = game.makeSolidSprite(10, 20, 255, 0, 255, 30.0, 70.0);
+    int slopeEngine = game.makePhysicsEngine(100.0, walls, -1);
+    game.setPhysicsPlayer(slopeEngine, slider);
     i = 0;
-    while(i < 180){ global.game.updatePhysics(slopeEngine); i = i + 1; }
-    println("slopeY=", global.game.getSpriteY(slider), " grounded=", global.game.canJump(slopeEngine));
+    while(i < 180){ game.updatePhysics(slopeEngine); i = i + 1; }
+    println("slopeY=", game.getSpriteY(slider), " grounded=", game.canJump(slopeEngine));
 
-    global.game.setUpdateCallback("onUpdate");
-    global.game.setDrawCallback("onDraw");
-    global.game.run();
-    global.game.close();
+    game.setUpdateCallback("onUpdate");
+    game.setDrawCallback("onDraw");
+    game.run();
+    game.close();
     println("done");
 }

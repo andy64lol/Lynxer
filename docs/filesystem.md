@@ -5,9 +5,9 @@ Paths are strings, and failures are reported as source-located runtime errors
 carrying the operation and the original errno number and text.
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     int file = filesystemOpen("notes.txt", "w");
     filesystemWrite(file, "hello\n");
     filesystemClose(file);

@@ -1,8 +1,8 @@
 # Structs
 
 A `struct` is a data-only named type: a fixed list of typed fields, constructed
-positionally with `new`, with no methods. Declare it between `global setup()`
-and `global main()`.
+positionally with `new`, with no methods. Declare it between `fn setup()`
+and `fn main()`.
 
 ## Declaration
 
@@ -46,14 +46,14 @@ the type.)
 ## Full example
 
 ```lynx
-global setup(){}
+fn setup(){}
 
 struct Player {
     int health;
     str name;
 }
 
-global main(){
+fn main(){
     Player first = new Player(100, "Ada");
     first.health = 90;
     println(first.name);    // Ada

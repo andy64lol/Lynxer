@@ -5,7 +5,7 @@ XML parsing and serialization.
 **Backend:** native — `stdlib/xml.so`, built from the Rust crate `rust/xml`
 over `quick-xml`.
 
-**Import:** `import("xml")` → `global.xml.*`
+**Import:** `import("xml")` → `xml.*`
 
 ## How documents travel
 
@@ -38,17 +38,17 @@ yields `false`; `xmlUnescape` yields `""` for a malformed entity.
 ## Example
 
 ```lynx
-global setup(){ import("xml"); }
+fn setup(){ import("xml"); }
 
-global main(){
+fn main(){
     str text = "<a x=\"1\">hi<b/></a>";
 
-    println(global.xml.xmlParse(text));
-    println(global.xml.xmlValid(text));
-    println(global.xml.xmlEscape("a<b&c"));
+    println(xml.xmlParse(text));
+    println(xml.xmlValid(text));
+    println(xml.xmlEscape("a<b&c"));
 
     // Parse then serialize is a round trip.
-    println(global.xml.xmlSerialize(global.xml.xmlParse(text)));
+    println(xml.xmlSerialize(xml.xmlParse(text)));
 }
 ```
 

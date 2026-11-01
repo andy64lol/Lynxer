@@ -4,7 +4,7 @@ Command-line helpers: arguments, environment, terminal queries, process
 execution and Click/Typer-style command builders.
 
 **Backend:** native — `stdlib/cli.so`, built from `stdlib/cli.cpp` over POSIX
-APIs. **Import:** `import("cli")` → `global.cli.*`
+APIs. **Import:** `import("cli")` → `cli.*`
 
 ## Command builders
 
@@ -50,15 +50,15 @@ or more, the first argument selects the command.
 - A failed parse returns `{"error": "…"}` instead of failing the process.
 
 ```lynx
-global setup(){ import("cli"); }
+fn setup(){ import("cli"); }
 
-global main(){
-    global.cli.clickInit();
-    int command = global.cli.clickCommandCreate("greet", "Greet a person");
-    global.cli.clickAddArgument(command, "name", true, 1);
-    global.cli.clickAddOption(command, "--shout,-s", "Use uppercase", "", true, false, "bool");
-    global.cli.clickCommandSetShell(command, "printf 'Hello {name}'");
-    println(global.cli.clickInvoke(command, "[\"Ada\", \"--shout\"]"));
+fn main(){
+    cli.clickInit();
+    int command = cli.clickCommandCreate("greet", "Greet a person");
+    cli.clickAddArgument(command, "name", true, 1);
+    cli.clickAddOption(command, "--shout,-s", "Use uppercase", "", true, false, "bool");
+    cli.clickCommandSetShell(command, "printf 'Hello {name}'");
+    println(cli.clickInvoke(command, "[\"Ada\", \"--shout\"]"));
     // {"params": {"name": "Ada", "shout": true}, "output": "Hello Ada", "exitCode": 0}
 }
 ```
@@ -102,15 +102,15 @@ Lynxer does not forward extra arguments to a program, so `argv` describes the
 ## Example
 
 ```lynx
-global setup(){ import("cli"); }
+fn setup(){ import("cli"); }
 
-global main(){
-    println(global.cli.argCount());
-    if(global.cli.envHas("HOME")){
-        println(global.cli.envGet("HOME"));
+fn main(){
+    println(cli.argCount());
+    if(cli.envHas("HOME")){
+        println(cli.envGet("HOME"));
     }
-    println(global.cli.run("printf ok", true));
-    println(global.cli.runCode("false"));
+    println(cli.run("printf ok", true));
+    println(cli.runCode("false"));
 }
 ```
 

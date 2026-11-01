@@ -138,7 +138,7 @@
         </div>
 <h1 id="debug">debug</h1>
 <p>Assertions, type inspection, structured logging, timers and process metrics.</p>
-<p><strong>Backend:</strong> native + pure — <code>stdlib/debug.so</code> (<code>stdlib/debug.cpp</code>) provides timers, timestamps, environment and memory; the assertions and logging helpers are written in Lynxer in <code>stdlib/debug.lynx</code>. <strong>Import:</strong> <code>import(&quot;debug&quot;)</code> → <code>global.debug.*</code></p>
+<p><strong>Backend:</strong> native + pure — <code>stdlib/debug.so</code> (<code>stdlib/debug.cpp</code>) provides timers, timestamps, environment and memory; the assertions and logging helpers are written in Lynxer in <code>stdlib/debug.lynx</code>. <strong>Import:</strong> <code>import(&quot;debug&quot;)</code> → <code>debug.*</code></p>
 <h2 id="assertions">Assertions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
@@ -183,13 +183,13 @@
 </table>
 <p>Set <code>LYNXER_CRASH_LOG</code> to override the path, which also makes the diagnostics testable without touching the user's state directory.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;debug&quot;); }
+<pre><code>fn setup(){ import(&quot;debug&quot;); }
 
-global main(){
-    global.debug.assertEq(global.debug.typeOf(1), &quot;int&quot;, &quot;int type&quot;);
-    global.debug.startTimer(&quot;work&quot;);
-    println(global.debug.stopTimer(&quot;work&quot;) &gt;= 0.0);
-    println(global.debug.inspect(&quot;text&quot;));
+fn main(){
+    debug.assertEq(debug.typeOf(1), &quot;int&quot;, &quot;int type&quot;);
+    debug.startTimer(&quot;work&quot;);
+    println(debug.stopTimer(&quot;work&quot;) &gt;= 0.0);
+    println(debug.inspect(&quot;text&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

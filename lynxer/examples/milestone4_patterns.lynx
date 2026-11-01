@@ -1,6 +1,6 @@
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     any value = [1, 2];
     switch(value){
         default(){ println("default"); }

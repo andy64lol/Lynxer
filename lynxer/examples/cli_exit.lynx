@@ -1,9 +1,9 @@
-global setup(){
+fn setup(){
     import("cli");
 }
 
-global main(){
+fn main(){
     println("before cli.exit");
-    global.cli.exit(23);
+    cli.exit(23);
     println("after cli.exit");
 }

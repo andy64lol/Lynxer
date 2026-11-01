@@ -148,9 +148,9 @@
 <tr><td><code>memorySet(address, byte, count)</code></td><td>Fills <code>count</code> bytes.</td></tr>
 <tr><td><code>memoryCopy(source, target, count)</code></td><td>Copies <code>count</code> bytes.</td></tr>
 </table>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     int buffer = memoryAllocate(16);
     memoryWriteInt32(buffer, 0, 1234);
     println(memoryReadInt32(buffer, 0));   // 1234

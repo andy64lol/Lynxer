@@ -3,7 +3,7 @@
 Regular expressions with familiar Python pattern syntax.
 
 **Backend:** Rust — `stdlib/re.so`, built from `rust/re` over the shared
-`rust/regex_engine` (`fancy-regex`). **Import:** `import("re")` → `global.re.*`
+`rust/regex_engine` (`fancy-regex`). **Import:** `import("re")` → `re.*`
 
 Structured results (match lists, group lists, spans) are JSON strings.
 
@@ -65,11 +65,11 @@ end indexes are exclusive.
 ## Example
 
 ```lynx
-global setup(){ import("re"); }
+fn setup(){ import("re"); }
 
-global main(){
-    println(global.re.findall("\\d+", "a1 b22 c333"));
-    println(global.re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
+fn main(){
+    println(re.findall("\\d+", "a1 b22 c333"));
+    println(re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
 }
 ```
 

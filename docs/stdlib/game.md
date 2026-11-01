@@ -2,7 +2,7 @@
 
 2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust
 library built on [macroquad](https://macroquad.rs), linked into
-`stdlib/game.so` and reached through `global.game`.
+`stdlib/game.so` and reached through the `game` module namespace.
 
 > **Requires:** a Rust toolchain (`cargo`), which is required for the whole
 > build. `stdlib/game.so` is built by `cargo` like every other Rust backend; a
@@ -24,25 +24,25 @@ counter-clockwise.
 `run()`:
 
 ```lynx
-global setup(){ import("game"); }
+fn setup(){ import("game"); }
 
-global onUpdate(float dt){
+fn onUpdate(float dt){
     // advance the world; dt is seconds since the previous frame
 }
 
-global onDraw(){
-    global.game.beginDraw();
-    global.game.drawRect(100.0, 100.0, 40.0, 40.0, 255, 0, 0);
-    global.game.drawText("hello", 10.0, 10.0, 255, 255, 255, 16);
-    global.game.endDraw();
+fn onDraw(){
+    game.beginDraw();
+    game.drawRect(100.0, 100.0, 40.0, 40.0, 255, 0, 0);
+    game.drawText("hello", 10.0, 10.0, 255, 255, 255, 16);
+    game.endDraw();
 }
 
-global main(){
-    global.game.init("Demo", 800, 600);
-    global.game.setBackground(20, 20, 30);
-    global.game.setUpdateCallback("onUpdate");
-    global.game.setDrawCallback("onDraw");
-    global.game.run();
+fn main(){
+    game.init("Demo", 800, 600);
+    game.setBackground(20, 20, 30);
+    game.setUpdateCallback("onUpdate");
+    game.setDrawCallback("onDraw");
+    game.run();
 }
 ```
 

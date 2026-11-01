@@ -3,7 +3,7 @@
 Run JavaScript through a Node.js subprocess.
 
 **Backend:** native — `stdlib/js.so`, built from `stdlib/js.cpp`.
-**Import:** `import("js")` → `global.js.*`
+**Import:** `import("js")` → `js.*`
 
 Requires `node` on `PATH`; when it is missing, every runner returns
 `"Error: node not found on PATH"`. A program is killed after a timeout
@@ -25,11 +25,11 @@ kills the command's process group, including subprocesses it started.
 ## Example
 
 ```lynx
-global setup(){ import("js"); }
+fn setup(){ import("js"); }
 
-global main(){
-    println(global.js.evalJS("1 + 2"));
-    println(global.js.runJS("console.log('hello from js');"));
+fn main(){
+    println(js.evalJS("1 + 2"));
+    println(js.runJS("console.log('hello from js');"));
 }
 ```
 

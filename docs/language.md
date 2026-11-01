@@ -111,13 +111,13 @@ Comment markers inside string literals are ordinary text.
 ## Variables and declarations
 
 ```lynx
-global setup() {
+fn setup() {
     int count = 0;
     const str APP = "demo";
     println(APP, " ", count);   // demo 0
 }
 
-global main() {
+fn main() {
     float ratio = 1.5;
     ratio += 0.5;
     println(ratio);             // 2
@@ -314,7 +314,7 @@ passed as arguments; see [function values](functions.md#function-values).
 Only the arrow form is accepted:
 
 ```lynx
-global f(int x) -> int { return x + 1; }
+fn f(int x) -> int { return x + 1; }
 ```
 
 - `: int` is **not** valid syntax (`unexpected character ':'`).
@@ -345,16 +345,16 @@ Lynxer has **no nested block scopes**, and blocks do not shadow:
   variables it closes over.
 
 ```lynx
-global setup() {
+fn setup() {
     int total = 0;
 }
 
-func add(int n) {
+fn add(int n) {
     total += n;        // updates the top-level variable
     int scratch = n;   // local to add(); not visible outside
 }
 
-global main() {
+fn main() {
     add(2);
     add(3);
     println(total);    // 5
@@ -367,7 +367,7 @@ global main() {
 as escapes:
 
 ```lynx
-global main() {
+fn main() {
     int n = 3;
     str message = inter"n is {n}";
     println(message);          // n is 3
@@ -379,7 +379,7 @@ global main() {
 is accepted, including output calls, assignments, and return values:
 
 ```lynx
-global describe(int n) -> str {
+fn describe(int n) -> str {
     return inter"value: {n}\n";
 }
 ```
@@ -395,7 +395,7 @@ as an argument is treated as if it had an `inter` prefix, so `{expr}` is
 evaluated without constructing an explicit `inter"..."` value:
 
 ```lynx
-global main() {
+fn main() {
     int n = 3;
     str name = "Ada";
     printf("n is {n} and name is {name}\n");
@@ -426,7 +426,7 @@ body — most often `setup()` — not at file scope. Both arguments must be stri
 
 - [structs.md](structs.md) — data-only records built with `new`.
 - [templates.md](templates.md) — header constructors, `build ... named`, fields,
-  `local` methods, and `extending`.
+  `fn` methods, and `extending`.
 - [classes.md](classes.md) — deprecated class form.
 - [enums.md](enums.md) — tagged unions with payloads and `switch` patterns.
 - [vargroups.md](vargroups.md) — typed records with defaults and dot access.

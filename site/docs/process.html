@@ -141,9 +141,9 @@
 <h2 id="spawn">Spawn</h2>
 <h3 id="processspawncommand-arguments-environment"><code>processSpawn(command, arguments[, environment])</code></h3>
 <p>Starts <code>command</code> <strong>without a shell</strong>. <code>arguments</code> is a list of strings passed as argv after the command. The optional <code>environment</code> is a list of <code>KEY=VALUE</code> strings; those keys override the inherited parent environment while the rest is inherited. It returns a numeric process handle.</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     int child = processSpawn(
         &quot;/bin/sh&quot;,
         [str &quot;-c&quot;, str &quot;printf hi&quot;],

@@ -138,9 +138,9 @@
         </div>
 <h1 id="filesystem-api">Filesystem API</h1>
 <p>A small handle-based filesystem API exposed through the <code>filesystem*</code> built-ins. Paths are strings, and failures are reported as source-located runtime errors carrying the operation and the original errno number and text.</p>
-<pre><code>global setup(){}
+<pre><code>fn setup(){}
 
-global main(){
+fn main(){
     int file = filesystemOpen(&quot;notes.txt&quot;, &quot;w&quot;);
     filesystemWrite(file, &quot;hello\n&quot;);
     filesystemClose(file);

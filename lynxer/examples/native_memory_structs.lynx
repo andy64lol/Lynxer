@@ -6,9 +6,9 @@ instead of pointers.
 Only host-independent properties are printed (sizes, offsets, booleans); no raw
 addresses, so one expected file holds on amd64 and arm64.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     println("== typed block ==");
     int block = memoryBlockAllocate("int32", 3);
     memoryBlockSet(block, 0, 10);

@@ -2,54 +2,54 @@
 Fixture for the csv stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("csv"); import("json"); }
+fn setup(){ import("csv"); import("json"); }
 
-global main(){
+fn main(){
     str data = "name,age,city\nalpha,30,London\nbeta,25,Paris\ngamma,30,London\n";
-    println(global.csv.parseRows(data));
-    println(global.csv.parseHeaders(data));
-    println(global.csv.parseToJson(data));
-    println(global.csv.getColumn(data, "name"));
-    println(global.csv.getRow(data, 1));
-    println(global.csv.getRow(data, 9));
-    println(global.csv.rowCount(data));
-    println(global.csv.colCount(data));
-    println(global.csv.hasColumn(data, "age"));
-    println(global.csv.hasColumn(data, "nope"));
-    println(global.csv.getColumn("a,b\n1,2\n", "missing"));
+    println(csv.parseRows(data));
+    println(csv.parseHeaders(data));
+    println(csv.parseToJson(data));
+    println(csv.getColumn(data, "name"));
+    println(csv.getRow(data, 1));
+    println(csv.getRow(data, 9));
+    println(csv.rowCount(data));
+    println(csv.colCount(data));
+    println(csv.hasColumn(data, "age"));
+    println(csv.hasColumn(data, "nope"));
+    println(csv.getColumn("a,b\n1,2\n", "missing"));
 
-    println(global.csv.buildCSV("[{\"name\": \"alpha\", \"age\": 30}, {\"name\": \"beta\", \"age\": 25}]", "name,age"));
-    println(global.csv.appendRow("a,b\n1,2\n", "[\"x\", \"y\"]"));
-    println(global.csv.filterRows(data, "city", "London"));
-    println(global.csv.sortCSV(data, "name"));
-    println(global.csv.sortCSVDesc(data, "name"));
-    println(global.csv.columnStats(data, "age"));
-    println(global.csv.columnStats(data, "name"));
-    println(global.csv.toTSV(data));
-    println(global.csv.fromTSV("a\tb\n1\t2\n"));
-    println(global.csv.parseDelimited("a;b\n1;2\n", ";"));
+    println(csv.buildCSV("[{\"name\": \"alpha\", \"age\": 30}, {\"name\": \"beta\", \"age\": 25}]", "name,age"));
+    println(csv.appendRow("a,b\n1,2\n", "[\"x\", \"y\"]"));
+    println(csv.filterRows(data, "city", "London"));
+    println(csv.sortCSV(data, "name"));
+    println(csv.sortCSVDesc(data, "name"));
+    println(csv.columnStats(data, "age"));
+    println(csv.columnStats(data, "name"));
+    println(csv.toTSV(data));
+    println(csv.fromTSV("a\tb\n1\t2\n"));
+    println(csv.parseDelimited("a;b\n1;2\n", ";"));
 
     str quoted = "name,note\nalpha,\"hello, world\"\nbeta,\"say \"\"hi\"\"\"\n";
-    println(global.csv.parseRows(quoted));
-    println(global.csv.buildCSV("[{\"name\": \"alpha\", \"note\": \"a,b\"}]", "name,note"));
+    println(csv.parseRows(quoted));
+    println(csv.buildCSV("[{\"name\": \"alpha\", \"note\": \"a,b\"}]", "name,note"));
 
     // Legacy-name forwarders.
-    println(global.csv.parseCSV(data));
-    println(global.csv.parseCSVRaw(data));
-    println(global.csv.csvHeaders(data));
-    println(global.csv.csvRow(data, 1));
-    println(global.csv.csvColumn(data, "name"));
-    println(global.csv.csvRowCount(data));
-    println(global.csv.filterCSV(data, "city", "London"));
-    println(global.csv.dedupCSV(data, "city"));
-    println(global.csv.readCSVRaw("/no/such/file"));
+    println(csv.parseCSV(data));
+    println(csv.parseCSVRaw(data));
+    println(csv.csvHeaders(data));
+    println(csv.csvRow(data, 1));
+    println(csv.csvColumn(data, "name"));
+    println(csv.csvRowCount(data));
+    println(csv.filterCSV(data, "city", "London"));
+    println(csv.dedupCSV(data, "city"));
+    println(csv.readCSVRaw("/no/such/file"));
 
     // CSV accepts CRLF, CR and LF input and emits CRLF when writing. Rows
     // follow the requested header width; missing values are empty and extras
     // are ignored. Non-string values use compact JSON scalar text.
-    println(global.csv.parseRows("a,b\r\n1,true\r2,false\n3"));
-    str edgeCsv = global.csv.buildCSV("[{\"a\":1,\"b\":true,\"extra\":\"ignored\"},{\"a\":null},{\"a\":[1,2],\"b\":{\"x\":true}}]", "a,b");
-    println(global.json.jsonStringify(edgeCsv));
-    println(global.csv.parseRows(edgeCsv));
-    println(global.csv.parseToJson("a,b\n1,2,extra\n3\n"));
+    println(csv.parseRows("a,b\r\n1,true\r2,false\n3"));
+    str edgeCsv = csv.buildCSV("[{\"a\":1,\"b\":true,\"extra\":\"ignored\"},{\"a\":null},{\"a\":[1,2],\"b\":{\"x\":true}}]", "a,b");
+    println(json.jsonStringify(edgeCsv));
+    println(csv.parseRows(edgeCsv));
+    println(csv.parseToJson("a,b\n1,2,extra\n3\n"));
 }

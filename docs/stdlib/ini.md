@@ -5,7 +5,7 @@ INI parsing and serialization.
 **Backend:** native — `stdlib/ini.so`, built from the Rust crate `rust/ini`
 over `rust-ini`.
 
-**Import:** `import("ini")` → `global.ini.*`
+**Import:** `import("ini")` → `ini.*`
 
 ## How documents travel
 
@@ -32,15 +32,15 @@ yields `false`. An empty document is valid, so it parses to `{"":{}}`.
 ## Example
 
 ```lynx
-global setup(){ import("ini"); }
+fn setup(){ import("ini"); }
 
-global main(){
+fn main(){
     str text = "[server]\nhost = localhost\nport = 8080\n";
 
-    println(global.ini.iniParse(text));
-    println(global.ini.iniGet(text, "server", "host"));
+    println(ini.iniParse(text));
+    println(ini.iniGet(text, "server", "host"));
 
-    println(global.ini.iniSerialize("{\"server\":{\"host\":\"localhost\"}}"));
+    println(ini.iniSerialize("{\"server\":{\"host\":\"localhost\"}}"));
 }
 ```
 

@@ -1,9 +1,9 @@
-global setup(){
+fn setup(){
     const int VERSION = 6;
 }
 
-func double(int value) -> int {
+fn double(int value) -> int {
     return value * 2;
 }
 
-global main(){}
+fn main(){}

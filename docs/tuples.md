@@ -90,9 +90,9 @@ println(tupleLen(coords));      // 2
 | `listToTuple` | `(list l)` | `tuple` | Converts a list to a tuple |
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     tuple t = (int 10, int 20, int 30, int 20);
 
     println(tupleLen(t));            // 4

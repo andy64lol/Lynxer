@@ -138,7 +138,7 @@
         </div>
 <h1 id="network-module">Network Module</h1>
 <p>A robust HTTP, WebSocket, and TCP client built with Rust, using <a href="https://docs.rs/ureq"><code>ureq</code></a> with <a href="https://docs.rs/rustls"><code>rustls</code></a> and <a href="https://docs.rs/tungstenite"><code>tungstenite</code></a>. This module replaces the older <code>http</code> and <code>net</code> modules, eliminating the need for a system OpenSSL dependency.</p>
-<pre><code>global setup() {
+<pre><code>fn setup() {
     import(&quot;network&quot;);
 }</code></pre>
 <h2 id="features">Features</h2>

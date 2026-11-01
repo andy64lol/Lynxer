@@ -182,9 +182,9 @@ There is no `tupleSet`; use a `list` when you need to replace elements.
 ## Example
 
 ```lynx
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     list xs = [1, 2, 3];
     xs = listPush(xs, 4);
     println(xs);                 // [1, 2, 3, 4]

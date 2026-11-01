@@ -138,7 +138,7 @@
         </div>
 <h1 id="sys">sys</h1>
 <p>Runtime, process and platform information.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/sys.so</code>, built from <code>stdlib/sys.cpp</code>. <strong>Import:</strong> <code>import(&quot;sys&quot;)</code> → <code>global.sys.*</code></p>
+<p><strong>Backend:</strong> native — <code>stdlib/sys.so</code>, built from <code>stdlib/sys.cpp</code>. <strong>Import:</strong> <code>import(&quot;sys&quot;)</code> → <code>sys.*</code></p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td>Host operating system: <code>linux</code>, <code>darwin</code>, <code>freebsd</code>, <code>netbsd</code>, <code>openbsd</code>, <code>dragonfly</code> or <code>win32</code>; otherwise <code>unknown</code></td></tr>
@@ -173,13 +173,13 @@
 <p>Because Lynxer has no Python runtime, <code>version()</code> reports the Lynxer version and there is no <code>sys.path</code>, <code>sys.modules</code> or recursion-limit surface. <code>argv</code> describes the <strong>program's own</strong> command line: entry 0 is the script path (<code>lynxer prog.lynx a b</code> → <code>[&quot;prog.lynx&quot;, &quot;a&quot;, &quot;b&quot;]</code>), or the executable itself for a compiled program, followed by the arguments passed after it.</p>
 <p>CPU/page-size/load-average queries use POSIX facilities; physical memory and boot-time values use the host's system-information interfaces on Linux and the supported BSD/macOS targets. Any unavailable host value uses the sentinel in the table rather than fabricating a result.</p>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;sys&quot;); }
+<pre><code>fn setup(){ import(&quot;sys&quot;); }
 
-global main(){
-    println(global.sys.platform());
-    println(global.sys.architecture());
-    println(global.sys.version());
-    println(global.sys.argCount());
+fn main(){
+    println(sys.platform());
+    println(sys.architecture());
+    println(sys.version());
+    println(sys.argCount());
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

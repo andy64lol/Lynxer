@@ -60,14 +60,14 @@ The `sound` module provides audio playback functionality using Rust's `rodio` an
 ```lynx
 import("sound")
 
-global main(){
-    int music = global.sound.loadSound("theme.wav");
+fn main(){
+    int music = sound.loadSound("theme.wav");
     if(music >= 0){
-        global.sound.setSoundVolume(music, 0.5);
-        global.sound.loopSound(music);
-        println(global.sound.getSoundLength(music));
-        global.sound.stopSound(music);
-        global.sound.releaseSound(music);
+        sound.setSoundVolume(music, 0.5);
+        sound.loopSound(music);
+        println(sound.getSoundLength(music));
+        sound.stopSound(music);
+        sound.releaseSound(music);
     }
 }
 ```

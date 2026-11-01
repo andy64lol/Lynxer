@@ -139,7 +139,7 @@
 <h1 id="ini">ini</h1>
 <p>INI parsing and serialization.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/ini.so</code>, built from the Rust crate <code>rust/ini</code> over <code>rust-ini</code>.</p>
-<p><strong>Import:</strong> <code>import(&quot;ini&quot;)</code> → <code>global.ini.*</code></p>
+<p><strong>Import:</strong> <code>import(&quot;ini&quot;)</code> → <code>ini.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
 <p>An INI document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): an object of sections, each an object of <strong>string</strong> values. The unnamed leading section uses <code>&quot;&quot;</code> as its key. Values are strings in both directions. Serialization normalizes whitespace and discards comments; parsing a serialized document preserves the section/key/value data, not the original source formatting.</p>
 <p>A failure is a scalar sentinel: a document operation yields <code>&quot;&quot;</code> and <code>iniValid</code> yields <code>false</code>. An empty document is valid, so it parses to <code>{&quot;&quot;:{}}</code>.</p>
@@ -152,15 +152,15 @@
 <tr><td><code>iniGet</code></td><td><code>(str text, str section, str key)</code></td><td>the value, or <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;ini&quot;); }
+<pre><code>fn setup(){ import(&quot;ini&quot;); }
 
-global main(){
+fn main(){
     str text = &quot;[server]\nhost = localhost\nport = 8080\n&quot;;
 
-    println(global.ini.iniParse(text));
-    println(global.ini.iniGet(text, &quot;server&quot;, &quot;host&quot;));
+    println(ini.iniParse(text));
+    println(ini.iniGet(text, &quot;server&quot;, &quot;host&quot;));
 
-    println(global.ini.iniSerialize(&quot;{\&quot;server\&quot;:{\&quot;host\&quot;:\&quot;localhost\&quot;}}&quot;));
+    println(ini.iniSerialize(&quot;{\&quot;server\&quot;:{\&quot;host\&quot;:\&quot;localhost\&quot;}}&quot;));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

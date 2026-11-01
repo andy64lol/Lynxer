@@ -12,27 +12,27 @@ to stderr and the optimized/unoptimized split would make the line ordering
 against stdout unstable.
 ////
 
-global setup() {
+fn setup() {
     println("setup " + (2 + 3));
 }
 
-func label(int value = 2 + 3) -> int {
+fn label(int value = 2 + 3) -> int {
     return value + 0;
 }
 
 class Box {
     int size = 2 * 4;
 
-    local init(int base) {
+    fn init(int base) {
         this.size = this.size + base;
     }
 
-    local doubled() {
+    fn doubled() {
         return this.size * 2;
     }
 }
 
-global main() {
+fn main() {
     // constant folding
     println(2 + 3);
     println("a" + "b");

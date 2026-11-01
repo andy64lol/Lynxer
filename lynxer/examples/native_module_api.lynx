@@ -7,9 +7,9 @@ is host-specific, so only its shape and the presence of the C library are
 pinned; a retained function address after `nativeModuleClose` must fail rather
 than call unmapped code.
 ////
-global setup(){}
+fn setup(){}
 
-global main(){
+fn main(){
     // A missing library and a library without the ABI entry point fail.
     try {
         nativeModuleLoad("no_such_module_exists.so");

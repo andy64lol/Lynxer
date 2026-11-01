@@ -1,9 +1,9 @@
-global setup(){
+fn setup(){
     import("sys");
 }
 
-global main(){
+fn main(){
     println("before sys.exit");
-    global.sys.exit(23);
+    sys.exit(23);
     println("after sys.exit");
 }

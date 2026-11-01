@@ -10,7 +10,7 @@ codecs.
 [`bs58`](https://docs.rs/bs58), [`ascii85`](https://docs.rs/ascii85),
 [`percent-encoding`](https://docs.rs/percent-encoding) and
 [`quoted_printable`](https://docs.rs/quoted_printable).
-**Import:** `import("encoding")` → `global.encoding.*`
+**Import:** `import("encoding")` → `encoding.*`
 
 ## How bytes travel
 
@@ -74,14 +74,14 @@ there is no error channel across the native ABI.
 ## Example
 
 ```lynx
-global setup(){ import("encoding"); }
+fn setup(){ import("encoding"); }
 
-global main(){
-    println(global.encoding.base64Encode("Lynxer"));
-    println(global.encoding.base64Decode("THlueA"));   // padding is optional
-    println(global.encoding.hexEncode("Lynxer"));
-    println(global.encoding.percentEncode("a b/c?d=e&f"));
-    println(global.encoding.percentValid("%2"));        // truncated escape
+fn main(){
+    println(encoding.base64Encode("Lynxer"));
+    println(encoding.base64Decode("THlueA"));   // padding is optional
+    println(encoding.hexEncode("Lynxer"));
+    println(encoding.percentEncode("a b/c?d=e&f"));
+    println(encoding.percentValid("%2"));        // truncated escape
 }
 ```
 

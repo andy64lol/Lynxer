@@ -6,14 +6,14 @@ under a name you choose instead of the module's own name.
 ## Syntax
 
 ```lynx
-global setup(){
+fn setup(){
     importAs("math", "m");
     importAs("network", "net");
     importAs("json.so", "nativeJson");   // a native library under an alias
 }
 
-global main(){
-    println(global.m.sqrt(9.0));         // 3
+fn main(){
+    println(m.sqrt(9.0));                // 3
 }
 ```
 
@@ -21,12 +21,12 @@ global main(){
 
 - Both arguments are **string literals**. An expression is rejected with
   `expected module path string`.
-- The alias is used as `global.<alias>`, so `importAs("math", "m")` is reached
-  as `global.m.<name>(...)`.
+- The alias is the module namespace, so `importAs("math", "m")` is reached as
+  `m.<name>(...)`.
 - Like `import`, it is a statement and may appear in any function body, not only
   in `setup()`.
 - Stdlib `.lynx` wrappers use `importAs("name.so", "nativeName")` internally,
-  then expose typed `global f(...) -> T { ... }` forwards; that is how a module
+  then expose typed `fn f(...) -> T { ... }` forwards; that is how a module
   wraps a native backend.
 
 ## See also

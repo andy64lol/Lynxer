@@ -1,7 +1,7 @@
-global setup(){
+fn setup(){
     import("testPath/example.lynx");
 }
 
-global main(){
+fn main(){
     privatePrint!("not exported");
 }

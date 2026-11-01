@@ -138,7 +138,7 @@
         </div>
 <h1 id="typing">typing</h1>
 <p>Type inspection, conversion, range, string, number and sequence helpers.</p>
-<p><strong>Backend:</strong> pure — <code>stdlib/typing.lynx</code> only, over the interpreter's builtins. <strong>Import:</strong> <code>import(&quot;typing&quot;)</code> → <code>global.typing.*</code></p>
+<p><strong>Backend:</strong> pure — <code>stdlib/typing.lynx</code> only, over the interpreter's builtins. <strong>Import:</strong> <code>import(&quot;typing&quot;)</code> → <code>typing.*</code></p>
 <p>The interpreter's strings hold UTF-8, and <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins work on <strong>code points</strong>, so a character is one Unicode scalar value rather than one byte: <code>returnLength(&quot;café&quot;)</code> is 4 and <code>charCode(&quot;é&quot;)</code> is 233. <code>charOf</code> accepts any code point up to <code>0x10FFFF</code> except the surrogate range.</p>
 <h2 id="type-checks">Type Checks</h2>
 <table>
@@ -260,26 +260,26 @@
 <tr><td><code>lenSequence</code></td><td><code>(any val)</code></td><td><code>int</code></td><td>Length of a list or tuple; <code>0</code> otherwise</td></tr>
 </table>
 <h2 id="example">Example</h2>
-<pre><code>global setup(){ import(&quot;typing&quot;); }
+<pre><code>fn setup(){ import(&quot;typing&quot;); }
 
-global main(){
+fn main(){
     any x = 42;
-    if(global.typing.isInt(x)){   print(&quot;integer\n&quot;); }
+    if(typing.isInt(x)){   print(&quot;integer\n&quot;); }
 
-    println(global.typing.abs(-4));            // 4
-    println(global.typing.clamp(15.0, 0.0, 10.0)); // 10
-    println(global.typing.roundTo(3.14159, 2));    // 3.14
-    println(global.typing.charCodeOf(&quot;A&quot;));    // 65
-    println(global.typing.charAt(&quot;hello&quot;, 1)); // e
-    println(global.typing.zfill(&quot;42&quot;, 5));     // 00042
+    println(typing.abs(-4));            // 4
+    println(typing.clamp(15.0, 0.0, 10.0)); // 10
+    println(typing.roundTo(3.14159, 2));    // 3.14
+    println(typing.charCodeOf(&quot;A&quot;));    // 65
+    println(typing.charAt(&quot;hello&quot;, 1)); // e
+    println(typing.zfill(&quot;42&quot;, 5));     // 00042
 
     list nums = range(6);
-    println(global.typing.listHead(nums, 3));  // [0, 1, 2]
-    println(global.typing.listChunk(nums, 2)); // [[0, 1], [2, 3], [4, 5]]
+    println(typing.listHead(nums, 3));  // [0, 1, 2]
+    println(typing.listChunk(nums, 2)); // [[0, 1], [2, 3], [4, 5]]
 
     tuple coords = (int 10, int 20);
-    println(global.typing.tupleJoin(coords, &quot;-&quot;)); // 10-20
-    println(global.typing.toList(coords));     // [10, 20]
+    println(typing.tupleJoin(coords, &quot;-&quot;)); // 10-20
+    println(typing.toList(coords));     // [10, 20]
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>
