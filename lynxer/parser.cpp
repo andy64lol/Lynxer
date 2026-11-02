@@ -2467,6 +2467,7 @@ Token Parser::advance() {
 }
 
 void Parser::warn(const std::string& message, const Token& token) const {
+    ++warningCount_;
     if (!sourcePath_.empty()) {
         std::cerr << sourcePath_ << ':';
     }

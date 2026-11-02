@@ -303,17 +303,19 @@ int listStdlibs() {
 
 int lintFile(const std::string& display, const std::string& source) {
     std::unordered_map<std::string, Function> functions;
+    int parserWarnings = 0;
     try {
         Lexer lexer(source, display);
         Parser parser(lexer.scan(), display);
         functions = parser.parseProgram();
+        parserWarnings = parser.warningCount();
     } catch (const SourceError& error) {
         std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     }
     const std::vector<LintDiagnostic> diagnostics = analyzeLint(functions);
     std::size_t errors = 0;
-    std::size_t warnings = 0;
+    std::size_t warnings = static_cast<std::size_t>(parserWarnings);
     for (const LintDiagnostic& diagnostic : diagnostics) {
         const char* severity = diagnostic.severity == LintDiagnostic::Severity::Error
                                    ? "error"
@@ -735,8 +737,7 @@ int runProgram(const std::string& display, const std::string& source) {
         Lexer lexer(source, display);
         Parser parser(lexer.scan(), display);
         auto functions = parser.parseProgram(
-            /*requireEntryPoints=*/true, /*resetTypeRegistry=*/true,
-            /*emitDeprecationWarnings=*/false);
+            /*requireEntryPoints=*/true, /*resetTypeRegistry=*/true);
         if (optimizerEnabled()) {
             optimizeProgram(functions, optimizationStats());
         }

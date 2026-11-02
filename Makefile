@@ -198,6 +198,7 @@ LYNXER_SUPER_FIXTURE := $(LYNXER_DIR)/examples/super_constructors.lynx
 LYNXER_TEMPLATE_FIXTURE := $(LYNXER_DIR)/examples/templates.lynx
 LYNXER_FUNCTION_VALUE_FIXTURE := $(LYNXER_DIR)/examples/function_values.lynx
 LYNXER_TRY_FINALLY_FIXTURE := $(LYNXER_DIR)/examples/try_finally.lynx
+LYNXER_FUNCTION_DEPRECATIONS_FIXTURE := $(LYNXER_DIR)/examples/function_deprecations.lynx
 LYNXER_LINT_FIXTURE := $(LYNXER_DIR)/examples/lint_static.lynx
 LYNXER_DEBUGGER_FIXTURE := $(LYNXER_DIR)/examples/debugger.lynx
 LYNXER_DEBUGGER_TEST := $(LYNXER_DIR)/scripts/test_debugger.py
@@ -929,6 +930,36 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: [vargroupAndLegac
 	echo "feature fixture output mismatch: $$fixture"; \
 	rm -f $(CLYX_TMP)_feature.out; exit 1; fi; \
 	done; rm -f $(CLYX_TMP)_feature.out
+	@$(CLYX) $(LYNXER_FUNCTION_DEPRECATIONS_FIXTURE) \
+	> $(CLYX_TMP)_function_deprecations.out \
+	2> $(CLYX_TMP)_function_deprecations.err || { \
+	echo "function deprecation fixture failed"; \
+	cat $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err; \
+	rm -f $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err; exit 1; }
+	@if ! diff -u $(LYNXER_FUNCTION_DEPRECATIONS_FIXTURE:.lynx=.expected) \
+	$(CLYX_TMP)_function_deprecations.out; then \
+	echo "function declaration fixture output mismatch"; \
+	rm -f $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err; exit 1; fi
+	@if [ "$$(grep -c 'warning\[deprecatedFunctionDeclaration\]' $(CLYX_TMP)_function_deprecations.err)" -ne 4 ] || \
+	! grep -Fq "'global' function declarations are deprecated; use 'fn'" $(CLYX_TMP)_function_deprecations.err || \
+	! grep -Fq "'func' function declarations are deprecated; use 'fn'" $(CLYX_TMP)_function_deprecations.err || \
+	! grep -Fq "'local' function declarations are deprecated; use 'fn'" $(CLYX_TMP)_function_deprecations.err; then \
+	echo "missing legacy function declaration warnings"; \
+	cat $(CLYX_TMP)_function_deprecations.err; \
+	rm -f $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err; exit 1; fi
+	@$(CLYX) --lint $(LYNXER_FUNCTION_DEPRECATIONS_FIXTURE) \
+	> $(CLYX_TMP)_function_deprecations_lint.out \
+	2> $(CLYX_TMP)_function_deprecations_lint.err || { \
+	echo "function declaration lint failed"; \
+	cat $(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err; \
+	rm -f $(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err; exit 1; }
+	@if ! grep -Fq '(4 warning(s))' $(CLYX_TMP)_function_deprecations_lint.out || \
+	[ "$$(grep -c 'warning\[deprecatedFunctionDeclaration\]' $(CLYX_TMP)_function_deprecations_lint.err)" -ne 4 ]; then \
+	echo "expected lint to count all four legacy function warnings"; \
+	cat $(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err; \
+	rm -f $(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err; exit 1; fi
+	@rm -f $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err \
+	$(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err
 	@set +e; \
 	output="$$($(CLYX) --lint $(LYNXER_LINT_FIXTURE) 2>&1)"; \
 	status=$$?; \
@@ -1198,7 +1229,7 @@ testLynxerGui: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 # from /tmp, where none of the repository's own stdlib paths exist.
 testLynxerInstall: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
-	@printf 'global setup(){ import("math"); }\nglobal main(){ println(global.math.sqrt(9)); }\n' > $(CLYX_TMP)_install.lynx
+	@printf 'fn setup(){ import("math"); }\nfn main(){ println(math.sqrt(9)); }\n' > $(CLYX_TMP)_install.lynx
 	@LYNXER_PREFIX="$(CURDIR)/$(LYNXER_INSTALL_PREFIX)" $(CLYX) --install > /dev/null
 	@if [ ! -x "$(CURDIR)/$(LYNXER_INSTALLED_BIN)" ]; then \
 	echo "install did not create $(LYNXER_INSTALLED_BIN)"; exit 1; fi

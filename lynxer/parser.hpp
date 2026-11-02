@@ -20,6 +20,8 @@ public:
         bool requireEntryPoints = true, bool resetTypeRegistry = true,
         bool emitDeprecationWarnings = true);
 
+    int warningCount() const { return warningCount_; }
+
     // Every import declared while parsing, in source order.
     const std::vector<ImportRecord>& imports() const { return imports_; }
 
@@ -163,6 +165,7 @@ private:
     std::string sourcePath_;
     std::size_t index_ = 0;
     bool emitDeprecationWarnings_ = true;
+    mutable int warningCount_ = 0;
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
     std::unordered_set<std::string> genericTypeNames_;

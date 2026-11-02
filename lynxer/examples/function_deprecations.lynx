@@ -1,0 +1,21 @@
+////
+The deprecated function declaration spellings warn, while `fn` remains valid.
+////
+
+global setup() {}
+
+func legacy(int value) -> int {
+    return value;
+}
+
+global main() {
+    local oldNested() -> int {
+        return 1;
+    }
+
+    fn newNested() -> int {
+        return 1;
+    }
+
+    println(legacy(40) + oldNested() + newNested());
+}
