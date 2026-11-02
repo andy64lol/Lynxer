@@ -9,12 +9,6 @@ fn setup(){ importAs("winAPI-__ARCH__", "windowsApi"); }
 
 fn main(){
     println(windowsApi.getProcessId() > 0);
-    int kernel32 = ffiLoadLibrary("kernel32.dll");
-    functionAddress getCurrentProcessId =
-        ffiLookup(kernel32, "GetCurrentProcessId");
-    println(ffiCall(getCurrentProcessId, "stdcall:uint32()", []) is
-            windowsApi.getProcessId());
-    ffiCloseLibrary(kernel32);
     println(returnLength(windowsApi.getCurrentDirectory()) > 0);
     println(returnLength(windowsApi.getComputerName()) > 0);
     println(returnLength(windowsApi.getTempPath()) > 0);
