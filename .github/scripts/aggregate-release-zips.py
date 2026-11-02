@@ -51,25 +51,27 @@ def find_run(workflow: str, commit: str) -> dict | None:
     return max(matching, key=lambda run: run["databaseId"]) if matching else None
 
 
-def wait_for_runs(commit: str) -> dict[str, int]:
+def wait_for_runs(commit: str) -> tuple[dict[str, int], list[str]]:
     deadline = time.monotonic() + TIMEOUT_SECONDS
     while True:
         run_ids: dict[str, int] = {}
         pending: list[str] = []
+        skipped: list[str] = []
         for workflow, artifact in WORKFLOWS.items():
             run = find_run(workflow, commit)
             if run is None or run["status"] != "completed":
                 pending.append(workflow)
                 continue
             if run["conclusion"] != "success":
-                raise RuntimeError(
-                    f"{workflow} run {run['databaseId']} concluded "
-                    f"{run['conclusion']!r}; refusing to create an incomplete ZIP"
+                skipped.append(
+                    f"{workflow} run {run['databaseId']} "
+                    f"({run['conclusion'] or 'no conclusion'})"
                 )
+                continue
             run_ids[artifact] = run["databaseId"]
 
         if not pending:
-            return run_ids
+            return run_ids, skipped
         if time.monotonic() >= deadline:
             raise TimeoutError(
                 "Timed out waiting for platform ZIP workflows: "
@@ -117,7 +119,7 @@ def main() -> int:
         return 2
 
     commit = sys.argv[1]
-    run_ids = wait_for_runs(commit)
+    run_ids, skipped_runs = wait_for_runs(commit)
     output = Path("dist/lynxer-all-platforms.zip")
     output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -125,14 +127,30 @@ def main() -> int:
         temp_path = Path(temp)
         downloaded: list[Path] = []
         for artifact, run_id in run_ids.items():
-            archive = download_artifact(run_id, artifact, temp_path / artifact)
+            try:
+                archive = download_artifact(
+                    run_id, artifact, temp_path / artifact
+                )
+            except (subprocess.CalledProcessError, RuntimeError) as error:
+                skipped_runs.append(
+                    f"artifact {artifact!r} from run {run_id}: {error}"
+                )
+                continue
             downloaded.append(archive)
+
+        if not downloaded:
+            raise RuntimeError(
+                "No platform ZIP artifacts were available; "
+                "nothing to aggregate"
+            )
 
         with ZipFile(output, "w", compression=ZIP_DEFLATED) as aggregate:
             for archive in downloaded:
                 aggregate.write(archive, arcname=archive.name)
 
     print(f"Created {output} with {len(downloaded)} platform ZIPs")
+    for skipped in skipped_runs:
+        print(f"Skipped unavailable platform output: {skipped}", file=sys.stderr)
     return 0
 
 
