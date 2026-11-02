@@ -199,6 +199,7 @@ LYNXER_TEMPLATE_FIXTURE := $(LYNXER_DIR)/examples/templates.lynx
 LYNXER_FUNCTION_VALUE_FIXTURE := $(LYNXER_DIR)/examples/function_values.lynx
 LYNXER_TRY_FINALLY_FIXTURE := $(LYNXER_DIR)/examples/try_finally.lynx
 LYNXER_FUNCTION_DEPRECATIONS_FIXTURE := $(LYNXER_DIR)/examples/function_deprecations.lynx
+LYNXER_CLASS_TEMPLATE_DEPRECATIONS_FIXTURE := $(LYNXER_DIR)/examples/class_template_deprecations.lynx
 LYNXER_LINT_FIXTURE := $(LYNXER_DIR)/examples/lint_static.lynx
 LYNXER_DEBUGGER_FIXTURE := $(LYNXER_DIR)/examples/debugger.lynx
 LYNXER_DEBUGGER_TEST := $(LYNXER_DIR)/scripts/test_debugger.py
@@ -307,7 +308,7 @@ LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module test
  stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch stdlib_numutils \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
-	templates foo_example range_for
+	templates class_template_deprecations foo_example range_for
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -960,6 +961,19 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: [vargroupAndLegac
 	rm -f $(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err; exit 1; fi
 	@rm -f $(CLYX_TMP)_function_deprecations.out $(CLYX_TMP)_function_deprecations.err \
 	$(CLYX_TMP)_function_deprecations_lint.out $(CLYX_TMP)_function_deprecations_lint.err
+	@$(CLYX) $(LYNXER_CLASS_TEMPLATE_DEPRECATIONS_FIXTURE) \
+	> $(CLYX_TMP)_class_template.out 2> $(CLYX_TMP)_class_template.err || { \
+	echo "class/template fixture failed"; \
+	cat $(CLYX_TMP)_class_template.out $(CLYX_TMP)_class_template.err; \
+	rm -f $(CLYX_TMP)_class_template.out $(CLYX_TMP)_class_template.err; exit 1; }
+	@if ! diff -u $(LYNXER_CLASS_TEMPLATE_DEPRECATIONS_FIXTURE:.lynx=.expected) \
+	$(CLYX_TMP)_class_template.out || \
+	[ "$$(grep -c 'warning\[deprecatedClassDeclaration\]' $(CLYX_TMP)_class_template.err)" -ne 1 ] || \
+	! grep -Fq "'class' declarations are deprecated; use 'template'" $(CLYX_TMP)_class_template.err; then \
+	echo "expected a working template and one deprecated class warning"; \
+	cat $(CLYX_TMP)_class_template.out $(CLYX_TMP)_class_template.err; \
+	rm -f $(CLYX_TMP)_class_template.out $(CLYX_TMP)_class_template.err; exit 1; fi
+	@rm -f $(CLYX_TMP)_class_template.out $(CLYX_TMP)_class_template.err
 	@set +e; \
 	output="$$($(CLYX) --lint $(LYNXER_LINT_FIXTURE) 2>&1)"; \
 	status=$$?; \

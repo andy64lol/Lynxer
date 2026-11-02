@@ -147,7 +147,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="classes">Classes</h1>
-<blockquote><strong>Deprecated.</strong> <code>class</code> is the legacy object form. New code should use <a href="templates.html"><code>template</code></a>: constructor parameters live in the declaration header, construction uses <code>build T(args) named x;</code>, and inheritance uses <code>extending</code>. The <code>class</code> form remains fully supported for compatibility, including <code>new</code>, <code>extends</code>, and <code>super(...)</code>.</blockquote>
+<blockquote><strong>Deprecated.</strong> <code>class</code> is the legacy object form. New code should use <a href="templates.html"><code>template</code></a>: constructor parameters live in the declaration header, construction uses <code>build T(args) named x;</code>, and inheritance uses <code>extending</code>. The <code>class</code> form remains fully supported for compatibility, including <code>new</code>, <code>extends</code>, and <code>super(...)</code>. Lynxer emits a <code>deprecatedClassDeclaration</code> warning for each class declaration.</blockquote>
 <p>A <code>class</code> is a named type with typed fields and <code>fn</code> methods, constructed with <code>new</code>. A class can extend one previously declared class. Declare classes between <code>fn setup()</code> and <code>fn main()</code>.</p>
 <h2 id="declaration">Declaration</h2>
 <pre><code>class Counter {

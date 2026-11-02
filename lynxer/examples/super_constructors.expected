@@ -1,3 +1,8 @@
+lynxer/examples/super_constructors.lynx:8:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
+lynxer/examples/super_constructors.lynx:18:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
+lynxer/examples/super_constructors.lynx:27:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
+lynxer/examples/super_constructors.lynx:37:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
+lynxer/examples/super_constructors.lynx:40:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
 Rex 4 Ada
 Rex (Ada)
 Rex 4

@@ -228,6 +228,7 @@ module references, and are not necessarily Lynxer diagnostics.
 
 - `setup() is optional; no setup() function was declared`
 - `'{keyword}' function declarations are deprecated; use 'fn'`
+- `'class' declarations are deprecated; use 'template'`
 - `WinAPI built-in calls are deprecated; import the matching winAPI-amd64 or winAPI-arm64 standard library`
 - `operator '{operator}' is deprecated; use '{replacement}' instead.`
 - `tuple assigned from a bracketed list is deprecated; use the '(int 1, int 2)' form instead.`

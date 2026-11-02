@@ -761,7 +761,10 @@ void Parser::parseStructDefinition() {
 }
 
 void Parser::parseClassDefinition() {
-    expectText("class", "expected 'class'");
+    const Token keyword = expectText("class", "expected 'class'");
+    if (emitDeprecationWarnings_) {
+        warn("'class' declarations are deprecated; use 'template'", keyword);
+    }
     parseClassOrTemplate(false);
 }
 

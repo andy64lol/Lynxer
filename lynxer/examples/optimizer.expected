@@ -1,3 +1,4 @@
+lynxer/examples/optimizer.lynx:23:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
 setup 5
 5
 ab

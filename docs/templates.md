@@ -4,6 +4,9 @@ A `template` is a named record type with typed constructor parameters, typed
 fields, and `fn` methods. The deprecated `local` method spelling remains
 accepted with a warning. A template is the current way to define objects; the older
 [`class`](classes.md) form is deprecated but still supported.
+Using `class` also emits a `deprecatedClassDeclaration` warning; migrate its
+constructor parameters into the template header and replace `new` with
+`build ... named`.
 
 Declare templates at file scope using `fn` for entry points and ordinary
 functions. The template parameter list in the header is mandatory, even when

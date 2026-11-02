@@ -1,3 +1,4 @@
+lynxer/examples/language_fields.lynx:9:1: warning[deprecatedClassDeclaration]: 'class' declarations are deprecated; use 'template'
 counter 32
 record 7
 plain 3

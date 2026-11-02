@@ -4,7 +4,8 @@
 > [`template`](templates.md): constructor parameters live in the declaration
 > header, construction uses `build T(args) named x;`, and inheritance uses
 > `extending`. The `class` form remains fully supported for compatibility,
-> including `new`, `extends`, and `super(...)`.
+> including `new`, `extends`, and `super(...)`. Lynxer emits a
+> `deprecatedClassDeclaration` warning for each class declaration.
 
 A `class` is a named type with typed fields and `fn` methods, constructed with
 `new`. A class can extend one previously declared class. Declare classes

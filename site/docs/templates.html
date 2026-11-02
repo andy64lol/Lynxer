@@ -147,7 +147,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="templates">Templates</h1>
-<p>A <code>template</code> is a named record type with typed constructor parameters, typed fields, and <code>fn</code> methods. The deprecated <code>local</code> method spelling remains accepted with a warning. A template is the current way to define objects; the older <a href="classes.html"><code>class</code></a> form is deprecated but still supported.</p>
+<p>A <code>template</code> is a named record type with typed constructor parameters, typed fields, and <code>fn</code> methods. The deprecated <code>local</code> method spelling remains accepted with a warning. A template is the current way to define objects; the older <a href="classes.html"><code>class</code></a> form is deprecated but still supported. Using <code>class</code> also emits a <code>deprecatedClassDeclaration</code> warning; migrate its constructor parameters into the template header and replace <code>new</code> with <code>build ... named</code>.</p>
 <p>Declare templates at file scope using <code>fn</code> for entry points and ordinary functions. The template parameter list in the header is mandatory, even when it is empty.</p>
 <h2 id="declaration-and-construction">Declaration and construction</h2>
 <pre><code>fn setup(){}

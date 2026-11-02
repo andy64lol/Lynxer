@@ -85,6 +85,10 @@ inline std::string diagnosticCodeForMessage(const std::string& message) {
         std::string::npos) {
         return "deprecatedFunctionDeclaration";
     }
+    if (message.find("'class' declarations are deprecated; use 'template'") !=
+        std::string::npos) {
+        return "deprecatedClassDeclaration";
+    }
     if (message.find(" is deprecated; use ") != std::string::npos) {
         return "deprecatedOperator";
     }

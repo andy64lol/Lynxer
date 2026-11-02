@@ -1,0 +1,30 @@
+////
+The legacy class form still works with a deprecation warning; templates are
+the current way to construct objects.
+////
+
+fn setup() {}
+
+class LegacyValue {
+    int value;
+
+    fn init(int value) {
+        this.value = value;
+    }
+
+    fn get() {
+        return this.value;
+    }
+}
+
+template CurrentValue(int value) {
+    fn get() {
+        return this.value;
+    }
+}
+
+fn main() {
+    LegacyValue legacy = new LegacyValue(20);
+    build CurrentValue(22) named current;
+    println(legacy.get() + current.get());
+}
