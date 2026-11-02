@@ -1,7 +1,8 @@
 ////
 Windows amd64 native standard library. The module name selects the process architecture.
 Typed `HANDLE`, `HWND` and `SOCKET` helpers are available alongside the
-backward-compatible integer-returning functions.
+backward-compatible integer-returning functions. The concrete wrapper values
+are built from architecture-specific templates.
 ////
 
 fn setup() {
@@ -20,79 +21,62 @@ fn requireArchitecture(str expected) {
     }
 }
 
-class HANDLE {
-    int raw;
-
-    fn init(int value) {
-        this.raw = value;
-    }
-}
-
-class HWND {
-    int raw;
-
-    fn init(int value) {
-        this.raw = value;
-    }
-}
-
-class SOCKET {
-    int raw;
-
-    fn init(int value) {
-        this.raw = value;
-    }
-}
+template HANDLE_amd64(int raw) {}
+template HWND_amd64(int raw) {}
+template SOCKET_amd64(int raw) {}
 
 fn asHANDLE(int value) {
     if (value is -1) {
         return none;
     }
-    return new HANDLE(value);
+    build HANDLE_amd64(value) named handle;
+    return handle;
 }
 
 fn asHWND(int value) {
     if (value is -1) {
         return none;
     }
-    return new HWND(value);
+    build HWND_amd64(value) named window;
+    return window;
 }
 
 fn asSOCKET(int value) {
     if (value is -1) {
         return none;
     }
-    return new SOCKET(value);
+    build SOCKET_amd64(value) named socket;
+    return socket;
 }
 
 fn handleValue(any value) {
-    if (returnType(value) is "HANDLE") {
+    if (returnType(value) is "HANDLE_amd64") {
         return value.raw;
     }
     if (returnType(value) is "int") {
         return value;
     }
-    raise("expected a HANDLE or integer handle");
+    raise("expected a HANDLE_amd64 or integer handle");
 }
 
 fn windowValue(any value) {
-    if (returnType(value) is "HWND") {
+    if (returnType(value) is "HWND_amd64") {
         return value.raw;
     }
     if (returnType(value) is "int") {
         return value;
     }
-    raise("expected an HWND or integer handle");
+    raise("expected an HWND_amd64 or integer handle");
 }
 
 fn socketValue(any value) {
-    if (returnType(value) is "SOCKET") {
+    if (returnType(value) is "SOCKET_amd64") {
         return value.raw;
     }
     if (returnType(value) is "int") {
         return value;
     }
-    raise("expected a SOCKET or integer socket");
+    raise("expected a SOCKET_amd64 or integer socket");
 }
 
 fn getProcessId() {

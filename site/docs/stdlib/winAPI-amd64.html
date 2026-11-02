@@ -156,7 +156,7 @@ fn main() {
     println(windowsApi.getProcessId());
     println(windowsApi.getCurrentDirectory());
 }</code></pre>
-<p>The module checks the host OS and architecture before every API operation; it does not emulate or cross-dispatch Win32 calls. Its functions are backed by the native Win32 implementation rather than Lynxer built-ins. See the <a href="../windows-api.html">Windows API catalog</a> and <a href="../winapi/windows-amd64.html">amd64 guide</a>. Typed <code>HANDLE</code>, <code>HWND</code> and <code>SOCKET</code> helpers are available alongside the backward-compatible integer APIs.</p>
+<p>The module checks the host OS and architecture before every API operation; it does not emulate or cross-dispatch Win32 calls. Its functions are backed by the native Win32 implementation rather than Lynxer built-ins. See the <a href="../windows-api.html">Windows API catalog</a> and <a href="../winapi/windows-amd64.html">amd64 guide</a>. Typed <code>HANDLE</code>, <code>HWND</code> and <code>SOCKET</code> values are built from Lynxer templates and are available alongside the backward-compatible integer APIs.</p>
     </main>
 </div>
 

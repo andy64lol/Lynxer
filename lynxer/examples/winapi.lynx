@@ -26,13 +26,13 @@ fn main(){
     str root = windowsApi.getTempPath();
     str path = root + "lynxer-winapi-fixture.txt";
     any file = windowsApi.createFileHandle(path, "write");
-    println(returnType(file) is "HANDLE");
+    println(returnType(file) is "HANDLE_" + windowsApi.architecture());
     println(windowsApi.writeFile(file, "hello") is 5);
     println(windowsApi.fileSize(file) is 5);
     println(windowsApi.seekFile(file, 1) is 1);
     println(windowsApi.closeHandle(file));
     any reader = windowsApi.createFileHandle(path, "read");
-    println(returnType(reader) is "HANDLE");
+    println(returnType(reader) is "HANDLE_" + windowsApi.architecture());
     println(windowsApi.readFile(reader, 5));
     println(windowsApi.closeHandle(reader));
     println(windowsApi.deleteFile(path));
@@ -46,13 +46,13 @@ fn main(){
     // Process control and the current thread.
     println(windowsApi.getCurrentThreadId() > 0);
     any self = windowsApi.openProcessHandle(windowsApi.getProcessId());
-    println(returnType(self) is "HANDLE");
+    println(returnType(self) is "HANDLE_" + windowsApi.architecture());
     println(windowsApi.getExitCodeProcess(self) >= 0);
     println(windowsApi.closeHandle(self));
 
     // Spawn a child, wait for it, read its exit code.
     any child = windowsApi.createProcessHandle("cmd /c exit 0");
-    println(returnType(child) is "HANDLE");
+    println(returnType(child) is "HANDLE_" + windowsApi.architecture());
     println(windowsApi.waitForSingleObject(child, 10000) is 0);
     println(windowsApi.getExitCodeProcess(child) is 0);
     println(windowsApi.closeHandle(child));
@@ -100,7 +100,7 @@ fn main(){
     println(windowsApi.getOEMCP() > 0);
     println(returnLength(windowsApi.getCommandLine()) > 0);
     any current = windowsApi.currentProcessHandle();
-    println(returnType(current) is "HANDLE");
+    println(returnType(current) is "HANDLE_" + windowsApi.architecture());
     println(windowsApi.getPriorityClass(current) > 0);
     println(windowsApi.setPriorityClass(current, windowsApi.getPriorityClass(current)));
     println(windowsApi.closeHandle(current));
@@ -117,18 +117,19 @@ fn main(){
     int out = windowsApi.getStdHandle("output");
     println(windowsApi.getFileType(out) > 0);
     any consoleWindow = windowsApi.consoleWindowHandle();
-    println(returnType(consoleWindow) is "HWND" or consoleWindow is none);
+    println(returnType(consoleWindow) is
+            "HWND_" + windowsApi.architecture() or consoleWindow is none);
     println(returnType(windowsApi.getConsoleScreenBufferInfo()) is "str");
 
     // Winsock TCP socket lifecycle and local loopback data transfer.
     any listener = windowsApi.listenSocket("127.0.0.1", 0);
-    println(returnType(listener) is "SOCKET");
+    println(returnType(listener) is "SOCKET_" + windowsApi.architecture());
     int port = windowsApi.socketLocalPort(listener);
     println(port > 0);
     any client = windowsApi.connectSocket("127.0.0.1", port);
-    println(returnType(client) is "SOCKET");
+    println(returnType(client) is "SOCKET_" + windowsApi.architecture());
     any accepted = windowsApi.acceptSocket(listener);
-    println(returnType(accepted) is "SOCKET");
+    println(returnType(accepted) is "SOCKET_" + windowsApi.architecture());
     println(windowsApi.socketSend(client, "ping") is 4);
     println(windowsApi.socketReceive(accepted, 16));
     println(windowsApi.closeSocket(client));

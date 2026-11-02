@@ -43,9 +43,12 @@ uses the `windowsApi` alias for either module.
   `*Handle` helpers return first-class `HANDLE`/`HWND` objects, which can be
   passed directly to handle-taking calls. Close `HANDLE` objects with
   `windowsApi.closeHandle()`; socket objects must use `windowsApi.closeSocket()`.
-- `SOCKET` and `HANDLE` are distinct object types. `HWND` is also distinct from
-  kernel handles. `asHANDLE`, `asHWND` and `asSOCKET` convert a raw integer
-  result; they return `none` for the `-1` failure sentinel.
+- `SOCKET` and `HANDLE` are distinct template-backed object types. `HWND` is
+  also distinct from kernel handles. To avoid named-type collisions when a
+  program imports both architecture modules, concrete type names include the
+  architecture suffix (`HANDLE_amd64`, `HANDLE_arm64`, and likewise for
+  `HWND` and `SOCKET`). `asHANDLE`, `asHWND` and `asSOCKET` convert a raw
+  integer result; they return `none` for the `-1` failure sentinel.
 - These wrappers do not track ownership. Handles returned by
   `moduleHandle`/`standardHandle` and windows returned by `consoleWindowHandle`
   are borrowed; do not close them with `closeHandle`.

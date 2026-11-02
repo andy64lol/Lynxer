@@ -19,4 +19,5 @@ does not emulate or cross-dispatch Win32 calls. Its functions are backed by
 the native Win32 implementation rather than Lynxer built-ins. See the
 [Windows API catalog](../windows-api.md) and
 [amd64 guide](../winapi/windows-amd64.md). Typed `HANDLE`, `HWND` and `SOCKET`
-helpers are available alongside the backward-compatible integer APIs.
+values are built from Lynxer templates and are available alongside the
+backward-compatible integer APIs.
