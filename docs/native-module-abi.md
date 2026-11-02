@@ -116,12 +116,11 @@ Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`),
 `cstring` (Lynxer `str`) and `bytes` (Lynxer `bytes`). The `value` token is
 additionally accepted only with the `v2:` prefix. Argument lists may be empty.
 
-Before looking a signature up, the dispatcher **normalizes** the tokens: every
-integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
-`uint16`, `uint32`, `uint64` and `uintptr`), and `double` is rewritten to
-`float64`. So `cdecl:int32(int32)` and `cdecl:int64(int64)` resolve to the same
-shipped shape. The supported table is the *normalized* set; the tokens above are
-accepted spellings, not distinct shapes.
+The dynamic FFI engine preserves `int32` and `uint32` as 32-bit values and
+`uintptr` as a native pointer-width value; other integer-width tokens currently
+use the 64-bit integer representation. `double` is an alias for `float64`.
+Native-module registration has its own fixed-shape dispatch table, so its
+accepted signatures remain the registered module ABI described below.
 
 `cdecl:` is optional; the bare `<return>(<args>)` form is accepted too. The
 packed form is selected when the argument list is exactly the single token `...`
@@ -129,14 +128,22 @@ packed form is selected when the argument list is exactly the single token `...`
 For typed aggregate signatures, either `cdecl:v2:` or the bare `v2:` prefix is
 accepted.
 
+The dynamic `ffiCall` built-in additionally accepts
+`stdcall:<return>(<args>)`. This selects `__stdcall` on 32-bit Windows and the
+unified Windows x64 convention on 64-bit Windows; it is rejected on other
+operating systems. Registered native modules use `cdecl:` signatures only.
+Win32 `BOOL` parameters and results use `int32`; call `GetLastError` separately
+when the API documents that it sets an extended error code. `uintptr` accepts
+an integer/pointer value and returns it as an integer.
+
 ## Supported signature shapes
 
-Any signature the grammar can describe is callable. The engine parses
-`cdecl:<ret>(<args>)`, normalizes the tokens as above, and builds a `libffi`
-call description from them; there is no fixed table of shapes. Legacy `int64`,
-`float64`, `cstring` and `bytes` parameters may appear in any order and any
-number. The return type may be `int64`, `float64`, `cstring`, `bytes` or `void`
-(a `void` call yields `0`); v2 signatures may also use `value`.
+Any signature the dynamic FFI grammar can describe is callable. The engine
+parses the declared types and calling convention and builds a `libffi` call
+description; there is no fixed table of shapes. Integer, pointer, floating
+point, string and byte-buffer parameters may appear in any order and any
+number. The return type may be integer, pointer, floating point, string, bytes
+or `void` (a `void` call yields `0`); v2 signatures may also use `value`.
 
 A `bytes` parameter is passed as **two** C arguments — `const uint8_t* data,
 int64_t length` — and a `bytes` return is a `const uint8_t*` to a buffer laid

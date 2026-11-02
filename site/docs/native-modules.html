@@ -155,7 +155,7 @@
     int (*register_constant)(const char *name, int64_t value),
     int (*register_type)(const char *name, const char *layout)
 );</code></pre>
-<p>Return <code>0</code> after all registrations succeed. A non-zero return, an invalid identifier, a duplicate registration, or a missing symbol rejects the module. Function signatures use the <code>cdecl:&lt;ret&gt;(&lt;args&gt;)</code> grammar.</p>
+<p>Return <code>0</code> after all registrations succeed. A non-zero return, an invalid identifier, a duplicate registration, or a missing symbol rejects the module. Registered native-module function signatures use the <code>cdecl:&lt;ret&gt;(&lt;args&gt;)</code> grammar. The dynamic FFI built-ins also accept <code>stdcall:&lt;ret&gt;(&lt;args&gt;)</code> for Windows 32-bit APIs that use <code>__stdcall</code>; on Windows 64-bit, <code>stdcall:</code> uses the platform's unified x64 calling convention. On non-Windows hosts, <code>stdcall:</code> is rejected. Integer widths such as <code>int32</code> and pointer-sized <code>uintptr</code> describe the native ABI width even though Lynxer represents their scalar values as integers.</p>
 <pre><code>#include &lt;cstdint&gt;
 
 using RegisterFunction = int (*)(const char *, const char *, const char *);
@@ -201,7 +201,7 @@ fn main() {
 <p>An explicit handle can be combined with <code>ffiCall</code> and a returned <code>functionAddress</code>. Closing a handle invalidates it and releases its registration callbacks; retained function addresses then fail cleanly instead of calling unmapped code. Imported modules cannot be explicitly closed — their namespace owns their lifetime. Invalid handles and failed registrations raise normal runtime errors. <code>nativeModuleDependencies</code> is informational and returns an empty list when the host linker tooling cannot inspect a module.</p>
 <h2 id="ffi-entry-points">FFI entry points</h2>
 <p><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code> and <code>ffiCloseLibrary</code>. <code>ffiCall</code> describes and performs a native call through the same fixed-shape table as <code>nativeCall</code> (at most four typed parameters, or the packed <code>ret(...)</code> form).</p>
-<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated. The <code>ffi*</code> calling convention is still an <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">open decision</a> for arbitrary signatures.</p>
+<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated; callbacks therefore cannot be passed to arbitrary native code as function pointers.</p>
 <h2 id="building-c-stdlib-backends">Building C++ stdlib backends</h2>
 <p>Every <code>lynxer/stdlib/*.cpp</code> file is built into its sibling <code>.so</code> by the <code>Makefile</code>; the matching <code>.lynx</code> file is the public wrapper where a Lynxer-friendly API or return-type conversion is useful. Adding a dependency-free stdlib module means adding a C++ backend and a wrapper — no Python packages.</p>
 <h2 id="see-also">See also</h2>

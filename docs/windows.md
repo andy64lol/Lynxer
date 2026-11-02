@@ -172,8 +172,9 @@ GNU ABI used in CI; an MSVC/clang-cl runtime is still unavailable.
   `rustc --print native-static-libs` (`LYNXER_FFI_NATIVE_LIBS`) and are added on
   Windows only, where nothing else supplies them — a Rust `staticlib` does not
   carry its dependencies' link directives; POSIX keeps the proven driver
-  defaults. Still to do: a native MSVC/clang-cl build and the 32-bit
-  `__stdcall` convention.
+  defaults. The dynamic FFI supports `stdcall:` for 32-bit Windows APIs and
+  uses the unified platform convention on Windows x64. Still to do: a native
+  MSVC/clang-cl build.
 - **Stdlib backends.** `cli`/`debug`/`os`/`path` and `js`/`multiprocessing` now
   have Win32 implementations; `network` maps to Winsock through Rust's
   `std::net`; `watch` uses `ReadDirectoryChangesW`. `tui` uses crossterm's

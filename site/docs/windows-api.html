@@ -168,7 +168,10 @@ fn main() {
 <h2 id="conventions">Conventions</h2>
 <ul>
 <li>Failed Windows operations use the native API's <strong>scalar sentinels</strong>: <code>-1</code> for a handle, size, position, byte count or free-space figure; <code>false</code> for a predicate; <code>&quot;&quot;</code> for a failed read. <code>windowsApi.getLastError()</code> returns the Win32 error code for the most recent call.</li>
-<li>A <strong>handle is an integer</strong>. Everything it refers to must be released with <code>windowsApi.closeHandle()</code>.</li>
+<li>The original calls keep returning integer handles for compatibility. The <code>*Handle</code> helpers return first-class <code>HANDLE</code>/<code>HWND</code> objects, which can be passed directly to handle-taking calls. Close <code>HANDLE</code> objects with <code>windowsApi.closeHandle()</code>; socket objects must use <code>windowsApi.closeSocket()</code>.</li>
+<li><code>SOCKET</code> and <code>HANDLE</code> are distinct object types. <code>HWND</code> is also distinct from kernel handles. <code>asHANDLE</code>, <code>asHWND</code> and <code>asSOCKET</code> convert a raw integer result; they return <code>none</code> for the <code>-1</code> failure sentinel.</li>
+<li>These wrappers do not track ownership. Handles returned by <code>moduleHandle</code>/<code>standardHandle</code> and windows returned by <code>consoleWindowHandle</code> are borrowed; do not close them with <code>closeHandle</code>.</li>
+<li>Typed producers are <code>createFileHandle</code>, <code>currentProcessHandle</code>, <code>moduleHandle</code>, <code>createNamedPipeHandle</code>, <code>openNamedPipeHandle</code>, <code>openProcessHandle</code>, <code>createProcessHandle</code> and <code>standardHandle</code> for <code>HANDLE</code>, <code>consoleWindowHandle</code> for <code>HWND</code>, and <code>connectSocket</code>, <code>listenSocket</code> and <code>acceptSocket</code> for <code>SOCKET</code>. <code>handleValue</code>, <code>windowValue</code> and <code>socketValue</code> convert an object back to its raw integer representation when needed.</li>
 <li>Wrong argument types are source-located errors, e.g. <code>windowsApi.readFile() failed: expects an integer handle and length</code>.</li>
 <li>Text is UTF-8 at the Lynxer boundary; the <code>*W</code> calls are used internally.</li>
 </ul>
@@ -223,6 +226,7 @@ fn main() {
 <table>
 <tr><th>Function</th><th>Returns</th></tr>
 <tr><td><code>windowsApi.createFile(path, mode)</code></td><td>a handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.createFileHandle(path, mode)</code></td><td>a <code>HANDLE</code>, or <code>none</code></td></tr>
 <tr><td><code>windowsApi.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>windowsApi.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
 <tr><td><code>windowsApi.closeHandle(handle)</code></td><td>whether it closed</td></tr>
@@ -258,6 +262,14 @@ fn main() {
     println(windowsApi.fileSize(reader));
     println(windowsApi.readFile(reader, 64));
     windowsApi.closeHandle(reader);
+    windowsApi.deleteFile(path);
+}</code></pre>
+<p>Use <code>createFileHandle</code> to opt into object handles without changing existing integer-returning calls:</p>
+<pre><code>fn main() {
+    str path = windowsApi.getTempPath() + &quot;demo.txt&quot;;
+    any file = windowsApi.createFileHandle(path, &quot;write&quot;);
+    windowsApi.writeFile(file, &quot;hello&quot;);
+    windowsApi.closeHandle(file);
     windowsApi.deleteFile(path);
 }</code></pre>
 <h2 id="shell-clipboard-and-dialogs">Shell, clipboard and dialogs</h2>
@@ -298,9 +310,11 @@ fn main() {
 <tr><th>Function</th><th>Returns</th></tr>
 <tr><td><code>windowsApi.getCurrentThreadId()</code></td><td>the calling thread's id</td></tr>
 <tr><td><code>windowsApi.openProcess(processId)</code></td><td>a handle with query/terminate/synchronize access, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.openProcessHandle(processId)</code></td><td>a <code>HANDLE</code>, or <code>none</code></td></tr>
 <tr><td><code>windowsApi.terminateProcess(handle, exitCode)</code></td><td>whether it was terminated</td></tr>
 <tr><td><code>windowsApi.getExitCodeProcess(handle)</code></td><td>the exit code, or <code>-1</code> (<code>259</code> while still alive)</td></tr>
 <tr><td><code>windowsApi.createProcess(commandLine)</code></td><td>the new process's handle, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.createProcessHandle(commandLine)</code></td><td>a <code>HANDLE</code>, or <code>none</code></td></tr>
 <tr><td><code>windowsApi.waitForSingleObject(handle, milliseconds)</code></td><td><code>0</code> when signalled, <code>258</code> on timeout, <code>-1</code> on failure</td></tr>
 <tr><td><code>windowsApi.getPriorityClass(handle)</code></td><td>the <code>*_PRIORITY_CLASS</code> value, or <code>-1</code></td></tr>
 <tr><td><code>windowsApi.setPriorityClass(handle, class)</code></td><td>whether it was set</td></tr>
@@ -325,16 +339,42 @@ fn main() {
 <tr><td><code>windowsApi.queryPerformanceCounter()</code></td><td>the high-resolution counter, or <code>-1</code></td></tr>
 <tr><td><code>windowsApi.queryPerformanceFrequency()</code></td><td>ticks per second, or <code>-1</code></td></tr>
 </table>
+<h2 id="tcp-sockets">TCP sockets</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>windowsApi.tcpConnect(host, port)</code></td><td>a connected socket, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.tcpListen(host, port)</code></td><td>a listening socket, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.tcpAccept(socket)</code></td><td>a connected socket, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.socketLocalPort(socket)</code></td><td>the bound local port, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.socketSend(socket, text)</code></td><td>bytes sent, or <code>-1</code></td></tr>
+<tr><td><code>windowsApi.socketReceive(socket, maxBytes)</code></td><td>received bytes, or <code>&quot;&quot;</code> on failure/closed connection</td></tr>
+<tr><td><code>windowsApi.socketShutdown(socket, direction)</code></td><td>whether shutdown succeeded</td></tr>
+<tr><td><code>windowsApi.closeSocket(socket)</code></td><td>whether it closed</td></tr>
+<tr><td><code>windowsApi.getSocketError()</code></td><td>the last Winsock error code</td></tr>
+</table>
+<p><code>tcpConnect</code> and <code>tcpListen</code> accept a host string and a port from <code>0</code> to <code>65535</code>; an empty listen host binds to all local interfaces. Port <code>0</code> asks Windows to choose a port, which can then be read with <code>socketLocalPort</code>. <code>tcpAccept</code> and <code>socketReceive</code> block until a connection or data arrives. <code>socketReceive</code> reads at most 16 MiB per call, and returns at most the bytes currently available; TCP does not preserve message boundaries. <code>socketSend</code> may send fewer bytes than requested, so callers should retry the unsent suffix when sending larger payloads. Its argument is UTF-8 text, not an arbitrary binary buffer.</p>
+<p>Socket values are integer <code>SOCKET</code>s, not Win32 <code>HANDLE</code>s; release them with <code>closeSocket</code>, not <code>closeHandle</code>. <code>connectSocket</code>, <code>listenSocket</code> and <code>acceptSocket</code> return first-class <code>SOCKET</code> objects (or <code>none</code> on failure); the raw <code>tcpConnect</code>, <code>tcpListen</code> and <code>tcpAccept</code> functions remain available. <code>socketShutdown(socket, &quot;send&quot;)</code>, <code>&quot;receive&quot;</code> or <code>&quot;both&quot;</code> to shut down one or both directions. Failed native operations return their sentinel; call <code>getSocketError()</code> immediately to retrieve the Winsock error before making another socket operation.</p>
+<pre><code>fn main() {
+    int listener = windowsApi.tcpListen(&quot;127.0.0.1&quot;, 0);
+    int port = windowsApi.socketLocalPort(listener);
+    int client = windowsApi.tcpConnect(&quot;127.0.0.1&quot;, port);
+    int accepted = windowsApi.tcpAccept(listener);
+    windowsApi.socketSend(client, &quot;hello&quot;);
+    println(windowsApi.socketReceive(accepted, 64));
+    windowsApi.closeSocket(client);
+    windowsApi.closeSocket(accepted);
+    windowsApi.closeSocket(listener);
+}</code></pre>
 <h2 id="the-long-tail">The long tail</h2>
-<p>Anything not in the tables above — other DLLs, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HWND</code>/<code>SOCKET</code> values and the 32-bit <code>__stdcall</code> convention — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
+<p>Anything not in the tables above — other DLLs, the <code>*A</code>/<code>*W</code> pairs, structs and APIs not wrapped here — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On Windows x64, <code>cdecl:</code> uses the platform's unified calling convention. On 32-bit Windows, use <code>stdcall:</code> for Win32 APIs declared <code>WINAPI</code>/<code>__stdcall</code>; for example:</p>
 <pre><code>fn main(){
     int user32 = ffiLoadLibrary(&quot;user32.dll&quot;);
     functionAddress box = ffiLookup(user32, &quot;MessageBoxA&quot;);
-    ffiCall(box, &quot;cdecl:int32(int64,cstring,cstring,int32)&quot;,
+    ffiCall(box, &quot;stdcall:int32(uintptr,cstring,cstring,uint32)&quot;,
             [int 0, str &quot;hello&quot;, str &quot;lynxer&quot;, int 0]);
     ffiCloseLibrary(user32);
 }</code></pre>
-<p>A curated wrapper over that — more DLLs and first-class <code>HANDLE</code> values — is tracked in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
+<p>The wrappers currently cover the documented <code>kernel32</code>, Winsock and selected shell APIs; other DLL calls can use the FFI directly.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="syscalls.html">syscalls</a> — the Linux named-syscall standard-library modules</li>

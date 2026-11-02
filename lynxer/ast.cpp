@@ -272,12 +272,16 @@ const char* lynxerHostProgramArgs(void* context) {
 
 
 bool nativeValueParameter(const std::string& signature, std::size_t wanted) {
-    const std::size_t prefix =
-        signature.rfind("cdecl:v2:", 0) == 0
-            ? 9
-            : (signature.rfind("v2:", 0) == 0 ? 3 : std::string::npos);
-    if (prefix == std::string::npos) {
-        return false;
+    std::size_t prefix = 0;
+    for (const char* convention : {"cdecl:", "stdcall:"}) {
+        const std::string value(convention);
+        if (signature.rfind(value, 0) == 0) {
+            prefix = value.size();
+            break;
+        }
+    }
+    if (signature.compare(prefix, 3, "v2:") == 0) {
+        prefix += 3;
     }
     const std::size_t open = signature.find('(', prefix);
     const std::size_t close = signature.rfind(')');
@@ -286,19 +290,27 @@ bool nativeValueParameter(const std::string& signature, std::size_t wanted) {
     }
     std::size_t index = 0;
     std::size_t start = open + 1;
-    while (start < close) {
-        const std::size_t end = signature.find(',', start);
-        const std::size_t stop =
-            end == std::string::npos || end > close ? close : end;
-        if (index == wanted) {
-            const std::string token = signature.substr(start, stop - start);
+    std::size_t depth = 0;
+    for (std::size_t position = start; position <= close; ++position) {
+        const char character =
+            position == close ? ',' : signature[position];
+        if (character == '(') {
+            ++depth;
+        } else if (character == ')' && depth > 0) {
+            --depth;
+        } else if (character == ',' && depth == 0) {
+            const std::string token = signature.substr(start, position - start);
             const std::size_t first = token.find_first_not_of(" \t\r\n");
             const std::size_t last = token.find_last_not_of(" \t\r\n");
-            return first != std::string::npos &&
-                   token.substr(first, last - first + 1) == "value";
+            if (index == wanted && first != std::string::npos) {
+                const std::string type =
+                    token.substr(first, last - first + 1);
+                return type == "value" ||
+                       type.rfind("struct(", 0) == 0;
+            }
+            ++index;
+            start = position + 1;
         }
-        ++index;
-        start = stop + 1;
     }
     return false;
 }

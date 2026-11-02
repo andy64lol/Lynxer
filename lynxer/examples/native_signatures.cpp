@@ -36,6 +36,18 @@ static const char* stable(std::string value) {
 extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_v() { return 7; }
 extern "C" LYNXER_MODULE_EXPORT double sig_d() { return 2.5; }
 extern "C" LYNXER_MODULE_EXPORT const char* sig_s() { return "zero"; }
+static constexpr std::uint16_t sig_wide_text[] = {'h', 'i', 0x20ac, 0};
+extern "C" LYNXER_MODULE_EXPORT std::uint32_t sig_wide_length(
+    const std::uint16_t* text) {
+    std::uint32_t length = 0;
+    while (text[length] != 0) {
+        ++length;
+    }
+    return length;
+}
+extern "C" LYNXER_MODULE_EXPORT const std::uint16_t* sig_wide_text_value() {
+    return sig_wide_text;
+}
 
 extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_ii(std::int64_t a, std::int64_t b) { return a + b; }
 extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_i(std::int64_t a) { return a; }
@@ -107,6 +119,15 @@ extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_quad(std::int64_t a, std::int64
 }
 extern "C" LYNXER_MODULE_EXPORT void sig_void(std::int64_t) {}
 
+struct SigPair {
+    std::int32_t left;
+    std::uint32_t right;
+};
+
+extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_pair_sum(SigPair pair) {
+    return static_cast<std::int64_t>(pair.left) + pair.right;
+}
+
 // A `bytes` parameter arrives as (pointer, length); a `bytes` return is a
 // length-prefixed buffer built with `lynxerBytes`.
 extern "C" LYNXER_MODULE_EXPORT std::int64_t sig_bytes_len(const std::uint8_t* data,
@@ -141,6 +162,8 @@ extern "C" LYNXER_MODULE_EXPORT int lynxer_module_init_v1(RegisterFunction f,
     return f("v", "sig_v", "cdecl:int64()") &&
                    f("d", "sig_d", "cdecl:double()") &&
                    f("s", "sig_s", "cdecl:cstring()") &&
+                   f("wideLength", "sig_wide_length", "cdecl:uint32(utf16)") &&
+                   f("wideText", "sig_wide_text_value", "cdecl:utf16()") &&
                    f("ii", "sig_ii", "cdecl:int64(int64,int64)") &&
                    f("i", "sig_i", "cdecl:int64(int64)") &&
                    f("ssArg", "sig_ss_arg", "cdecl:cstring(cstring)") &&
@@ -168,6 +191,8 @@ extern "C" LYNXER_MODULE_EXPORT int lynxer_module_init_v1(RegisterFunction f,
                    f("sis", "sig_sis", "cdecl:int64(cstring,int64,cstring)") &&
                    f("quad", "sig_quad", "cdecl:int64(int64,int64,int64,int64)") &&
                    f("sink", "sig_void", "cdecl:void(int64)") &&
+                   f("pairSum", "sig_pair_sum",
+                     "cdecl:int64(struct(int32,uint32))") &&
                    f("bytesLen", "sig_bytes_len", "cdecl:int64(bytes)") &&
                    f("bytesUpper", "sig_bytes_upper", "cdecl:bytes(bytes)") &&
                    f("typed", "sig_value", "cdecl:v2:value(value)") &&

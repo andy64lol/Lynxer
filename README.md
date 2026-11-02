@@ -39,7 +39,7 @@ provide the interpreter, `--compile`, the embedding runtime, and
 
 ## Status
 
-**v0.1.9b1** — a standalone C++ implementation with:
+**v0.1.9b1h** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
 - 46 standard-library modules, native (C++/Rust) backends included;

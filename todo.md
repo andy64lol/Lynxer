@@ -19,7 +19,8 @@ builds; the native-module ABI, `--compile` bundling, embedding runtime and
 surface stays a documented boundary in
 [removed-features.md](docs/removed-features.md), not a Windows gap.
 
-- [ ] **Windows API access (Win32, not syscalls).** First slice landed:
+- [x] **Windows API access (Win32, not syscalls).** Implemented through the
+  documented `kernel32`, Winsock and selected shell APIs:
   the Windows runtime provides the `winAPI.*` namespace — all `kernel32`:
   system information (`getProcessId`, `getCurrentDirectory`, `getComputerName`,
   `getTempPath`, `getSystemDirectory`, `getWindowsDirectory`,
@@ -34,15 +35,24 @@ surface stays a documented boundary in
   slice, process control, console, file attributes/paths, Known Folders,
   high-resolution timers, shell open/dialogs, clipboard, tray notifications,
   system/locale/time-zone information and blocking named pipes have landed.
-  Still to do:
-  - Grow the table further: sockets (`WSAStartup`, `socket`, … — needs
-    `ws2_32`), registry wrappers over `advapi32` (the managed `winreg` module
-    covers the common cases) and first-class `HANDLE` values.
-  - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
-    (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or
-    convention-aware counterpart; UTF-16 `*W` strings (handled internally) and
-    the `A`/`W` pairs; `HANDLE`/`HWND`/`SOCKET` handles; `BOOL` results with a
-    separate `GetLastError` code; and struct layout/packing.
+  Since then, blocking TCP sockets have landed on the WinAPI surface:
+  `tcpConnect`, `tcpListen`, `tcpAccept`, `socketLocalPort`, `socketSend`,
+  `socketReceive`, `socketShutdown`, `closeSocket` and `getSocketError`, backed
+  by Winsock and linked with `ws2_32`.
+  - [x] Registry access through the Windows-only `winreg` native stdlib,
+    backed by the Windows registry API and covered by `winreg_basic`.
+  - [x] Blocking TCP socket access through the WinAPI modules.
+  - [x] `stdcall:` FFI signatures for 32-bit Windows; on Windows x64 they use
+    the unified platform convention. `int32`, `uint32` and `uintptr` retain
+    their native ABI widths for calls.
+  - [x] First-class `HANDLE`/`HWND`/`SOCKET` values and typed creation helpers
+    in both architecture modules. Existing integer APIs remain compatible;
+    socket objects are released with `closeSocket`, not `closeHandle`.
+  - [x] UTF-16 FFI pointers and by-value structs using the platform's default
+    ABI layout. WinAPI wrappers use UTF-16 `*W` calls internally; generic FFI
+    `cstring` remains NUL-terminated bytes.
+  - [ ] Explicit custom struct packing and struct return/out-parameter
+    marshalling are not supported by the generic FFI.
   - Keep the Linux syscall module a Linux-only boundary: do not emulate syscall
     numbers on Windows. Revisit whether the `amd64.syscallX` namespace should
     gain an explicit OS segment.

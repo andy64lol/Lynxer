@@ -549,12 +549,14 @@ fine.
 | --- | --- |
 | `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
 | `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
-| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` uses the native ABI grammar, including `"cdecl:int32(int32,int32)"` and the versioned `"cdecl:v2:value(value)"`; `arguments` is a list |
+| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` uses the native ABI grammar, including `"cdecl:int32(int32,int32)"`, Windows `"stdcall:uint32()"` and the versioned `"cdecl:v2:value(value)"`; `arguments` is a list |
 | `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
 | `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
 
-The signatures use the same grammar as native modules; see
+The signatures use the same type grammar as native modules; `ffiCall` also
+supports the Windows `stdcall:` calling convention, while native-module
+registration remains `cdecl:`. See
 [native-module-abi.md](native-module-abi.md#signature-grammar). A `void` return
 yields `0`. Argument types are checked strictly: an `int64` parameter rejects a
 string, a `float64` parameter rejects a string, and a `cstring` parameter

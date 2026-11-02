@@ -39,8 +39,22 @@ uses the `windowsApi` alias for either module.
   for a handle, size, position, byte count or free-space figure; `false` for a
   predicate; `""` for a failed read. `windowsApi.getLastError()` returns the Win32
   error code for the most recent call.
-- A **handle is an integer**. Everything it refers to must be released with
-  `windowsApi.closeHandle()`.
+- The original calls keep returning integer handles for compatibility. The
+  `*Handle` helpers return first-class `HANDLE`/`HWND` objects, which can be
+  passed directly to handle-taking calls. Close `HANDLE` objects with
+  `windowsApi.closeHandle()`; socket objects must use `windowsApi.closeSocket()`.
+- `SOCKET` and `HANDLE` are distinct object types. `HWND` is also distinct from
+  kernel handles. `asHANDLE`, `asHWND` and `asSOCKET` convert a raw integer
+  result; they return `none` for the `-1` failure sentinel.
+- These wrappers do not track ownership. Handles returned by
+  `moduleHandle`/`standardHandle` and windows returned by `consoleWindowHandle`
+  are borrowed; do not close them with `closeHandle`.
+- Typed producers are `createFileHandle`, `currentProcessHandle`,
+  `moduleHandle`, `createNamedPipeHandle`, `openNamedPipeHandle`,
+  `openProcessHandle`, `createProcessHandle` and `standardHandle` for `HANDLE`,
+  `consoleWindowHandle` for `HWND`, and `connectSocket`, `listenSocket` and
+  `acceptSocket` for `SOCKET`. `handleValue`, `windowValue` and `socketValue`
+  convert an object back to its raw integer representation when needed.
 - Wrong argument types are source-located errors, e.g.
   `windowsApi.readFile() failed: expects an integer handle and length`.
 - Text is UTF-8 at the Lynxer boundary; the `*W` calls are used internally.
@@ -104,6 +118,7 @@ directories exposed by `os.configDir`/`os.dataDir`/`os.cacheDir`.
 | Function | Returns |
 | --- | --- |
 | `windowsApi.createFile(path, mode)` | a handle, or `-1` |
+| `windowsApi.createFileHandle(path, mode)` | a `HANDLE`, or `none` |
 | `windowsApi.readFile(handle, length)` | up to `length` bytes, or `""` |
 | `windowsApi.writeFile(handle, text)` | bytes written, or `-1` |
 | `windowsApi.closeHandle(handle)` | whether it closed |
@@ -143,6 +158,19 @@ fn main(){
     println(windowsApi.fileSize(reader));
     println(windowsApi.readFile(reader, 64));
     windowsApi.closeHandle(reader);
+    windowsApi.deleteFile(path);
+}
+```
+
+Use `createFileHandle` to opt into object handles without changing existing
+integer-returning calls:
+
+```lynx
+fn main() {
+    str path = windowsApi.getTempPath() + "demo.txt";
+    any file = windowsApi.createFileHandle(path, "write");
+    windowsApi.writeFile(file, "hello");
+    windowsApi.closeHandle(file);
     windowsApi.deleteFile(path);
 }
 ```
@@ -202,9 +230,11 @@ fn main(){
 | --- | --- |
 | `windowsApi.getCurrentThreadId()` | the calling thread's id |
 | `windowsApi.openProcess(processId)` | a handle with query/terminate/synchronize access, or `-1` |
+| `windowsApi.openProcessHandle(processId)` | a `HANDLE`, or `none` |
 | `windowsApi.terminateProcess(handle, exitCode)` | whether it was terminated |
 | `windowsApi.getExitCodeProcess(handle)` | the exit code, or `-1` (`259` while still alive) |
 | `windowsApi.createProcess(commandLine)` | the new process's handle, or `-1` |
+| `windowsApi.createProcessHandle(commandLine)` | a `HANDLE`, or `none` |
 | `windowsApi.waitForSingleObject(handle, milliseconds)` | `0` when signalled, `258` on timeout, `-1` on failure |
 | `windowsApi.getPriorityClass(handle)` | the `*_PRIORITY_CLASS` value, or `-1` |
 | `windowsApi.setPriorityClass(handle, class)` | whether it was set |
@@ -237,26 +267,73 @@ call.
 | `windowsApi.queryPerformanceCounter()` | the high-resolution counter, or `-1` |
 | `windowsApi.queryPerformanceFrequency()` | ticks per second, or `-1` |
 
+## TCP sockets
+
+| Function | Returns |
+| --- | --- |
+| `windowsApi.tcpConnect(host, port)` | a connected socket, or `-1` |
+| `windowsApi.tcpListen(host, port)` | a listening socket, or `-1` |
+| `windowsApi.tcpAccept(socket)` | a connected socket, or `-1` |
+| `windowsApi.socketLocalPort(socket)` | the bound local port, or `-1` |
+| `windowsApi.socketSend(socket, text)` | bytes sent, or `-1` |
+| `windowsApi.socketReceive(socket, maxBytes)` | received bytes, or `""` on failure/closed connection |
+| `windowsApi.socketShutdown(socket, direction)` | whether shutdown succeeded |
+| `windowsApi.closeSocket(socket)` | whether it closed |
+| `windowsApi.getSocketError()` | the last Winsock error code |
+
+`tcpConnect` and `tcpListen` accept a host string and a port from `0` to
+`65535`; an empty listen host binds to all local interfaces. Port `0` asks
+Windows to choose a port, which can then be read with `socketLocalPort`.
+`tcpAccept` and `socketReceive` block until a connection or data arrives.
+`socketReceive` reads at most 16 MiB per call, and returns at most the bytes
+currently available; TCP does not preserve message boundaries. `socketSend`
+may send fewer bytes than requested, so callers should retry the unsent
+suffix when sending larger payloads. Its argument is UTF-8 text, not an
+arbitrary binary buffer.
+
+Socket values are integer `SOCKET`s, not Win32 `HANDLE`s; release them with
+`closeSocket`, not `closeHandle`. `connectSocket`, `listenSocket` and
+`acceptSocket` return first-class `SOCKET` objects (or `none` on failure);
+the raw `tcpConnect`, `tcpListen` and `tcpAccept` functions remain available.
+`socketShutdown(socket, "send")`,
+`"receive"` or `"both"` to shut down one or both directions. Failed native
+operations return their sentinel; call `getSocketError()` immediately to
+retrieve the Winsock error before making another socket operation.
+
+```lynx
+fn main() {
+    int listener = windowsApi.tcpListen("127.0.0.1", 0);
+    int port = windowsApi.socketLocalPort(listener);
+    int client = windowsApi.tcpConnect("127.0.0.1", port);
+    int accepted = windowsApi.tcpAccept(listener);
+    windowsApi.socketSend(client, "hello");
+    println(windowsApi.socketReceive(accepted, 64));
+    windowsApi.closeSocket(client);
+    windowsApi.closeSocket(accepted);
+    windowsApi.closeSocket(listener);
+}
+```
+
 ## The long tail
 
-Anything not in the tables above — other DLLs, the `*A`/`*W` pairs, structs,
-`HWND`/`SOCKET` values and the 32-bit `__stdcall` convention — is reachable
-through the FFI built-ins ([native-modules.md](native-modules.md)). On 64-bit
-Windows the Win32 calling convention is the one `cdecl:` describes, so a Win32
-call looks like any other:
+Anything not in the tables above — other DLLs, the `*A`/`*W` pairs, structs
+and APIs not wrapped here — is reachable through the FFI built-ins
+([native-modules.md](native-modules.md)). On Windows x64, `cdecl:`
+uses the platform's unified calling convention. On 32-bit Windows, use
+`stdcall:` for Win32 APIs declared `WINAPI`/`__stdcall`; for example:
 
 ```lynx
 fn main(){
     int user32 = ffiLoadLibrary("user32.dll");
     functionAddress box = ffiLookup(user32, "MessageBoxA");
-    ffiCall(box, "cdecl:int32(int64,cstring,cstring,int32)",
+    ffiCall(box, "stdcall:int32(uintptr,cstring,cstring,uint32)",
             [int 0, str "hello", str "lynxer", int 0]);
     ffiCloseLibrary(user32);
 }
 ```
 
-A curated wrapper over that — more DLLs and first-class `HANDLE` values — is
-tracked in [../todo.md](../todo.md).
+The wrappers currently cover the documented `kernel32`, Winsock and selected
+shell APIs; other DLL calls can use the FFI directly.
 
 ## See also
 

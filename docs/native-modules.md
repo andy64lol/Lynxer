@@ -19,7 +19,13 @@ int lynxer_module_init_v1(
 
 Return `0` after all registrations succeed. A non-zero return, an invalid
 identifier, a duplicate registration, or a missing symbol rejects the module.
-Function signatures use the `cdecl:<ret>(<args>)` grammar.
+Registered native-module function signatures use the
+`cdecl:<ret>(<args>)` grammar. The dynamic FFI built-ins also accept
+`stdcall:<ret>(<args>)` for Windows 32-bit APIs that use `__stdcall`; on
+Windows 64-bit, `stdcall:` uses the platform's unified x64 calling convention.
+On non-Windows hosts, `stdcall:` is rejected. Integer widths such as `int32`
+and pointer-sized `uintptr` describe the native ABI width even though Lynxer
+represents their scalar values as integers.
 
 ```cpp
 #include <cstdint>
@@ -99,8 +105,8 @@ packed `ret(...)` form).
 `ffiCallback(signature, function)` does **not** produce a real native callable:
 it stores the pair under a handle, and `ffiCall` recognises that handle and
 re-invokes the Lynxer function. There is no trampoline, and the stored signature
-is not validated. The `ffi*` calling convention is still an
-[open decision](../todo.md) for arbitrary signatures.
+is not validated; callbacks therefore cannot be passed to arbitrary native
+code as function pointers.
 
 ## Building C++ stdlib backends
 

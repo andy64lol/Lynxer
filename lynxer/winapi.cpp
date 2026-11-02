@@ -16,8 +16,12 @@
 #define _WIN32_WINNT 0x0601
 #endif
 #include <cstring>
+#include <limits>
+#include <mutex>
 #include <thread>
 #include "stdlib/native_json.hpp"
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -31,6 +35,70 @@ namespace lynxer::winapi {
 namespace {
 
 #if defined(_WIN32)
+
+bool ensureWinsock() {
+    static std::once_flag initialized;
+    static int startupResult = WSASYSNOTREADY;
+    std::call_once(initialized, [] {
+        WSADATA data{};
+        startupResult = ::WSAStartup(MAKEWORD(2, 2), &data);
+    });
+    return startupResult == 0;
+}
+
+SOCKET socketArg(std::int64_t value) {
+    return static_cast<SOCKET>(static_cast<std::uintptr_t>(value));
+}
+
+std::int64_t socketValue(SOCKET value) {
+    return static_cast<std::int64_t>(static_cast<std::uintptr_t>(value));
+}
+
+SOCKET tcpSocket(const std::string& host, std::int64_t port, bool listening) {
+    if (!ensureWinsock() || port < 0 || port > 65535) {
+        return INVALID_SOCKET;
+    }
+    const std::string service = std::to_string(port);
+    addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    if (listening && host.empty()) {
+        hints.ai_flags = AI_PASSIVE;
+    }
+    addrinfo* addresses = nullptr;
+    if (::getaddrinfo(host.empty() ? nullptr : host.c_str(), service.c_str(),
+                      &hints, &addresses) != 0) {
+        return INVALID_SOCKET;
+    }
+    SOCKET connected = INVALID_SOCKET;
+    for (addrinfo* address = addresses; address != nullptr;
+         address = address->ai_next) {
+        SOCKET candidate = ::socket(address->ai_family, address->ai_socktype,
+                                    address->ai_protocol);
+        if (candidate == INVALID_SOCKET) {
+            continue;
+        }
+        if (listening) {
+            BOOL reuse = TRUE;
+            ::setsockopt(candidate, SOL_SOCKET, SO_REUSEADDR,
+                         reinterpret_cast<const char*>(&reuse), sizeof(reuse));
+            if (::bind(candidate, address->ai_addr,
+                       static_cast<int>(address->ai_addrlen)) == 0 &&
+                ::listen(candidate, SOMAXCONN) == 0) {
+                connected = candidate;
+                break;
+            }
+        } else if (::connect(candidate, address->ai_addr,
+                             static_cast<int>(address->ai_addrlen)) == 0) {
+            connected = candidate;
+            break;
+        }
+        ::closesocket(candidate);
+    }
+    ::freeaddrinfo(addresses);
+    return connected;
+}
 
 std::string wideToUtf8(const std::wstring& text) {
     if (text.empty()) {
@@ -254,6 +322,10 @@ const std::vector<std::string>& names() {
         "deleteFile",         "copyFile",            "moveFile",
         "createDirectory",    "removeDirectory",     "getTempFileName",
         "setCurrentDirectory", "getFileType",        "getFileTime",
+        // Winsock TCP sockets.
+        "tcpConnect", "tcpListen", "tcpAccept", "socketLocalPort",
+        "socketSend", "socketReceive", "socketShutdown", "closeSocket",
+        "getSocketError",
         // Process control and the current thread.
         "getCurrentThreadId", "openProcess",         "terminateProcess",
         "getExitCodeProcess", "createProcess",       "waitForSingleObject",
@@ -1556,6 +1628,133 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
         result = ::QueryPerformanceFrequency(&value) != 0
                      ? static_cast<std::int64_t>(value.QuadPart)
                      : static_cast<std::int64_t>(-1);
+        return true;
+    }
+    if (name == "tcpConnect" || name == "tcpListen") {
+        if (args.size() != 2) return wrong("a host string and port");
+        if (std::get_if<std::string>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("a host string and integer port");
+        }
+        result = socketValue(
+            tcpSocket(stringArg(0), integerArg(1), name == "tcpListen"));
+        return true;
+    }
+    if (name == "tcpAccept") {
+        if (args.size() != 1) return wrong("a listening socket");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer listening socket");
+        }
+        if (!ensureWinsock()) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        const SOCKET accepted = ::accept(socketArg(integerArg(0)), nullptr,
+                                         nullptr);
+        result = accepted == INVALID_SOCKET
+                     ? static_cast<std::int64_t>(-1)
+                     : socketValue(accepted);
+        return true;
+    }
+    if (name == "socketLocalPort") {
+        if (args.size() != 1) return wrong("a socket");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer socket");
+        }
+        if (!ensureWinsock()) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        sockaddr_storage address{};
+        int addressLength = sizeof(address);
+        if (::getsockname(socketArg(integerArg(0)),
+                          reinterpret_cast<sockaddr*>(&address),
+                          &addressLength) != 0) {
+            result = static_cast<std::int64_t>(-1);
+        } else if (address.ss_family == AF_INET) {
+            result = static_cast<std::int64_t>(
+                ntohs(reinterpret_cast<const sockaddr_in*>(&address)->sin_port));
+        } else if (address.ss_family == AF_INET6) {
+            result = static_cast<std::int64_t>(
+                ntohs(reinterpret_cast<const sockaddr_in6*>(&address)->sin6_port));
+        } else {
+            result = static_cast<std::int64_t>(-1);
+        }
+        return true;
+    }
+    if (name == "socketSend") {
+        if (args.size() != 2) return wrong("a socket and string data");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr) {
+            return wrong("an integer socket and string data");
+        }
+        const std::string data = stringArg(1);
+        if (!ensureWinsock() ||
+            data.size() >
+                static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result = static_cast<std::int64_t>(
+            ::send(socketArg(integerArg(0)), data.data(),
+                   static_cast<int>(data.size()), 0));
+        return true;
+    }
+    if (name == "socketReceive") {
+        if (args.size() != 2) return wrong("a socket and maximum byte count");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer socket and maximum byte count");
+        }
+        const std::int64_t maximum = integerArg(1);
+        if (maximum < 1 || maximum > 16 * 1024 * 1024) {
+            return wrong("a receive limit between 1 and 16777216 bytes");
+        }
+        if (!ensureWinsock()) {
+            result = std::string();
+            return true;
+        }
+        std::string data(static_cast<std::size_t>(maximum), '\0');
+        const int received = ::recv(socketArg(integerArg(0)), data.data(),
+                                    static_cast<int>(maximum), 0);
+        if (received <= 0) {
+            result = std::string();
+        } else {
+            data.resize(static_cast<std::size_t>(received));
+            result = std::move(data);
+        }
+        return true;
+    }
+    if (name == "socketShutdown") {
+        if (args.size() != 2) return wrong("a socket and shutdown direction");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::string>(&args[1]) == nullptr) {
+            return wrong("an integer socket and direction string");
+        }
+        int direction = SD_BOTH;
+        if (stringArg(1) == "receive") {
+            direction = SD_RECEIVE;
+        } else if (stringArg(1) == "send") {
+            direction = SD_SEND;
+        } else if (stringArg(1) != "both") {
+            return wrong("direction \"receive\", \"send\" or \"both\"");
+        }
+        result = ensureWinsock() &&
+                 ::shutdown(socketArg(integerArg(0)), direction) == 0;
+        return true;
+    }
+    if (name == "closeSocket") {
+        if (args.size() != 1) return wrong("a socket");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer socket");
+        }
+        result = ensureWinsock() &&
+                 ::closesocket(socketArg(integerArg(0))) == 0;
+        return true;
+    }
+    if (name == "getSocketError") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::WSAGetLastError());
         return true;
     }
     error = "unknown operation";

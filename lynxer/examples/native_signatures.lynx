@@ -7,6 +7,8 @@ fn main(){
     println(sigs.v());
     println(sigs.d());
     println(sigs.s());
+    println(sigs.wideLength("A€"));
+    println(sigs.wideText());
     println(sigs.ii(3, 4));
     println(sigs.i(9));
     println(sigs.ssArg("copy"));
@@ -33,6 +35,7 @@ fn main(){
     println(sigs.sis("ab", 5, "cde"));
     println(sigs.quad(1, 2, 3, 4));
     println(sigs.sink(7));
+    println(sigs.pairSum([int 17, int 25]));
     println(sigs.bytesLen(bytesOf("hello")));
     println(bytesToStr(sigs.bytesUpper(bytesOf("abc"))));
 }

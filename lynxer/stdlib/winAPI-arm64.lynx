@@ -1,5 +1,7 @@
 ////
 Windows arm64 native standard library. The module name selects the process architecture.
+Typed `HANDLE`, `HWND` and `SOCKET` helpers are available alongside the
+backward-compatible integer-returning functions.
 ////
 
 fn setup() {
@@ -16,6 +18,81 @@ fn requireArchitecture(str expected) {
         raise("winAPI-" + expected + " requires a Windows " + expected +
               " runtime; this process is " + actual);
     }
+}
+
+class HANDLE {
+    int raw;
+
+    fn init(int value) {
+        this.raw = value;
+    }
+}
+
+class HWND {
+    int raw;
+
+    fn init(int value) {
+        this.raw = value;
+    }
+}
+
+class SOCKET {
+    int raw;
+
+    fn init(int value) {
+        this.raw = value;
+    }
+}
+
+fn asHANDLE(int value) {
+    if (value is -1) {
+        return none;
+    }
+    return new HANDLE(value);
+}
+
+fn asHWND(int value) {
+    if (value is -1) {
+        return none;
+    }
+    return new HWND(value);
+}
+
+fn asSOCKET(int value) {
+    if (value is -1) {
+        return none;
+    }
+    return new SOCKET(value);
+}
+
+fn handleValue(any value) {
+    if (returnType(value) is "HANDLE") {
+        return value.raw;
+    }
+    if (returnType(value) is "int") {
+        return value;
+    }
+    raise("expected a HANDLE or integer handle");
+}
+
+fn windowValue(any value) {
+    if (returnType(value) is "HWND") {
+        return value.raw;
+    }
+    if (returnType(value) is "int") {
+        return value;
+    }
+    raise("expected an HWND or integer handle");
+}
+
+fn socketValue(any value) {
+    if (returnType(value) is "SOCKET") {
+        return value.raw;
+    }
+    if (returnType(value) is "int") {
+        return value;
+    }
+    raise("expected a SOCKET or integer socket");
 }
 
 fn getProcessId() {
@@ -40,7 +117,7 @@ fn getLastError() {
 
 fn closeHandle(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("closeHandle", [arg0]);
+    any result = nativeWinApi.call("closeHandle", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.closeHandle() failed: " + error);
@@ -420,7 +497,7 @@ fn createFile(any arg0, any arg1) {
 
 fn readFile(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("readFile", [arg0, arg1]);
+    any result = nativeWinApi.call("readFile", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.readFile() failed: " + error);
@@ -430,7 +507,7 @@ fn readFile(any arg0, any arg1) {
 
 fn writeFile(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("writeFile", [arg0, arg1]);
+    any result = nativeWinApi.call("writeFile", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.writeFile() failed: " + error);
@@ -440,7 +517,7 @@ fn writeFile(any arg0, any arg1) {
 
 fn fileSize(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("fileSize", [arg0]);
+    any result = nativeWinApi.call("fileSize", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.fileSize() failed: " + error);
@@ -450,7 +527,7 @@ fn fileSize(any arg0) {
 
 fn seekFile(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("seekFile", [arg0, arg1]);
+    any result = nativeWinApi.call("seekFile", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.seekFile() failed: " + error);
@@ -540,7 +617,7 @@ fn getFullPathName(any arg0) {
 
 fn flushFileBuffers(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("flushFileBuffers", [arg0]);
+    any result = nativeWinApi.call("flushFileBuffers", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.flushFileBuffers() failed: " + error);
@@ -570,7 +647,7 @@ fn setCurrentDirectory(any arg0) {
 
 fn getFileType(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("getFileType", [arg0]);
+    any result = nativeWinApi.call("getFileType", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.getFileType() failed: " + error);
@@ -660,7 +737,7 @@ fn createNamedPipe(any arg0) {
 
 fn connectNamedPipe(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("connectNamedPipe", [arg0]);
+    any result = nativeWinApi.call("connectNamedPipe", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.connectNamedPipe() failed: " + error);
@@ -680,7 +757,7 @@ fn openNamedPipe(any arg0) {
 
 fn readNamedPipe(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("readNamedPipe", [arg0, arg1]);
+    any result = nativeWinApi.call("readNamedPipe", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.readNamedPipe() failed: " + error);
@@ -690,7 +767,7 @@ fn readNamedPipe(any arg0, any arg1) {
 
 fn writeNamedPipe(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("writeNamedPipe", [arg0, arg1]);
+    any result = nativeWinApi.call("writeNamedPipe", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.writeNamedPipe() failed: " + error);
@@ -700,7 +777,7 @@ fn writeNamedPipe(any arg0, any arg1) {
 
 fn disconnectNamedPipe(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("disconnectNamedPipe", [arg0]);
+    any result = nativeWinApi.call("disconnectNamedPipe", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.disconnectNamedPipe() failed: " + error);
@@ -710,7 +787,7 @@ fn disconnectNamedPipe(any arg0) {
 
 fn peekNamedPipe(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("peekNamedPipe", [arg0]);
+    any result = nativeWinApi.call("peekNamedPipe", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.peekNamedPipe() failed: " + error);
@@ -740,7 +817,7 @@ fn openProcess(any arg0) {
 
 fn terminateProcess(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("terminateProcess", [arg0, arg1]);
+    any result = nativeWinApi.call("terminateProcess", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.terminateProcess() failed: " + error);
@@ -750,7 +827,7 @@ fn terminateProcess(any arg0, any arg1) {
 
 fn getExitCodeProcess(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("getExitCodeProcess", [arg0]);
+    any result = nativeWinApi.call("getExitCodeProcess", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.getExitCodeProcess() failed: " + error);
@@ -770,7 +847,7 @@ fn createProcess(any arg0) {
 
 fn waitForSingleObject(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("waitForSingleObject", [arg0, arg1]);
+    any result = nativeWinApi.call("waitForSingleObject", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.waitForSingleObject() failed: " + error);
@@ -780,7 +857,7 @@ fn waitForSingleObject(any arg0, any arg1) {
 
 fn getPriorityClass(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("getPriorityClass", [arg0]);
+    any result = nativeWinApi.call("getPriorityClass", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.getPriorityClass() failed: " + error);
@@ -790,7 +867,7 @@ fn getPriorityClass(any arg0) {
 
 fn setPriorityClass(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("setPriorityClass", [arg0, arg1]);
+    any result = nativeWinApi.call("setPriorityClass", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.setPriorityClass() failed: " + error);
@@ -810,7 +887,7 @@ fn getStdHandle(any arg0) {
 
 fn getConsoleMode(any arg0) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("getConsoleMode", [arg0]);
+    any result = nativeWinApi.call("getConsoleMode", [handleValue(arg0)]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.getConsoleMode() failed: " + error);
@@ -820,7 +897,7 @@ fn getConsoleMode(any arg0) {
 
 fn setConsoleMode(any arg0, any arg1) {
     requireArchitecture("arm64");
-    any result = nativeWinApi.call("setConsoleMode", [arg0, arg1]);
+    any result = nativeWinApi.call("setConsoleMode", [handleValue(arg0), arg1]);
     str error = nativeWinApi.lastError();
     if (error isnt "") {
         raise("winAPI.setConsoleMode() failed: " + error);
@@ -898,3 +975,141 @@ fn queryPerformanceFrequency() {
     return result;
 }
 
+fn tcpConnect(str host, int port) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("tcpConnect", [host, port]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.tcpConnect() failed: " + error);
+    }
+    return result;
+}
+
+fn tcpListen(str host, int port) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("tcpListen", [host, port]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.tcpListen() failed: " + error);
+    }
+    return result;
+}
+
+fn tcpAccept(any socket) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("tcpAccept", [socketValue(socket)]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.tcpAccept() failed: " + error);
+    }
+    return result;
+}
+
+fn socketLocalPort(any socket) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("socketLocalPort", [socketValue(socket)]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.socketLocalPort() failed: " + error);
+    }
+    return result;
+}
+
+fn socketSend(any socket, str data) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("socketSend", [socketValue(socket), data]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.socketSend() failed: " + error);
+    }
+    return result;
+}
+
+fn socketReceive(any socket, int maxBytes) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("socketReceive", [socketValue(socket), maxBytes]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.socketReceive() failed: " + error);
+    }
+    return result;
+}
+
+fn socketShutdown(any socket, str direction) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("socketShutdown", [socketValue(socket), direction]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.socketShutdown() failed: " + error);
+    }
+    return result;
+}
+
+fn closeSocket(any socket) {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("closeSocket", [socketValue(socket)]);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.closeSocket() failed: " + error);
+    }
+    return result;
+}
+
+fn getSocketError() {
+    requireArchitecture("arm64");
+    any result = nativeWinApi.call("getSocketError", []);
+    str error = nativeWinApi.lastError();
+    if (error isnt "") {
+        raise("winAPI.getSocketError() failed: " + error);
+    }
+    return result;
+}
+
+
+fn createFileHandle(str path, str mode) {
+    return asHANDLE(createFile(path, mode));
+}
+
+fn currentProcessHandle() {
+    return asHANDLE(getCurrentProcess());
+}
+
+fn moduleHandle(str name) {
+    return asHANDLE(getModuleHandle(name));
+}
+
+fn createNamedPipeHandle(str name) {
+    return asHANDLE(createNamedPipe(name));
+}
+
+fn openNamedPipeHandle(str name) {
+    return asHANDLE(openNamedPipe(name));
+}
+
+fn openProcessHandle(int processId) {
+    return asHANDLE(openProcess(processId));
+}
+
+fn createProcessHandle(str commandLine) {
+    return asHANDLE(createProcess(commandLine));
+}
+
+fn standardHandle(str stream) {
+    return asHANDLE(getStdHandle(stream));
+}
+
+fn consoleWindowHandle() {
+    return asHWND(getConsoleWindow());
+}
+
+fn connectSocket(str host, int port) {
+    return asSOCKET(tcpConnect(host, port));
+}
+
+fn listenSocket(str host, int port) {
+    return asSOCKET(tcpListen(host, port));
+}
+
+fn acceptSocket(any socket) {
+    return asSOCKET(tcpAccept(socketValue(socket)));
+}

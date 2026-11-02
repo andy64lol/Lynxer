@@ -46,7 +46,7 @@ LYNXER_TARGET := $(LYNXER_DIR)/lynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
 # libSystem) or Windows, so it is added only off macOS.
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_PLATFORM_FLAGS :=
-LYNXER_PLATFORM_LIBS := -lpthread -lm -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -luser32
+LYNXER_PLATFORM_LIBS := -lpthread -lm -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -luser32 -lws2_32
 LYNXER_MODULE_LDFLAGS := -lpsapi -Wl,--export-all-symbols
 LYNXER_BUILD_SHARED := 1
 else
@@ -1046,7 +1046,7 @@ expected="lynxer: $(LYNXER_DIR)/examples/m3_vargroup.lynx:8:5: [vargroupAndLegac
 	echo "received program-args output:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi
 	@output="$$($(CLYX) $(LYNXER_SIGNATURE_FIXTURE))"; \
-	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0\n5\nABC')"; \
+	expected="$$(printf '7\n2.5\nzero\n2\nhi€\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0\n42\n5\nABC')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi

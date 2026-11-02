@@ -48,7 +48,7 @@ still finds `lynxer.exe`):
 ```sh
 python3 packaging/windows/make-release-zip.py \
   --arch amd64 \
-  --installer dist/lynxer-0.1.9b1-windows-amd64-setup.exe \
+  --installer dist/lynxer-0.1.9b1h-windows-amd64-setup.exe \
   --output dist/lynxer-windows-amd64.zip
 ```
 
@@ -61,9 +61,9 @@ Sign both the installer and the shipped executables/DLLs before publishing:
 
 ```powershell
 signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
-  dist\lynxer-0.1.9b1-windows-amd64-setup.exe
+  dist\lynxer-0.1.9b1h-windows-amd64-setup.exe
 signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
-  dist\lynxer-0.1.9b1-windows-arm64-setup.exe
+  dist\lynxer-0.1.9b1h-windows-arm64-setup.exe
 signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 `
   build\windows-payload\lynxer.exe build\windows-payload\lynxer.dll
 ```
@@ -104,7 +104,7 @@ renders winget, Scoop and Chocolatey manifests under
 
 ```sh
 python3 packaging/windows/render-package-manifests.py \
-  --version 0.1.9b1 \
+  --version 0.1.9b1h \
   --amd64 dist/lynxer-windows-amd64.zip \
   --arm64 dist/lynxer-windows-arm64.zip
 ```

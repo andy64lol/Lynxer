@@ -18,4 +18,5 @@ The module checks the host OS and architecture before every API operation; it
 does not emulate or cross-dispatch Win32 calls. Its functions are backed by
 the native Win32 implementation rather than Lynxer built-ins. See the
 [Windows API catalog](../windows-api.md) and
-[amd64 guide](../winapi/windows-amd64.md).
+[amd64 guide](../winapi/windows-amd64.md). Typed `HANDLE`, `HWND` and `SOCKET`
+helpers are available alongside the backward-compatible integer APIs.

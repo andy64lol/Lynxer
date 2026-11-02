@@ -149,8 +149,9 @@ typedef struct LynxerFfiResult {
 extern "C" {
 
 // Invokes the native function at `address` with the `signature`
-// (`cdecl:<ret>(<arg>,...)`; `cdecl:v2:` enables typed `value` arguments and
-// results; `...` selects the packed four-scalar prototype).
+// (`cdecl:<ret>(<arg>,...)`; dynamic ffiCall also accepts `stdcall:` on
+// Windows; `cdecl:v2:` enables typed `value` arguments and results; `...`
+// selects the packed four-scalar prototype).
 // Returns 0 on success, non-zero on error. On error nothing is written to `out`
 // and `lynxer_ffi_last_error()` holds a located-message the caller wraps in its
 // own `SourceError`.
