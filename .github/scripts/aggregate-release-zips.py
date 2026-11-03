@@ -9,8 +9,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import TypedDict
 from zipfile import ZIP_DEFLATED, ZipFile
-
 
 WORKFLOWS = {
     "build-lynxer-linux-amd64.yml": "lynxer-linux-amd64",
@@ -24,9 +24,28 @@ POLL_SECONDS = 30
 TIMEOUT_SECONDS = 150 * 60
 
 
-def gh_json(*args: str) -> object:
+class RunInfo(TypedDict):
+    databaseId: int
+    headSha: str
+    status: str
+    conclusion: str | None
+
+
+def list_runs(workflow: str, commit: str) -> list[RunInfo]:
     result = subprocess.run(
-        ["gh", *args],
+        [
+            "gh",
+            "run",
+            "list",
+            "--workflow",
+            workflow,
+            "--commit",
+            commit,
+            "--limit",
+            "100",
+            "--json",
+            "databaseId,headSha,status,conclusion",
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -34,19 +53,8 @@ def gh_json(*args: str) -> object:
     return json.loads(result.stdout)
 
 
-def find_run(workflow: str, commit: str) -> dict | None:
-    runs = gh_json(
-        "run",
-        "list",
-        "--workflow",
-        workflow,
-        "--commit",
-        commit,
-        "--limit",
-        "100",
-        "--json",
-        "databaseId,headSha,status,conclusion",
-    )
+def find_run(workflow: str, commit: str) -> RunInfo | None:
+    runs = list_runs(workflow, commit)
     matching = [run for run in runs if run["headSha"] == commit]
     return max(matching, key=lambda run: run["databaseId"]) if matching else None
 

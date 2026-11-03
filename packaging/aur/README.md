@@ -19,7 +19,10 @@ $ makepkg -f --nodeps
 
 The build compiles every stdlib backend (C++ and Rust), so it is **memory
 hungry** — a small box with ~8 GB RAM can OOM during the `-O2` C++ compile.
-GitHub Actions builds it fine.
+
+The CI Arch packages do not use this PKGBUILD: `build-arch-package-*.yml`
+wrap the binaries produced by the Linux build workflows using the
+`package()`-only template at `.github/arch-package/PKGBUILD.in`.
 
 ### Publishing to the AUR
 

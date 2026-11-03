@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "Run ID of Build Lynxer on Linux AMD64 (blank = find by commit)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
@@ -19,23 +25,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: .cargo-cache/registry
-          key: lynxer-cargo-amd64-${{ hashFiles('lynxer/rust/Cargo.lock') }}
-          restore-keys: lynxer-cargo-amd64-
-
-      - name: Prepare Cargo registry cache
+      # The package wraps this exact binary; it never compiles Lynxer again.
+      - name: Download the compiled AMD64 Lynxer binary
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p .cargo-cache/registry
-          chmod -R a+rwX .cargo-cache/registry
+          python3 .github/scripts/download-build-artifact.py \
+            --workflow build-lynxer-linux-amd64.yml \
+            --commit "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --artifact lynxer-linux-amd64 \
+            --out "$GITHUB_WORKSPACE/dist/payload/x86_64" \
+            --run-id "${{ github.event.inputs.build_run_id }}"
 
-      - name: Build package in Arch Linux
+      - name: Wrap the binary in an Arch package
         run: |
           docker run --rm \
             -e LYNXER_EXPECTED_ARCH=x86_64 \
-            -v "$GITHUB_WORKSPACE/.cargo-cache/registry:/tmp/lynxer-cargo/registry" \
             -v "$GITHUB_WORKSPACE:/src" \
             -w /src \
             archlinux:latest \
@@ -47,10 +52,17 @@ jobs:
       - name: Zip the package
         run: python3 .github/scripts/zip-arch-package.py x86_64
 
-      - name: Check Lynxer version
+      - name: Check packaged Lynxer version
         run: |
-          version="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
-          echo "Lynxer version: $version"
+          payload="dist/payload/x86_64"
+          if [ -f "$payload/lynxer/lynxer.config" ]; then payload="$payload/lynxer"; fi
+          version="Lynxer $(sed -n 's/^version *= *//p' "$payload/lynxer.config" | head -n1)"
+          expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
+          echo "Packaged Lynxer version: $version (checkout: $expected)"
+          if [ "$version" != "$expected" ]; then
+            echo "Packaged version does not match the checkout; aborting."
+            exit 1
+          fi
           if [ "$version" = "Lynxer 0.1.9b1" ]; then
             echo "Forbidden Lynxer version detected; aborting."
             exit 1

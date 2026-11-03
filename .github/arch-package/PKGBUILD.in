@@ -1,0 +1,34 @@
+# CI-only Arch package: wraps the Lynxer binary produced by the Linux build
+# workflows. __PKGVER__ is substituted from the payload's lynxer.config by
+# .github/scripts/build-arch-package.sh before makepkg runs.
+# This is not an AUR package; see packaging/aur/ for those.
+pkgname=lynxer
+pkgver=__PKGVER__
+pkgrel=1
+pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime"
+arch=('x86_64' 'aarch64')
+url="https://github.com/andy64lol/Lynxer"
+license=('MIT')
+depends=('libffi' 'alsa-lib' 'bzip2')
+options=('!strip')
+source=()
+sha256sums=()
+
+# Mirror the layout of `lynxer --install`: one self-contained tree under
+# /usr/lib/lynxer plus a /usr/bin symlink, so the interpreter resolves its
+# stdlib, config and embedding runtime regardless of the working directory.
+package() {
+  cd "$startdir/payload"
+
+  install -d "$pkgdir/usr/lib/lynxer" "$pkgdir/usr/bin"
+  install -m755 lynxer "$pkgdir/usr/lib/lynxer/lynxer"
+  cp -r stdlib "$pkgdir/usr/lib/lynxer/stdlib"
+  install -m644 lynxer.config "$pkgdir/usr/lib/lynxer/lynxer.config"
+  install -m755 liblynxer.so "$pkgdir/usr/lib/lynxer/liblynxer.so"
+  install -m644 lynxer.h ffi_abi.h "$pkgdir/usr/lib/lynxer/"
+
+  ln -s /usr/lib/lynxer/lynxer "$pkgdir/usr/bin/lynxer"
+
+  install -Dm644 "$startdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 "$startdir/README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

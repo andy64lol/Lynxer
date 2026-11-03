@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Bundle one built Arch package into a downloadable ZIP."""
 
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
 

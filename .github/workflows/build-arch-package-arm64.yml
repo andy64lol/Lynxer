@@ -6,9 +6,15 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "Run ID of Build Lynxer on Linux ARM64 (blank = find by commit)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
@@ -24,7 +30,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends curl libarchive-tools
 
-      - name: Build package in native Arch Linux ARM
+      # The package wraps this exact binary; it never compiles Lynxer again.
+      - name: Download the compiled ARM64 Lynxer binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/download-build-artifact.py \
+            --workflow build-lynxer-linux-arm64.yml \
+            --commit "${{ github.event.pull_request.head.sha || github.sha }}" \
+            --artifact lynxer-linux-arm64 \
+            --out "$GITHUB_WORKSPACE/dist/payload/aarch64" \
+            --run-id "${{ github.event.inputs.build_run_id }}"
+
+      - name: Wrap the binary in an Arch package (native Arch Linux ARM)
         run: bash .github/scripts/build-arch-package-arm64.sh
 
       - name: Fix package output ownership
@@ -33,10 +51,17 @@ jobs:
       - name: Zip the package
         run: python3 .github/scripts/zip-arch-package.py aarch64
 
-      - name: Check Lynxer version
+      - name: Check packaged Lynxer version
         run: |
-          version="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
-          echo "Lynxer version: $version"
+          payload="dist/payload/aarch64"
+          if [ -f "$payload/lynxer/lynxer.config" ]; then payload="$payload/lynxer"; fi
+          version="Lynxer $(sed -n 's/^version *= *//p' "$payload/lynxer.config" | head -n1)"
+          expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
+          echo "Packaged Lynxer version: $version (checkout: $expected)"
+          if [ "$version" != "$expected" ]; then
+            echo "Packaged version does not match the checkout; aborting."
+            exit 1
+          fi
           if [ "$version" = "Lynxer 0.1.9b1" ]; then
             echo "Forbidden Lynxer version detected; aborting."
             exit 1
