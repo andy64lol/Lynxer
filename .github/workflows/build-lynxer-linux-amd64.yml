@@ -41,6 +41,15 @@ jobs:
       - name: Test Lynxer
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
 
+      - name: Check Lynxer version
+        run: |
+          version="$(./lynxer/lynxer --version)"
+          echo "Lynxer version: $version"
+          if [ "$version" = "Lynxer 0.1.9b1" ]; then
+            echo "Forbidden Lynxer version detected; aborting."
+            exit 1
+          fi
+
       - name: Upload AMD64 binary
         uses: actions/upload-artifact@v4
         with:

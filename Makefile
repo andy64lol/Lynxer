@@ -386,7 +386,7 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -450,7 +450,12 @@ dist: buildLynxer
 # Binary plus every stdlib module, C++ and Rust alike.
 buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED_BUILT) sdk
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
-
+	@version="$$($(CLYX) --version)"; \
+	echo "Lynxer version: $$version"; \
+	if [ "$$version" = "Lynxer 0.1.9b1" ]; then \
+		echo "error: forbidden Lynxer version 'Lynxer 0.1.9b1' detected; aborting."; \
+		exit 1; \
+	fi
 # Process-level performance report. The runner compiles two temporary samples
 # and compares optimized/unoptimized interpreter runs with standalone startup.
 BENCH_RUNS ?= 9
@@ -631,7 +636,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST) testPackageManifests
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
 	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "lynxer: $(PYTHON) not found; Python 3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -1337,3 +1342,11 @@ help:
 	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
 	@echo "  ./lynxer/lynxer --ast <file.lynx>"
 	@echo "  ./lynxer/lynxer --lint <file.lynx>"
+
+checkLynxerVersion: $(LYNXER_TARGET)
+	@version="$$($(CLYX) --version)"; \
+	echo "Lynxer version: $$version"; \
+	if [ "$$version" = "Lynxer 0.1.9b1" ]; then \
+		echo "error: forbidden Lynxer version 'Lynxer 0.1.9b1' detected; aborting."; \
+		exit 1; \
+	fi

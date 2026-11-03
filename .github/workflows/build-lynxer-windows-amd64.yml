@@ -111,6 +111,16 @@ jobs:
             --installer dist/lynxer-*-windows-amd64-setup.exe \
             --output dist/lynxer-windows-amd64.zip
 
+      - name: Check Lynxer version
+        shell: msys2 {0}
+        run: |
+          version="$(./lynxer/lynxer.exe --version)"
+          echo "Lynxer version: $version"
+          if [ "$version" = "Lynxer 0.1.9b1" ]; then
+            echo "Forbidden Lynxer version detected; aborting."
+            exit 1
+          fi
+
       - name: Upload the Windows AMD64 release zip
         uses: actions/upload-artifact@v4
         with:

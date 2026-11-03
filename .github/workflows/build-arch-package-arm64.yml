@@ -33,6 +33,15 @@ jobs:
       - name: Zip the package
         run: python3 .github/scripts/zip-arch-package.py aarch64
 
+      - name: Check Lynxer version
+        run: |
+          version="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
+          echo "Lynxer version: $version"
+          if [ "$version" = "Lynxer 0.1.9b1" ]; then
+            echo "Forbidden Lynxer version detected; aborting."
+            exit 1
+          fi
+
       - name: Upload aarch64 Arch package ZIP
         uses: actions/upload-artifact@v4
         with:
