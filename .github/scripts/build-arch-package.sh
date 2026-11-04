@@ -31,12 +31,13 @@ if [[ ! -f "$pkbuild_template" ]]; then
   exit 1
 fi
 
-# zstd is needed for makepkg's default .pkg.tar.zst output.
-build_packages=(base-devel zstd)
+# zstd is needed for makepkg's default .pkg.tar.zst output; the runtime libs
+# let us execute the packaged interpreter as part of the version guard.
+build_packages=(base-devel zstd libffi gcc-libs alsa-lib bzip2)
 pacman -Syu --noconfirm
 pacman -S --needed --noconfirm "${build_packages[@]}"
 
-for tool in makepkg fakeroot sed install; do
+for tool in makepkg fakeroot sed install readelf tar; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     printf 'Required packaging tool %s is missing.\n' "$tool" >&2
     exit 1
@@ -108,6 +109,48 @@ if [[ "${packages[0]}" != *"$payload_version"* ]]; then
     "$payload_version" "${packages[0]}" >&2
   exit 1
 fi
+
+# Version control: a lynxer.config text file can claim anything (that is how
+# 0.1.9b1 shipped inside a 0.1.9b1h package). Only the interpreter's own
+# --version output is authoritative, so unpack the finished package and run
+# that exact binary before publishing it.
+check_dir="$(mktemp -d)"
+case "${packages[0]}" in
+  *.zst) tar --zstd -xf "${packages[0]}" -C "$check_dir" ;;
+  *)     tar -xf "${packages[0]}" -C "$check_dir" ;;
+esac
+
+installed_binary="$check_dir/usr/lib/lynxer/lynxer"
+if ! cmp -s "$build_dir/payload/lynxer" "$installed_binary"; then
+  printf 'Packaged binary is not byte-for-byte the build artifact.\n' >&2
+  exit 1
+fi
+if ! cmp -s "$build_dir/payload/lynxer.config" "$check_dir/usr/lib/lynxer/lynxer.config"; then
+  printf 'Packaged lynxer.config does not match the build artifact.\n' >&2
+  exit 1
+fi
+
+installed_version="$("$installed_binary" --version)"
+expected_version="Lynxer $payload_version"
+if [[ "$installed_version" != "$expected_version" ]]; then
+  printf 'Packaged Lynxer version %q does not match expected %q.\n' \
+    "$installed_version" "$expected_version" >&2
+  exit 1
+fi
+if [[ "$installed_version" == "Lynxer 0.1.9b1" ]]; then
+  printf 'Forbidden Lynxer version detected in package; aborting.\n' >&2
+  exit 1
+fi
+printf 'Packaged Lynxer version: %s\n' "$installed_version"
+
+if [[ "$arch" == "x86_64" ]]; then
+  isa="$(readelf -n "$installed_binary" | sed -n 's/.*x86 ISA needed: //p' | head -n1)"
+  if printf '%s\n' "$isa" | grep -qE 'x86-64-v[234]'; then
+    printf 'Packaged binary requires an x86-64 ISA level above baseline: %s\n' "$isa" >&2
+    exit 1
+  fi
+fi
+rm -rf "$check_dir"
 
 output_dir="/src/dist/packages/$arch"
 install -d "$output_dir"

@@ -21,6 +21,13 @@ source_aarch64=("lynxer-linux-arm64.zip::$_gh/lynxer-linux-arm64.zip")
 sha256sums_aarch64=('a4b0dbc7b9288b2d09a461938817ff70c45efcba311ffb712c1f52bd1ee3684a')
 
 package() {
+  # Never wrap the known-bad build, whatever the release tag claims.
+  version="$(sed -n 's/^version *= *//p' lynxer.config | head -n1)"
+  if [[ "$version" == "0.1.9b1" ]]; then
+    error "Forbidden Lynxer version 0.1.9b1 in release bundle"
+    return 1
+  fi
+
   # The interpreter resolves its stdlib through the `<exe>/../lib/lynxer`
   # fallback, so /usr/bin/lynxer needs no bin/lib symlink.
   install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/lynxer"

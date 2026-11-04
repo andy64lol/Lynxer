@@ -61,7 +61,20 @@ LYNXER_BUILD_SHARED := 1
 endif
 endif
 
-LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
+# Distributable x86-64 binaries must run on any x86-64 CPU. Some build hosts
+# default to a higher x86-64 ISA level (GCC emitting AVX2, glibc's startup
+# objects requiring v3), which makes glibc refuse to load the interpreter on
+# older CPUs with "CPU ISA level is lower than required". Release builds opt in
+# with LYNXER_BASELINE_ISA=1 so every object is compiled for the baseline ISA.
+ifeq ($(LYNXER_BASELINE_ISA),1)
+LYNXER_ISA_CXXFLAGS := -march=x86-64
+LYNXER_ISA_RUSTFLAGS := -C target-cpu=x86-64
+else
+LYNXER_ISA_CXXFLAGS :=
+LYNXER_ISA_RUSTFLAGS :=
+endif
+
+LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS) $(LYNXER_ISA_CXXFLAGS)
 LYNXER_MODULE_LDFLAGS ?=
 
 # Modules a Windows build must skip because they have no Windows backend yet.
@@ -525,18 +538,18 @@ $(LYNXER_TARGET)-arm64: $(LYNXER_OBJECTS_ARM64) $(LYNXER_FFI_STATICLIB)
 	echo "error: cannot link the aarch64 native-call engine from $$(uname -m)."; \
 	echo "hint: build on an aarch64 host, or point LYNXER_FFI_STATICLIB at an aarch64 liblynxer_ffi.a."; \
 	exit 1; fi
-	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
+	@aarch64-linux-gnu-g++ $(filter-out -march=x86-64,$(LYNXER_CXXFLAGS)) $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
 
 $(LYNXER_DIR)/%.o: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -c $< -o $@
 
 $(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
 	@command -v aarch64-linux-gnu-g++ >/dev/null || { echo "error: aarch64-linux-gnu-g++ not found"; exit 1; }
-	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) -c $< -o $@
+	@aarch64-linux-gnu-g++ $(filter-out -march=x86-64,$(LYNXER_CXXFLAGS)) -c $< -o $@
 
 # Remaining C++ stdlib modules, compiled to lynxer/stdlib/<name>.so.
 $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
-	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@ $(LYNXER_MODULE_LDFLAGS)
+	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC $(LYNXER_ISA_CXXFLAGS) -shared $< -o $@ $(LYNXER_MODULE_LDFLAGS)
 
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
@@ -545,9 +558,9 @@ $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
 # by a second one so its serde_json features stay isolated (see rust/Cargo.toml).
 $(LYNXER_RUST_STDLIB_STAMP): $(LYNXER_RUST_SOURCES)
 	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the Rust backends"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_stdlib --examples --release \
+	RUSTFLAGS="-C relocation-model=pic $(LYNXER_ISA_RUSTFLAGS)" $(LYNXER_CARGO) build -p lynxer_stdlib --examples --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
-	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_json --release \
+	RUSTFLAGS="-C relocation-model=pic $(LYNXER_ISA_RUSTFLAGS)" $(LYNXER_CARGO) build -p lynxer_json --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 	@mkdir -p $(dir $@)
 	@touch $@
@@ -572,7 +585,7 @@ $(LYNXER_DIR)/stdlib/json.so: $(LYNXER_RUST_STDLIB_STAMP)
 $(LYNXER_FFI_STATICLIB): $(LYNXER_RUST_SOURCES) $(LYNXER_FFI_ABI_HEADER)
 	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the native-call engine"; exit 1; }
 	@mkdir -p $(dir $(LYNXER_FFI_BUILD_LOG))
-	@RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) rustc -p lynxer_ffi --release \
+	@RUSTFLAGS="-C relocation-model=pic $(LYNXER_ISA_RUSTFLAGS)" $(LYNXER_CARGO) rustc -p lynxer_ffi --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR) \
 	    -- --print native-static-libs > $(LYNXER_FFI_BUILD_LOG) 2>&1 \
 	    || { cat $(LYNXER_FFI_BUILD_LOG); exit 1; }

@@ -33,18 +33,51 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential clang cmake libclang-dev pkg-config libasound2-dev libffi-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev \
-            libxinerama-dev libxcursor-dev libxxf86vm-dev
+            libxinerama-dev libxcursor-dev libxxf86vm-dev \
+            qemu-user
 
       - name: Build Lynxer
-        run: make buildLynxer
+        run: make buildLynxer LYNXER_BASELINE_ISA=1
+
+      - name: Enforce baseline x86-64 compatibility
+        run: |
+          # Distributed binaries must start on any x86-64 CPU. Some build hosts
+          # emit objects requiring x86-64-v3, which makes glibc refuse to load
+          # the interpreter on older CPUs. Baseline codegen is forced above, so
+          # any remaining ISA property note is spurious - clear it on every
+          # shipped ELF.
+          for elf in lynxer/lynxer lynxer/liblynxer.so lynxer/stdlib/*.so; do
+            [ -f "$elf" ] || continue
+            objcopy --remove-section .note.gnu.property "$elf"
+          done
+          isa="$(readelf -n lynxer/lynxer | sed -n 's/.*x86 ISA needed: //p' | head -n1)"
+          echo "x86 ISA needed: ${isa:-<none>}"
+          if printf '%s\n' "$isa" | grep -qE 'x86-64-v[234]'; then
+            echo "error: Lynxer still requires an x86-64 ISA level above baseline."
+            exit 1
+          fi
+          # Emulate a real baseline CPU: this catches both a stale ISA note and
+          # any unconditional AVX2 instruction left by the toolchain.
+          expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
+          baseline="$(qemu-x86_64 -cpu qemu64 ./lynxer/lynxer --version)"
+          echo "Baseline CPU version: $baseline"
+          if [ "$baseline" != "$expected" ]; then
+            echo "error: Lynxer does not run on a baseline x86-64 CPU."
+            exit 1
+          fi
 
       - name: Test Lynxer
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
 
       - name: Check Lynxer version
         run: |
+          expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
           version="$(./lynxer/lynxer --version)"
-          echo "Lynxer version: $version"
+          echo "Lynxer version: $version (expected: $expected)"
+          if [ "$version" != "$expected" ]; then
+            echo "Lynxer version does not match lynxer.config; aborting."
+            exit 1
+          fi
           if [ "$version" = "Lynxer 0.1.9b1" ]; then
             echo "Forbidden Lynxer version detected; aborting."
             exit 1

@@ -56,7 +56,7 @@ jobs:
         run: |
           payload="dist/payload/x86_64"
           if [ -f "$payload/lynxer/lynxer.config" ]; then payload="$payload/lynxer"; fi
-          version="Lynxer $(sed -n 's/^version *= *//p' "$payload/lynxer.config" | head -n1)"
+          version="$("$payload/lynxer" --version)"
           expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
           echo "Packaged Lynxer version: $version (checkout: $expected)"
           if [ "$version" != "$expected" ]; then

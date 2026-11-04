@@ -9,7 +9,7 @@ license=('MIT')
 depends=('libffi' 'alsa-lib' 'bzip2')
 makedepends=('rust' 'pkgconf' 'cmake' 'clang' 'curl' 'git' 'libglvnd' 'libx11' 'libxext'
              'libxrandr' 'libxi' 'libxinerama' 'libxcursor' 'libxxf86vm')
-_commit=badec0c2a8f3ea728646c9d14321ecf7935614e4
+_commit=f9c1615adae8f1a3eeb0d009e3b94881491c76bd
 source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
 sha256sums=('SKIP')
 
@@ -23,6 +23,14 @@ build() {
 
 package() {
   cd "$_srcdir"
+
+  # A config text file can claim anything (0.1.9b1 once shipped inside a
+  # 0.1.9b1h package). Only the interpreter's own --version is authoritative.
+  version="$(./lynxer/lynxer --version)"
+  if [[ "$version" != "Lynxer $pkgver" ]]; then
+    error "Built Lynxer version '$version' does not match pkgver $pkgver"
+    return 1
+  fi
 
   # The project's own installer lays an interpreter out as one self-contained
   # tree ($PREFIX/lib/lynxer: binary + stdlib + config + embedding runtime and
