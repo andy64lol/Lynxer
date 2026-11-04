@@ -157,3 +157,42 @@ install -d "$output_dir"
 rm -f "$output_dir"/lynxer-*.pkg.tar.*
 install -m 0644 "${packages[0]}" "$output_dir/"
 printf 'Built package: %s\n' "$output_dir/$(basename "${packages[0]}")"
+
+# Install the freshly built package on this Arch system and smoke-test it, so
+# the CI proves the package installs cleanly (dependencies included) and the
+# installed interpreter resolves its stdlib/config regardless of cwd.
+shopt -s nullglob
+install_candidates=("$output_dir"/lynxer-*.pkg.tar.*)
+shopt -u nullglob
+if (( ${#install_candidates[@]} != 1 )); then
+  printf 'Expected one Lynxer package to install, found %s.\n' "${#install_candidates[@]}" >&2
+  exit 1
+fi
+pacman -U --noconfirm "${install_candidates[0]}"
+installed_version="$(/usr/bin/lynxer --version)"
+printf 'Installed Lynxer version: %s\n' "$installed_version"
+expected_installed_version="Lynxer $payload_version"
+if [[ "$installed_version" != "$expected_installed_version" ]]; then
+  printf 'Installed Lynxer version %q does not match expected %q.\n' \
+    "$installed_version" "$expected_installed_version" >&2
+  exit 1
+fi
+if [[ "$installed_version" == "Lynxer 0.1.9b1" ]]; then
+  printf 'Forbidden Lynxer version detected after install; aborting.\n' >&2
+  exit 1
+fi
+printf 'fn setup(){ import("math"); }\nfn main(){ println(math.sqrt(9)); }\n' > /tmp/lynxer-package-smoke.lynx
+smoke_output="$(cd /tmp && /usr/bin/lynxer /tmp/lynxer-package-smoke.lynx)"
+printf 'Installed package smoke output: %s\n' "$smoke_output"
+if [[ "$smoke_output" != "3" ]]; then
+  printf 'Installed Lynxer did not run the smoke program correctly.\n' >&2
+  rm -f /tmp/lynxer-package-smoke.lynx
+  exit 1
+fi
+if ! /usr/bin/lynxer --list-stdlibs | grep -Fxq '  math'; then
+  printf 'Installed Lynxer did not find its stdlib.\n' >&2
+  rm -f /tmp/lynxer-package-smoke.lynx
+  exit 1
+fi
+rm -f /tmp/lynxer-package-smoke.lynx
+printf 'Installed Arch package smoke test passed.\n'
