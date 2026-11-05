@@ -123,3 +123,26 @@ jobs:
           name: lynxer-windows-arm64
           path: dist/lynxer-windows-arm64.zip
           if-no-files-found: error
+
+  native-module-msvc:
+    name: Build a native module with MSVC (ARM64)
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Build and check the exported entry point
+        shell: cmd
+        run: |
+          if not exist build mkdir build
+          cl /nologo /std:c++17 /EHsc /LD /Ilynxer\stdlib ^
+            lynxer\examples\native_signatures.cpp ^
+            /Fe:build\native_signatures.dll
+          dumpbin /exports build\native_signatures.dll | findstr /C:"lynxer_module_init_v1"
+          dumpbin /exports build\native_signatures.dll | findstr /C:"sig_ii"
