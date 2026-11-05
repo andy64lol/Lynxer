@@ -399,7 +399,7 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -505,6 +505,12 @@ buildLynxerArch: buildLynxer
 	mkdir -p "$(CURDIR)/dist/payload/$$arch"; \
 	rm -rf "$(CURDIR)/dist/payload/$$arch"/*; \
 	cp -a "$(CURDIR)/lynxer/." "$(CURDIR)/dist/payload/$$arch"/; \
+	LYNXER_EXPECTED_ARCH="$$arch" LYNXER_SRC_ROOT="$(CURDIR)" bash "$(CURDIR)/.github/scripts/build-arch-package.sh"
+
+# Package an already-staged Lynxer payload (dist/payload/<arch>) into an Arch
+# package. Used by CI after downloading the compiled binary.
+packageArch:
+	@arch="$$(uname -m)"; \
 	LYNXER_EXPECTED_ARCH="$$arch" LYNXER_SRC_ROOT="$(CURDIR)" bash "$(CURDIR)/.github/scripts/build-arch-package.sh"
 
 # The Rust backends and the native-call engine on their own. Cargo is required:

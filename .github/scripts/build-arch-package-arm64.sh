@@ -44,4 +44,4 @@ sudo mount --bind /run "$rootfs/run"
 
 # Arch Linux ARM's generic root filesystem requires its own pacman keyring setup.
 sudo chroot "$rootfs" /bin/bash -e -c 'pacman-key --init && pacman-key --populate archlinuxarm'
-sudo chroot "$rootfs" /usr/bin/env LYNXER_EXPECTED_ARCH=aarch64 /bin/bash /src/.github/scripts/build-arch-package.sh
+sudo chroot "$rootfs" /bin/bash -e -c 'pacman -Syu --noconfirm && pacman -S --needed --noconfirm base-devel zstd libffi gcc-libs alsa-lib bzip2 make && LYNXER_EXPECTED_ARCH=aarch64 make -C /src packageArch'
