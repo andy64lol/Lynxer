@@ -399,7 +399,7 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -497,6 +497,15 @@ endif
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
 buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
 	@echo "✓ Lynxer ARM64 build complete: $(LYNXER_TARGET)-arm64"
+
+# Arch Linux package (amd64). Builds Lynxer, stages the payload and wraps it
+# using .github/scripts/build-arch-package.sh (requires root for pacman/makepkg).
+buildLynxerArch: buildLynxer
+	@arch="$$(uname -m)"; \
+	mkdir -p "$(CURDIR)/dist/payload/$$arch"; \
+	rm -rf "$(CURDIR)/dist/payload/$$arch"/*; \
+	cp -a "$(CURDIR)/lynxer/." "$(CURDIR)/dist/payload/$$arch"/; \
+	LYNXER_EXPECTED_ARCH="$$arch" LYNXER_SRC_ROOT="$(CURDIR)" bash "$(CURDIR)/.github/scripts/build-arch-package.sh"
 
 # The Rust backends and the native-call engine on their own. Cargo is required:
 # a missing toolchain or a failed build is a hard error, never a silent skip.

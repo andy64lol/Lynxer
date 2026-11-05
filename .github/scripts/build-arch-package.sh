@@ -7,6 +7,7 @@ set -euo pipefail
 
 arch="$(uname -m)"
 expected_arch="${LYNXER_EXPECTED_ARCH:-$arch}"
+src_root="${LYNXER_SRC_ROOT:-/src}"
 
 if [[ "$arch" != "$expected_arch" ]]; then
   printf 'Expected %s, but the build environment is %s.\n' "$expected_arch" "$arch" >&2
@@ -14,8 +15,8 @@ if [[ "$arch" != "$expected_arch" ]]; then
 fi
 
 build_dir=/tmp/lynxer-arch-package
-payload_dir="/src/dist/payload/$arch"
-pkbuild_template=/src/.github/arch-package/PKGBUILD.in
+payload_dir="$src_root/dist/payload/$arch"
+pkbuild_template="$src_root/.github/arch-package/PKGBUILD.in"
 
 # actions/upload-artifact@v4 may flatten the common lynxer/ prefix or keep it.
 payload_root="$payload_dir"
@@ -49,7 +50,7 @@ if ! id builder >/dev/null 2>&1; then
 fi
 
 payload_version="$(sed -n 's/^version *= *//p' "$payload_root/lynxer.config" | head -n1)"
-source_version="$(sed -n 's/^version *= *//p' /src/lynxer/lynxer.config | head -n1)"
+source_version="$(sed -n 's/^version *= *//p' "$src_root/lynxer/lynxer.config" | head -n1)"
 if [[ -z "$payload_version" || "$payload_version" != "$source_version" ]]; then
   printf 'Payload version (%s) does not match the checkout (%s).\n' \
     "$payload_version" "$source_version" >&2
@@ -69,8 +70,8 @@ install -d -o builder -g builder "$build_dir"
 install -d -o builder -g builder "$build_dir/src"
 install -d -o builder -g builder "$build_dir/payload"
 cp -a "$payload_root"/. "$build_dir/payload/"
-install -m 0644 /src/LICENSE "$build_dir/LICENSE"
-install -m 0644 /src/README.md "$build_dir/README.md"
+install -m 0644 "$src_root/LICENSE" "$build_dir/LICENSE"
+install -m 0644 "$src_root/README.md" "$build_dir/README.md"
 
 for required in lynxer stdlib lynxer.config liblynxer.so lynxer.h ffi_abi.h; do
   if [[ ! -e "$build_dir/payload/$required" ]]; then
@@ -152,7 +153,7 @@ if [[ "$arch" == "x86_64" ]]; then
 fi
 rm -rf "$check_dir"
 
-output_dir="/src/dist/packages/$arch"
+output_dir="$src_root/dist/packages/$arch"
 install -d "$output_dir"
 rm -f "$output_dir"/lynxer-*.pkg.tar.*
 install -m 0644 "${packages[0]}" "$output_dir/"
