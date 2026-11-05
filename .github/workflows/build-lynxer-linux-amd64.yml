@@ -93,6 +93,50 @@ jobs:
             exit 1
           fi
 
+      - name: Stage payload for Arch packaging
+        run: |
+          mkdir -p dist/payload/x86_64
+          rm -rf dist/payload/x86_64/*
+          cp -a lynxer/. dist/payload/x86_64/
+
+      - name: Build x86_64 Arch package
+        run: |
+          docker run --rm \
+            -e LYNXER_EXPECTED_ARCH=x86_64 \
+            -v "$GITHUB_WORKSPACE:/src" \
+            -w /src \
+            archlinux:latest \
+            /bin/bash -c 'pacman -Syu --noconfirm && pacman -S --needed --noconfirm base-devel zstd libffi gcc-libs alsa-lib bzip2 make && make packageArch'
+
+      - name: Fix package output ownership
+        run: sudo chown -R "$(id -u):$(id -g)" dist
+
+      - name: Zip the x86_64 Arch package
+        run: python3 .github/scripts/zip-arch-package.py x86_64
+
+      - name: Check packaged Lynxer version
+        run: |
+          payload="dist/payload/x86_64"
+          if [ -f "$payload/lynxer/lynxer.config" ]; then payload="$payload/lynxer"; fi
+          version="$("$payload/lynxer" --version)"
+          expected="Lynxer $(sed -n 's/^version *= *//p' lynxer/lynxer.config | head -n1)"
+          echo "Packaged Lynxer version: $version (checkout: $expected)"
+          if [ "$version" != "$expected" ]; then
+            echo "Packaged version does not match the checkout; aborting."
+            exit 1
+          fi
+          if [ "$version" = "Lynxer 0.1.9b1" ]; then
+            echo "Forbidden Lynxer version detected; aborting."
+            exit 1
+          fi
+
+      - name: Upload x86_64 Arch package ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: lynxer-arch-x86_64
+          path: dist/lynxer-*-x86_64.zip
+          if-no-files-found: error
+
       - name: Upload AMD64 binary
         uses: actions/upload-artifact@v4
         with:
