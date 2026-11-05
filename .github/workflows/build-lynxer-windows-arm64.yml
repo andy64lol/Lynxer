@@ -126,7 +126,7 @@ jobs:
 
   native-module-msvc:
     name: Build a native module with MSVC (ARM64)
-    runs-on: windows-latest
+    runs-on: windows-11-arm
     timeout-minutes: 15
 
     steps:
