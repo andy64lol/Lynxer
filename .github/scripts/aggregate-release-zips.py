@@ -4,10 +4,13 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import TypedDict
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -31,26 +34,102 @@ class RunInfo(TypedDict):
     conclusion: str | None
 
 
-def list_runs(workflow: str, commit: str) -> list[RunInfo]:
+def _repo_slug() -> str:
+    if os.environ.get("GITHUB_REPOSITORY"):
+        return os.environ["GITHUB_REPOSITORY"]
     result = subprocess.run(
-        [
-            "gh",
-            "run",
-            "list",
-            "--workflow",
-            workflow,
-            "--commit",
-            commit,
-            "--limit",
-            "100",
-            "--json",
-            "databaseId,headSha,status,conclusion",
-        ],
-        check=True,
+        ["git", "config", "--get", "remote.origin.url"],
         capture_output=True,
         text=True,
+        check=True,
     )
-    return json.loads(result.stdout)
+    url = result.stdout.strip()
+    if url.endswith(".git"):
+        url = url[:-4]
+    if "github.com/" in url:
+        return url.split("github.com/", 1)[1]
+    if "github.com:" in url:
+        return url.split("github.com:", 1)[1]
+    raise RuntimeError("Could not determine GitHub repository slug")
+
+
+def _auth_token() -> str | None:
+    return os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+
+
+def list_runs(workflow: str, commit: str) -> list[RunInfo]:
+    token = _auth_token()
+    repo = _repo_slug()
+    url = (
+        f"https://api.github.com/repos/{repo}/actions/workflows/"
+        f"{workflow}/runs?head_sha={commit}&per_page=100"
+    )
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    last_error: Exception | None = None
+    for attempt in range(1, 6):
+        request = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            runs: list[RunInfo] = []
+            for run in payload.get("workflow_runs", []):
+                runs.append(
+                    {
+                        "databaseId": run["id"],
+                        "headSha": run["head_sha"],
+                        "status": run["status"],
+                        "conclusion": run.get("conclusion"),
+                    }
+                )
+            return runs
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+            last_error = error
+            print(
+                f"GitHub API run list failed for {workflow} "
+                f"(attempt {attempt}/5): {error}",
+                file=sys.stderr,
+                flush=True,
+            )
+            if attempt < 5:
+                time.sleep(10 * attempt)
+    raise RuntimeError(
+        f"GitHub API run list failed for {workflow} after 5 attempts: "
+        f"{last_error}"
+    )
+    for attempt in range(1, 6):
+        result = subprocess.run(
+            [
+                "gh",
+                "run",
+                "list",
+                "--workflow",
+                workflow,
+                "--commit",
+                commit,
+                "--limit",
+                "100",
+                "--json",
+                "databaseId,headSha,status,conclusion",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return json.loads(result.stdout)
+        print(
+            f"gh run list failed for {workflow} "
+            f"(attempt {attempt}/5): {result.stderr.strip()}",
+            file=sys.stderr,
+            flush=True,
+        )
+        if attempt < 5:
+            time.sleep(10 * attempt)
+    raise RuntimeError(
+        f"gh run list failed for {workflow} after 5 attempts: "
+        + result.stderr.strip()
+    )
 
 
 def find_run(workflow: str, commit: str) -> RunInfo | None:
