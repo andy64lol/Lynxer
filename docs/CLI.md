@@ -26,6 +26,47 @@ not an option. `lynxer --bogus-flag` therefore reports
 A `.lynxc` argument is rejected explicitly:
 `lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead`.
 
+## Projects
+
+`--init` scaffolds a Lynxer project in the current directory:
+
+```bash
+mkdir my-app && cd my-app
+lynxer --init            # project name defaults to the directory name
+lynxer --init my-app     # or name it explicitly
+```
+
+It refuses to overwrite any file it would create. The resulting layout is:
+
+```
+README
+src/main.lynx
+lynxer.config
+.gitignore
+build/
+```
+
+`lynxer.config` is a `key = value` file (lines starting with `#` are
+comments). Two keys drive the build:
+
+| Key | Meaning |
+|-----|---------|
+| `entry` | Source file to compile, e.g. `src/main.lynx`. Required. |
+| `name` | Executable name inside `build/`. Defaults to the entry's base name. |
+
+`main` is accepted as an alias for `entry`. The project config is read
+directly by the build commands; it does not replace the interpreter's own
+`lynxer.config` that ships beside the executable.
+
+```bash
+lynxer --build   # compile `entry` into build/<name> only
+lynxer --run     # compile, then execute build/<name> and pass through its exit code
+```
+
+Both commands require a `lynxer.config` in the working directory and take no
+arguments. `--run` returns the program's exit status. **All build artifacts
+live inside `build/`** — nothing is written next to the sources.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -200,12 +241,12 @@ interpreter's `stdlib/` directory together with its `////` docstring, and exits
 
 | Flag | Aliases | Effect |
 |------|---------|--------|
-| `--version` | `-v`, `-version`, `--v` | print `Lynxer <version>` |
+| `--version` | `-v`, `-version`, `--v`, `--ver`, `-ver` | print `Lynxer <version>` |
 | `--help` | `-h` | print the usage summary |
 | `--easterEgg` | `-easterEgg`, `--idklmao`, `-wnwnerbcyunwrbygnubeuyxnqybxun` | print the easter egg |
 
 The version string comes from the `version` key in `lynxer/lynxer.config`
-(currently `0.1.9b1h`).
+(currently `0.1.9b2`).
 
 ## Installing
 

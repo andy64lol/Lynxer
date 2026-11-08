@@ -1241,6 +1241,11 @@ ExpressionPtr Parser::parseCallExpression() {
         name = expect(TokenKind::Identifier,
                       "expected function name after 'global.'")
                    .text;
+        if (emitDeprecationWarnings_) {
+            warn("the 'global.' prefix is deprecated; use '" + name +
+                     "' instead",
+                 start);
+        }
     }
     while (match(".")) {
         const Token part =
@@ -2220,6 +2225,13 @@ ExpressionPtr Parser::parsePrimary() {
             expectText("(", "expected '(' after type name");
             return std::make_unique<NewExpression>(
                 type.text, parseArguments(), token.line, token.column);
+        }
+        if (emitDeprecationWarnings_ && token.text == "global" &&
+            checkText(".") && peekAt(1).kind == TokenKind::Identifier) {
+            const std::string bare = peekAt(1).text;
+            warn("the 'global.' prefix is deprecated; use '" + bare +
+                     "' instead",
+                 token);
         }
         return parsePostfix(
             std::make_unique<VariableExpression>(token.text, token.line,

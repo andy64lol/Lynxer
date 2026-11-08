@@ -39,7 +39,7 @@ provide the interpreter, `--compile`, the embedding runtime, and
 
 ## Status
 
-**v0.1.9b1h** — a standalone C++ implementation with:
+**v0.1.9b2** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
 - 46 standard-library modules, native (C++/Rust) backends included;
@@ -60,6 +60,9 @@ Planned gaps are tracked in [docs/limitations.md](docs/limitations.md).
 make build                                       # build the interpreter and every stdlib module
 ./lynxer/lynxer syntax.lynx                      # run a source file
 ./lynxer/lynxer --compile syntax.lynx -o syntax  # compile to a standalone executable
+./lynxer/lynxer --init                           # scaffold a Lynxer project here
+./lynxer/lynxer --build                          # compile the project into build/
+./lynxer/lynxer --run                            # build and run the project
 ./lynxer/lynxer --version                        # print the version
 ./lynxer/lynxer --help                           # list every command
 

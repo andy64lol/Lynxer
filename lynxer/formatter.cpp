@@ -271,7 +271,11 @@ std::string formatSource(const std::string& source, const std::string& display,
     Lexer lexer(source, display);
     std::vector<Token> tokens = lexer.scan();
     Parser parser(tokens, display);
-    parser.parseProgram(false);   // validates; throws SourceError on failure
+    // Tooling parse: deprecation warnings belong to execution/lint, not to a
+    // mechanical rewrite.
+    parser.parseProgram(/*requireEntryPoints=*/false,
+                        /*resetTypeRegistry=*/true,
+                        /*emitDeprecationWarnings=*/false);
 
     Writer writer(oneline);
     const Token* previous = nullptr;

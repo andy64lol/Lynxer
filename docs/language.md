@@ -46,7 +46,10 @@ mandatory. Other declarations, including functions, may follow `main()`. A
 template's or class's parent must still be declared before the child.
 The legacy `global`, `local` and `func` function keywords continue to parse
 with deprecation warnings when a program is run or linted; use `fn` for new
-code. The new `fn` keyword is accepted for top-level and nested declarations.
+code. The `global.` call prefix is likewise deprecated (it warns with
+`deprecatedGlobalPrefix`); variables, builtins and module members are all
+reached by bare name. The new `fn` keyword is accepted for top-level and
+nested declarations.
 
 Executable code outside a function body is a syntax error
 (`expected top-level function declaration`).

@@ -154,6 +154,9 @@ void printUsage() {
     std::cout << "Usage:\n";
     std::cout << "  lynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
+    std::cout << "  lynxer --init [name]                        Scaffold a Lynxer project in the current directory\n";
+    std::cout << "  lynxer --build                              Compile the project entry into build/\n";
+    std::cout << "  lynxer --run                                Build the project, then run the result\n";
     std::cout << "  lynxer --lint <file.lynx>                   Check syntax and run static analysis\n";
     std::cout << "  lynxer --debug <file.lynx> [args...]         Run with the source debugger\n";
     std::cout << "  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
@@ -192,7 +195,7 @@ void printUsage() {
 void printVersion() {
     const Config& config = Config::instance();
     std::cout << config.format("version.line", "Lynxer {0}", "{0}",
-                               config.get("version", "0.1.9b1h"))
+                               config.get("version", "0.1.9b2"))
               << '\n';
 }
 
@@ -349,7 +352,9 @@ int astFile(const std::string& display, const std::string& source) {
         // The lexer keeps a reference to the source, so it must outlive it.
         Lexer lexer(source, display);
         Parser parser(lexer.scan(), display);
-        const auto functions = parser.parseProgram();
+        const auto functions = parser.parseProgram(
+            /*requireEntryPoints=*/true, /*resetTypeRegistry=*/true,
+            /*emitDeprecationWarnings=*/false);
         std::vector<const Function*> ordered;
         ordered.reserve(parser.programOrder().size());
         for (const std::string& name : parser.programOrder()) {
@@ -901,7 +906,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
         try {
             imports = collectImports(current.source, current.path,
                                      current.requireEntryPoints,
-                                     current.requireEntryPoints);
+                                     /*emitDeprecationWarnings=*/false);
         } catch (const SourceError& importError) {
             std::cerr << "lynxer: " << current.path << ':' << importError.line
                       << ':' << importError.column << ": [" << importError.code
@@ -1075,6 +1080,355 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
                                            "Compiled: {0}", "{0}", outputPath)
               << '\n';
     return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+//
+// A Lynxer project is a directory with a `lynxer.config` describing its entry
+// point. `--init` scaffolds it, `--build` compiles the entry into `build/`, and
+// `--run` builds and executes the result. Project config is parsed directly
+// (not via Config::instance()) because that singleton intentionally prefers
+// the interpreter's own lynxer.config shipped beside the executable.
+// ---------------------------------------------------------------------------
+
+std::string projectTrim(const std::string& text) {
+    std::size_t begin = 0;
+    std::size_t end = text.size();
+    while (begin < end &&
+           std::isspace(static_cast<unsigned char>(text[begin]))) {
+        ++begin;
+    }
+    while (end > begin &&
+           std::isspace(static_cast<unsigned char>(text[end - 1]))) {
+        --end;
+    }
+    return text.substr(begin, end - begin);
+}
+
+bool readProjectConfig(const std::string& path,
+                       std::unordered_map<std::string, std::string>& values,
+                       std::string& error) {
+    std::ifstream input(path);
+    if (!input) {
+        error = "no " + path +
+                " in the current directory (run 'lynxer --init' first)";
+        return false;
+    }
+    std::string line;
+    while (std::getline(input, line)) {
+        const std::string stripped = projectTrim(line);
+        if (stripped.empty() || stripped[0] == '#') {
+            continue;
+        }
+        const std::size_t equals = stripped.find('=');
+        if (equals == std::string::npos) {
+            continue;
+        }
+        values[projectTrim(stripped.substr(0, equals))] =
+            projectTrim(stripped.substr(equals + 1));
+    }
+    return true;
+}
+
+bool writeProjectFile(const std::string& path, const std::string& content,
+                      std::string& error) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        error = "cannot write '" + path + "'";
+        return false;
+    }
+    output << content;
+    output.close();
+    if (!output) {
+        error = "cannot write '" + path + "'";
+        return false;
+    }
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// GUI IDE
+//
+// `--gui-ide` is an internal launcher for the native Rust IDE in
+// `editors/ide`. It is intentionally absent from `printUsage()`/--help. The IDE
+// is a separate executable, so this command resolves it, tells it which
+// interpreter to use for Run/Lint/Format, and waits for it to exit.
+// ---------------------------------------------------------------------------
+
+std::string ideFileName() {
+    const std::string extension = platform::executableExtension();
+    return extension.empty() ? std::string("lynxer-ide")
+                             : "lynxer-ide." + extension;
+}
+
+bool isIdeFile(const std::string& path) {
+    std::error_code error;
+    return std::filesystem::is_regular_file(path, error);
+}
+
+// An explicit LYNXER_IDE always wins and is authoritative: a bad override is
+// an error rather than a silent fallback. Otherwise look beside the running
+// interpreter (installed layout), under <prefix>/lib/lynxer (Windows install,
+// where the launcher is a copy), and finally at the in-tree cargo builds.
+std::string findIdeBinary() {
+    if (const char* overridePath = std::getenv("LYNXER_IDE");
+        overridePath != nullptr && *overridePath != '\0') {
+        std::filesystem::path candidate(overridePath);
+        std::error_code error;
+        if (std::filesystem::is_directory(candidate, error)) {
+            candidate /= ideFileName();
+        }
+        if (!isIdeFile(candidate.string())) {
+            return std::string();
+        }
+        return std::filesystem::absolute(candidate, error).string();
+    }
+
+    const std::filesystem::path beside(executableDirectory());
+    const std::vector<std::filesystem::path> candidates = {
+        beside / ideFileName(),
+        beside / ".." / "lib" / "lynxer" / ideFileName(),
+        beside / ".." / "editors" / "ide" / "target" / "release" /
+            ideFileName(),
+        beside / ".." / "editors" / "ide" / "target" / "debug" /
+            ideFileName(),
+    };
+    for (const auto& candidate : candidates) {
+        if (isIdeFile(candidate.string())) {
+            std::error_code error;
+            return std::filesystem::absolute(candidate, error)
+                .lexically_normal()
+                .string();
+        }
+    }
+    return std::string();
+}
+
+int launchGuiIde(const char* argv0,
+                 const std::vector<std::string>& extraArguments) {
+    if (!extraArguments.empty()) {
+        std::cerr << "lynxer: --gui-ide takes no arguments\n";
+        return 1;
+    }
+
+    const std::string ide = findIdeBinary();
+    if (ide.empty()) {
+        if (const char* overridePath = std::getenv("LYNXER_IDE");
+            overridePath != nullptr && *overridePath != '\0') {
+            std::cerr << "lynxer: LYNXER_IDE does not point to an IDE "
+                         "executable: "
+                      << overridePath << '\n';
+        } else {
+            std::cerr << "lynxer: the Lynxer IDE executable ("
+                      << ideFileName()
+                      << ") was not found beside the interpreter or in "
+                         "editors/ide/target/{release,debug}\n";
+            std::cerr << "lynxer: build it with 'make -C editors/ide build', "
+                         "or set LYNXER_IDE to its path\n";
+        }
+        return 1;
+    }
+
+    // Hand the IDE this exact interpreter. Without it the IDE would look for a
+    // bare `lynxer` on PATH, which fails in a development checkout.
+    std::string interpreter = runningExecutable(argv0);
+    if (interpreter.empty()) {
+        std::cerr << "lynxer: could not locate the running executable\n";
+        return 1;
+    }
+    std::error_code pathError;
+    const std::filesystem::path absolute =
+        std::filesystem::absolute(interpreter, pathError);
+    if (!pathError) {
+        interpreter = absolute.string();
+    }
+
+    const int status =
+        platform::spawnProcess({ide, "--lynxer", interpreter});
+    if (status < 0) {
+        std::cerr << "lynxer: could not start the IDE at '" << ide << "'\n";
+        return 1;
+    }
+    return status;
+}
+
+// Scaffolds a project into the current working directory. Refuses to
+// overwrite any of the files it would create.
+int initProject(const std::vector<std::string>& arguments) {
+    if (arguments.size() > 1) {
+        std::cerr << "lynxer: --init takes at most one project name\n";
+        return 1;
+    }
+    std::string name = arguments.empty() ? std::string() : arguments.front();
+    if (name.empty()) {
+        std::error_code ec;
+        const std::filesystem::path cwd = std::filesystem::current_path(ec);
+        name = ec ? "lynxer-project" : cwd.filename().string();
+    }
+    if (name.empty() || name == "." || name == ".." || name == "/" ||
+        name.find('/') != std::string::npos ||
+        name.find('\\') != std::string::npos) {
+        std::cerr << "lynxer: invalid project name '" << name << "'\n";
+        return 1;
+    }
+
+    const char* targets[] = {"README", "src/main.lynx", "lynxer.config",
+                             ".gitignore"};
+    for (const char* target : targets) {
+        std::error_code ec;
+        if (std::filesystem::exists(target, ec)) {
+            std::cerr << "lynxer: '" << target
+                      << "' already exists; --init will not overwrite files\n";
+            return 1;
+        }
+    }
+
+    std::error_code ec;
+    std::filesystem::create_directories("src", ec);
+    if (ec) {
+        std::cerr << "lynxer: cannot create src/: " << ec.message() << '\n';
+        return 1;
+    }
+    std::filesystem::create_directories("build", ec);
+    if (ec) {
+        std::cerr << "lynxer: cannot create build/: " << ec.message() << '\n';
+        return 1;
+    }
+
+    const std::string mainSource =
+        "fn setup(){}\n"
+        "\n"
+        "fn main(){\n"
+        "    println(\"Hello, Lynxer!\");\n"
+        "}\n";
+    const std::string config =
+        "# Lynxer project configuration.\n"
+        "# entry: source file compiled by --build and executed by --run.\n"
+        "# name:  executable name produced inside build/.\n"
+        "name = " + name + "\n"
+        "entry = src/main.lynx\n";
+    const std::string readme =
+        "# " + name + "\n\n"
+        "A Lynxer project.\n\n"
+        "Layout:\n"
+        "  README            this file\n"
+        "  src/main.lynx     program entry point\n"
+        "  lynxer.config     project settings (name, entry)\n"
+        "  .gitignore        ignores build/\n"
+        "  build/            compiled executables\n\n"
+        "Commands:\n"
+        "  lynxer --build    compile the entry into build/\n"
+        "  lynxer --run      build, then run the result\n\n"
+        "Edit src/main.lynx; change the entry point in lynxer.config.\n";
+    const std::string gitignore = "build/\n";
+
+    std::string error;
+    if (!writeProjectFile("README", readme, error) ||
+        !writeProjectFile("src/main.lynx", mainSource, error) ||
+        !writeProjectFile("lynxer.config", config, error) ||
+        !writeProjectFile(".gitignore", gitignore, error)) {
+        std::cerr << "lynxer: " << error << '\n';
+        return 1;
+    }
+
+    std::error_code cwdError;
+    const std::string here = std::filesystem::current_path(cwdError).string();
+    std::cout << "Initialized Lynxer project '" << name << "' in " << here
+              << "\n";
+    std::cout << "  README, src/main.lynx, lynxer.config, .gitignore, build/\n";
+    std::cout << "Run 'lynxer --run' to build and execute it.\n";
+    return 0;
+}
+
+// Compiles the configured entry into build/<name>. When `run` is true the
+// freshly built executable is launched and its exit code is returned.
+int buildProject(bool run) {
+    std::unordered_map<std::string, std::string> config;
+    std::string error;
+    if (!readProjectConfig("lynxer.config", config, error)) {
+        std::cerr << "lynxer: " << error << '\n';
+        return 1;
+    }
+
+    std::string entry;
+    if (const auto found = config.find("entry"); found != config.end()) {
+        entry = found->second;
+    }
+    if (entry.empty()) {
+        if (const auto found = config.find("main"); found != config.end()) {
+            entry = found->second;
+        }
+    }
+    if (entry.empty()) {
+        std::cerr << "lynxer: lynxer.config has no 'entry' key "
+                     "(expected e.g. 'entry = src/main.lynx')\n";
+        return 1;
+    }
+    if (!endsWith(entry, ".lynx")) {
+        std::cerr << "lynxer: project entry '" << entry
+                  << "' is not a .lynx file\n";
+        return 1;
+    }
+    {
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(entry, ec)) {
+            std::cerr << "lynxer: project entry not found: '" << entry
+                      << "'\n";
+            return 1;
+        }
+    }
+
+    std::string name;
+    if (const auto found = config.find("name"); found != config.end()) {
+        name = found->second;
+    }
+    if (name.empty()) {
+        name = baseName(entry);
+        if (endsWith(name, ".lynx")) {
+            name.resize(name.size() - 5);
+        }
+    }
+    if (name.empty() || name == "." || name == ".." ||
+        name.find('/') != std::string::npos ||
+        name.find('\\') != std::string::npos) {
+        std::cerr << "lynxer: invalid project name '" << name
+                  << "' in lynxer.config\n";
+        return 1;
+    }
+
+    // Every build artifact lives under build/.
+    std::error_code ec;
+    std::filesystem::create_directories("build", ec);
+    if (ec) {
+        std::cerr << "lynxer: cannot create build/: " << ec.message() << '\n';
+        return 1;
+    }
+    std::string outputPath = "build/" + name;
+    const std::string extension = platform::executableExtension();
+    if (!extension.empty()) {
+        outputPath += extension;
+    }
+
+    const int compileStatus =
+        compileProgramToExecutable({entry, "-o", outputPath});
+    if (compileStatus != 0) {
+        return compileStatus;
+    }
+    if (!run) {
+        return 0;
+    }
+
+    std::error_code pathError;
+    const std::filesystem::path absolute =
+        std::filesystem::absolute(outputPath, pathError);
+    const std::string target = pathError ? outputPath : absolute.string();
+    const int status = platform::spawnProcess({target});
+    if (status < 0) {
+        std::cerr << "lynxer: could not run '" << outputPath << "'\n";
+        return 1;
+    }
+    return status;
 }
 
 // One exported function the emitted library exposes.
@@ -1414,7 +1768,9 @@ int emitLibrary(const std::vector<std::string>& arguments) {
     try {
         Lexer lexer(source, file);
         Parser parser(lexer.scan(), file);
-        parser.parseProgram(/*requireEntryPoints=*/false);
+        parser.parseProgram(/*requireEntryPoints=*/false,
+                            /*resetTypeRegistry=*/true,
+                            /*emitDeprecationWarnings=*/false);
         for (const ExportRecord& record : parser.exports()) {
             ExportPlan plan;
             plan.name = record.name;
@@ -1676,7 +2032,7 @@ int shellMain(int argc, char** argv) {
         return 0;
     }
     if (args[0] == "-v" || args[0] == "--version" || args[0] == "-version" ||
-        args[0] == "--v") {
+        args[0] == "--v" || args[0] == "--ver" || args[0] == "-ver") {
         printVersion();
         return 0;
     }
@@ -1684,6 +2040,12 @@ int shellMain(int argc, char** argv) {
         args[0] == "--idklmao" || args[0] == "-wnwnerbcyunwrbygnubeuyxnqybxun") {
         printEasterEgg();
         return 0;
+    }
+    // Hidden on purpose: not listed by printUsage().
+    if (args[0] == "--gui-ide") {
+        return launchGuiIde(
+            argv[0],
+            std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (args[0] == "--list-stdlibs" || args[0] == "--stdlibs" ||
         args[0] == "-stdlibs" || args[0] == "-list-stdlibs") {
@@ -1694,6 +2056,18 @@ int shellMain(int argc, char** argv) {
     }
     if (args[0] == "--uninstall") {
         return uninstallBinary();
+    }
+    if (args[0] == "--init") {
+        return initProject(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (args[0] == "--build" || args[0] == "--run") {
+        if (args.size() != 1) {
+            std::cerr << "lynxer: " << args[0]
+                      << " takes no arguments\n";
+            return 1;
+        }
+        return buildProject(args[0] == "--run");
     }
     if (args[0] == "--validate-executeable" ||
         args[0] == "--validate-executable") {

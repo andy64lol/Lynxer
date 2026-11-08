@@ -1,5 +1,9 @@
 PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 
+# A bare `make` shows the help instead of building whichever file rule
+# happens to be declared first (a single stdlib .so).
+.DEFAULT_GOAL := help
+
 # --- Lynxer: the standalone C++ implementation -----------------------------
 # Every path is repo-root relative.
 LYNXER_DIR := lynxer
@@ -399,7 +403,8 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
+.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde where
 
 test: testLynxer
 
@@ -418,7 +423,9 @@ all: build
 
 # The interpreter, the native (C++) stdlib modules, and the Rust backends.
 build: buildLynxer
-	@echo "✓ Full build complete: $(LYNXER_TARGET)"
+	@echo "✓ Full build complete."
+	@echo "  Executable: $(abspath $(LYNXER_TARGET))"
+	@echo "  Run it with: ./$(LYNXER_TARGET) <file.lynx>"
 
 buildAll: build
 
@@ -469,6 +476,16 @@ buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SH
 		echo "error: forbidden Lynxer version 'Lynxer 0.1.9b1' detected; aborting."; \
 		exit 1; \
 	fi
+# Every stdlib module on its own: both the C++ native modules and the Rust
+# backends, without building the interpreter, embedding runtime or SDK. Cargo
+# is still required (and gated) because the Rust backends are built by cargo.
+# This is exactly the $(LYNXER_NATIVE_BUILT) set used by buildLynxer.
+buildStdlib: lynxerToolchain $(LYNXER_NATIVE_BUILT)
+	@echo "✓ Lynxer stdlib built: $(words $(LYNXER_NATIVE_BUILT)) modules"
+	@echo "  C++ native modules : $(words $(LYNXER_NATIVE_MODULES))"
+	@echo "  Rust-backed modules: $(words $(LYNXER_RUST_MODULES))"
+	@echo "  Output directory   : $(abspath $(LYNXER_DIR)/stdlib)"
+
 # Process-level performance report. The runner compiles two temporary samples
 # and compares optimized/unoptimized interpreter runs with standalone startup.
 BENCH_RUNS ?= 9
@@ -664,7 +681,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerGuiIde $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
 	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "lynxer: $(PYTHON) not found; Python 3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -1274,6 +1291,122 @@ testLynxerGui: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 # stdlib from any working directory. The default prefix is /usr and needs root,
 # so this gate installs into a throwaway prefix and drives the installed symlink
 # from /tmp, where none of the repository's own stdlib paths exist.
+# `lynxer --init` scaffolds a project; --build compiles into build/ and --run
+# builds and executes it. Every artifact must stay inside build/.
+# `global.` is deprecated. Source runs and --lint warn with
+# `warning[deprecatedGlobalPrefix]`; tooling parses (--format, --ast,
+# --compile) and imported module sources stay quiet.
+# `lynxer --gui-ide` is a hidden launcher for the native IDE: it is absent
+# from --help, hands the IDE this interpreter's path via --lynxer, and honours
+# LYNXER_IDE. `--ver` is an alias for `--version`. A stub script stands in for
+# the GUI so the test needs no display.
+testLynxerGuiIde: $(LYNXER_TARGET)
+	@stub="$(CLYX_TMP)_ide_stub"; \
+	args="$(CLYX_TMP)_ide_args"; \
+	help="$(CLYX_TMP)_ide_help.out"; \
+	err="$(CLYX_TMP)_ide_err.out"; \
+	cleanup() { rm -f "$$stub" "$$args" "$$help" "$$err"; }; \
+	ver="$$($(CLYX) --ver)"; \
+	if [ "$$ver" != "$$($(CLYX) --version)" ]; then \
+		echo "--ver did not match --version: $$ver"; cleanup; exit 1; fi; \
+	$(CLYX) --help > "$$help" 2>&1; \
+	if grep -q -- '--gui-ide' "$$help"; then \
+		echo "--gui-ide leaked into --help"; cleanup; exit 1; fi; \
+	printf '#!/bin/sh\nprintf "%%s\\n" "$$@" > "%s"\nexit 0\n' "$$args" > "$$stub"; \
+	chmod +x "$$stub"; \
+	if ! LYNXER_IDE="$$stub" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
+		echo "--gui-ide failed to launch the IDE"; cat "$$err"; cleanup; exit 1; fi; \
+	if [ "$$(sed -n '1p' "$$args")" != "--lynxer" ]; then \
+		echo "--gui-ide did not pass --lynxer to the IDE"; cat "$$args"; cleanup; exit 1; fi; \
+	interpreter="$$(sed -n '2p' "$$args")"; \
+	if [ ! -f "$$interpreter" ]; then \
+		echo "--gui-ide did not pass a usable interpreter path: $$interpreter"; cat "$$args"; cleanup; exit 1; fi; \
+	case "$$interpreter" in *lynxer*) ;; *) \
+		echo "--gui-ide passed an unexpected interpreter: $$interpreter"; cleanup; exit 1 ;; esac; \
+	if LYNXER_IDE="$(CLYX_TMP)_no_such_ide" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
+		echo "--gui-ide accepted an invalid LYNXER_IDE"; cleanup; exit 1; fi; \
+	if ! grep -q 'LYNXER_IDE' "$$err"; then \
+		echo "--gui-ide did not explain an invalid LYNXER_IDE"; cat "$$err"; cleanup; exit 1; fi; \
+	cleanup; \
+	echo "OK: hidden --gui-ide launcher and --ver alias passed."
+
+testLynxerGlobalDeprecation: $(LYNXER_TARGET)
+	@src="$(CLYX_TMP)_global_prefix.lynx"; \
+	tooling="$(CLYX_TMP)_global_tooling.lynx"; \
+	binary="$(CLYX_TMP)_global_prefix_bin"; \
+	cleanup() { rm -f "$$src" "$$tooling" "$$binary" \
+	$(CLYX_TMP)_gp.out $(CLYX_TMP)_gp.err \
+	$(CLYX_TMP)_gp_lint.out $(CLYX_TMP)_gp_lint.err \
+	$(CLYX_TMP)_gp_tool.out $(CLYX_TMP)_gp_tool.err \
+	$(CLYX_TMP)_gp_comp.out $(CLYX_TMP)_gp_comp.err \
+	$(CLYX_TMP)_gp_mod.out $(CLYX_TMP)_gp_mod.err; }; \
+	printf 'fn setup(){ int total = 7; }\nfn main(){ println(global.total); global.println("ok"); }\n' > "$$src"; \
+	if ! $(CLYX) "$$src" > $(CLYX_TMP)_gp.out 2> $(CLYX_TMP)_gp.err; then \
+		echo "global-prefix program failed to run"; cat $(CLYX_TMP)_gp.err; cleanup; exit 1; fi; \
+	if [ "$$(grep -c 'warning\[deprecatedGlobalPrefix\]' $(CLYX_TMP)_gp.err)" -ne 2 ]; then \
+		echo "expected 2 global-prefix warnings on a source run"; cat $(CLYX_TMP)_gp.err; cleanup; exit 1; fi; \
+	if ! grep -Fq "use 'total' instead" $(CLYX_TMP)_gp.err || \
+	   ! grep -Fq "use 'println' instead" $(CLYX_TMP)_gp.err; then \
+		echo "global-prefix warning did not name a bare replacement"; cat $(CLYX_TMP)_gp.err; cleanup; exit 1; fi; \
+	if [ "$$(cat $(CLYX_TMP)_gp.out)" != "$$(printf '7\nok')" ]; then \
+		echo "deprecation warning changed program output"; cleanup; exit 1; fi; \
+	if ! $(CLYX) --lint "$$src" > $(CLYX_TMP)_gp_lint.out 2> $(CLYX_TMP)_gp_lint.err; then \
+		echo "--lint failed on a global-prefix program"; cleanup; exit 1; fi; \
+	if [ "$$(grep -c 'warning\[deprecatedGlobalPrefix\]' $(CLYX_TMP)_gp_lint.err)" -ne 2 ]; then \
+		echo "--lint did not report the global-prefix warnings"; cleanup; exit 1; fi; \
+	cp "$$src" "$$tooling"; \
+	$(CLYX) --format "$$tooling" > /dev/null 2> $(CLYX_TMP)_gp_tool.err; \
+	$(CLYX) --ast "$$tooling" > /dev/null 2>> $(CLYX_TMP)_gp_tool.err; \
+	if [ -s $(CLYX_TMP)_gp_tool.err ]; then \
+		echo "tooling parses (--format/--ast) emitted deprecation warnings"; cat $(CLYX_TMP)_gp_tool.err; cleanup; exit 1; fi; \
+	cp "$$src" "$$tooling"; \
+	if ! $(CLYX) --compile "$$tooling" -o "$$binary" > $(CLYX_TMP)_gp_comp.out 2> $(CLYX_TMP)_gp_comp.err; then \
+		echo "--compile failed on a global-prefix program"; cleanup; exit 1; fi; \
+	if [ -s $(CLYX_TMP)_gp_comp.err ]; then \
+		echo "--compile emitted deprecation warnings"; cat $(CLYX_TMP)_gp_comp.err; cleanup; exit 1; fi; \
+	printf 'fn setup(){ import("sys"); }\nfn main(){ println("ok"); }\n' > "$$tooling"; \
+	if ! $(CLYX) "$$tooling" > $(CLYX_TMP)_gp_mod.out 2> $(CLYX_TMP)_gp_mod.err; then \
+		echo "stdlib-import program failed"; cat $(CLYX_TMP)_gp_mod.err; cleanup; exit 1; fi; \
+	if grep -q 'deprecatedGlobalPrefix' $(CLYX_TMP)_gp_mod.err; then \
+		echo "imported stdlib modules emitted global-prefix warnings"; cat $(CLYX_TMP)_gp_mod.err; cleanup; exit 1; fi; \
+	cleanup; \
+	echo "OK: global. prefix deprecation warnings passed."
+
+testLynxerProject: $(LYNXER_TARGET)
+	@project="$(CLYX_TMP)_project"; \
+	rm -rf "$$project"; mkdir -p "$$project"; \
+	lynxer="$(abspath $(CLYX))"; \
+	if ! (cd "$$project" && "$$lynxer" --init demo > /dev/null); then \
+		echo "lynxer --init failed"; exit 1; fi; \
+	for file in README src/main.lynx lynxer.config .gitignore build; do \
+		if [ ! -e "$$project/$$file" ]; then \
+			echo "lynxer --init did not create $$file"; rm -rf "$$project"; exit 1; fi; \
+	done; \
+	if ! grep -q '^entry = src/main.lynx' "$$project/lynxer.config"; then \
+		echo "project config has no entry"; rm -rf "$$project"; exit 1; fi; \
+	if ! grep -q '^build/' "$$project/.gitignore"; then \
+		echo "project .gitignore does not ignore build/"; rm -rf "$$project"; exit 1; fi; \
+	if ! (cd "$$project" && "$$lynxer" --build > /dev/null); then \
+		echo "lynxer --build failed"; rm -rf "$$project"; exit 1; fi; \
+	if [ ! -x "$$project/build/demo" ]; then \
+		echo "lynxer --build did not produce build/demo"; rm -rf "$$project"; exit 1; fi; \
+	output="$$(cd "$$project" && "$$lynxer" --run 2>/dev/null)"; \
+	status=$$?; \
+	if [ "$$status" -ne 0 ]; then \
+		echo "lynxer --run exited $$status"; rm -rf "$$project"; exit 1; fi; \
+	if ! printf '%s\n' "$$output" | grep -Fxq "Hello, Lynxer!"; then \
+		echo "lynxer --run output mismatch: $$output"; rm -rf "$$project"; exit 1; fi; \
+	stray="$$(cd "$$project" && find . -maxdepth 1 -type f ! -name README ! -name .gitignore ! -name lynxer.config -print)"; \
+	if [ -n "$$stray" ]; then \
+		echo "build artifacts escaped build/: $$stray"; rm -rf "$$project"; exit 1; fi; \
+	if (cd "$$project" && "$$lynxer" --init demo > /dev/null 2>&1); then \
+		echo "lynxer --init overwrote an existing project"; rm -rf "$$project"; exit 1; fi; \
+	mkdir -p "$$project/empty"; \
+	if (cd "$$project/empty" && "$$lynxer" --build > /dev/null 2>&1); then \
+		echo "lynxer --build succeeded without lynxer.config"; rm -rf "$$project"; exit 1; fi; \
+	rm -rf "$$project"; \
+	echo "OK: Lynxer project commands passed."
+
 testLynxerInstall: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@printf 'fn setup(){ import("math"); }\nfn main(){ println(math.sqrt(9)); }\n' > $(CLYX_TMP)_install.lynx
@@ -1346,26 +1479,57 @@ cleanLynxer:
 cleanAll: clean cleanLynxer
 	@echo "✓ Cleaned all generated build artifacts."
 
+# Print the absolute path of every produced artifact.
+where:
+	@echo "Lynxer build outputs (absolute paths):"
+	@echo "  Interpreter executable : $(abspath $(LYNXER_TARGET))"
+	@echo "  ARM64 interpreter      : $(abspath $(LYNXER_TARGET)-arm64)"
+	@echo "  Embedding SDK          : $(abspath $(LYNXER_SDK_DIR))"
+	@echo "  Runtime bundle         : $(abspath $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz)"
+	@echo "  Stdlib modules         : $(abspath $(LYNXER_DIR)/stdlib)"
+
 help:
-	@echo "Lynxer build targets:"
-	@echo "  make build              (interpreter + every stdlib module, C++ and Rust)"
-	@echo "  make buildAll           (alias for build)"
-	@echo "  make buildLynxer"
-	@echo "  make buildLynxerArm64"
-	@echo "  make cargo"
-	@echo "  make test               (Lynxer suite)"
-	@echo "  make testLynxer        (Lynxer suite only)"
-	@echo "  make testPackageManifests (Windows package manifest renderer)"
-	@echo "  make testLynxerInstall (--install into a throwaway prefix, no root)"
-	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
-	@echo "  make testLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"
-	@echo "  make check"
-	@echo "  make clean"
-	@echo "  make cleanLynxer"
-	@echo "  make cleanAll"
-	@echo "  make help"
+	@echo "Lynxer - make targets"
+	@echo ""
+	@echo "Build:"
+	@echo "  make build / make all / make buildAll  Build interpreter + all stdlib modules"
+	@echo "  make buildLynxer                       Same as build (C++ + Rust backends)"
+	@echo "  make buildStdlib                       Build only the stdlib modules (C++ + Rust)"
+	@echo "  make buildLynxerArm64                  Cross-build the aarch64 interpreter"
+	@echo "  make buildLynxerArch                   Build an Arch Linux package (needs root)"
+	@echo "  make cargo                             Build only the Rust backends + FFI engine"
+	@echo "  make dist                              Bundle a relocatable runtime into dist/"
+	@echo "  make sdk                               Stage the embedding SDK headers/libs"
+	@echo ""
+	@echo "Test / check:"
+	@echo "  make test / make testLynxer            Run the Lynxer test suite"
+	@echo "  make check                             Lint syntax.lynx, then run the suite"
+	@echo "  make testLynxerGui                     Graphics fixtures (needs a display)"
+	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
+	@echo "  make testLynxerProject                --init / --build / --run project workflow"
+	@echo "  make testLynxerGlobalDeprecation      global. prefix deprecation warnings"
+	@echo "  make testLynxerGuiIde                hidden IDE launcher + --ver alias"
+	@echo "  make testLynxerAmd64Syscalls           amd64 syscall fixtures (x86_64 host)"
+	@echo "  make testLynxerArm64Syscalls           arm64 syscall fixtures (aarch64 host)"
+	@echo "  make testPackageManifests              Windows package manifest renderer"
+	@echo "  make benchLynxer                       Performance report"
+	@echo ""
+	@echo "Clean:"
+	@echo "  make clean / cleanLynxer / cleanAll    Remove transient / Lynxer / all artifacts"
+	@echo ""
+	@echo "Information:"
+	@echo "  make where                             Print the absolute path of every output"
+	@echo "  make help                              Show this help (bare 'make' does this too)"
+	@echo ""
+	@echo "Where the executable is:"
+	@echo "  $(abspath $(LYNXER_TARGET))"
+	@echo "  Run: ./$(LYNXER_TARGET) <file.lynx>"
 	@echo ""
 	@echo "Lynxer source commands:"
+	@echo "  ./lynxer/lynxer --version"
+	@echo "  ./lynxer/lynxer --init [name]        (scaffold a Lynxer project)"
+	@echo "  ./lynxer/lynxer --build              (compile the project into build/)"
+	@echo "  ./lynxer/lynxer --run                (build and run the project)"
 	@echo "  ./lynxer/lynxer --format <file.lynx>"
 	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
 	@echo "  ./lynxer/lynxer --ast <file.lynx>"

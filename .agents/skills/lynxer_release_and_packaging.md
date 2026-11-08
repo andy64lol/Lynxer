@@ -14,7 +14,7 @@ never tag, push, upload, or publish without explicit user permission.
 The version lives in `lynxer/lynxer.config`:
 
 ```text
-version = 0.1.9b1h
+version = 0.1.9b2
 ```
 
 `make dist` reads it to name the bundle. Update the config first, then any

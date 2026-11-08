@@ -89,6 +89,9 @@ inline std::string diagnosticCodeForMessage(const std::string& message) {
         std::string::npos) {
         return "deprecatedClassDeclaration";
     }
+    if (message.find("'global.' prefix is deprecated") != std::string::npos) {
+        return "deprecatedGlobalPrefix";
+    }
     if (message.find(" is deprecated; use ") != std::string::npos) {
         return "deprecatedOperator";
     }

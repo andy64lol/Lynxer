@@ -2,12 +2,15 @@
 
 Functions implemented directly by the Lynxer interpreter. They can be called
 by their bare name or with a `global.` prefix (`print(...)` and
-`global.print(...)` are the same call).
+`global.print(...)` are the same call). The `global.` form is deprecated and
+emits `warning[deprecatedGlobalPrefix]`; prefer the bare name in new code (see
+[deprecated.md](deprecated.md#the-global-prefix)).
 
 Inside a module, the legacy `global.name(...)` form always resolves to a *core
 builtin*, never to the module's own function of that name. Ordinary functions
 use their bare name, including when referenced as values — see
-[modules.md](modules.md#calling-module-members).
+[modules.md](modules.md#calling-module-members). Module sources do not emit the
+prefix deprecation warning.
 
 Names that Lynxer recognises but does not implement fail with a source-located
 `<name>() is not supported in Lynxer yet`. On a Linux/POSIX build the

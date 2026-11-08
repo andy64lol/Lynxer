@@ -256,7 +256,9 @@ extern "C" LynxerEmbedContext* lynxer_embed_init(const std::uint8_t* archive,
 
         lynxer::Lexer lexer(program.mainSource, program.mainPath);
         lynxer::Parser parser(lexer.scan(), program.mainPath);
-        auto functions = parser.parseProgram(/*requireEntryPoints=*/false);
+        auto functions = parser.parseProgram(/*requireEntryPoints=*/false,
+                                            /*resetTypeRegistry=*/true,
+                                            /*emitDeprecationWarnings=*/false);
         const std::vector<lynxer::ExportRecord> exports = parser.exports();
         if (exports.empty()) {
             lynxer::setLastError(

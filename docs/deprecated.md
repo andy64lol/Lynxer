@@ -3,9 +3,9 @@
 This page is the migration index for Lynxer's deprecated language syntax.
 Deprecated forms remain accepted where stated, but new code should use the
 replacement. Deprecation warnings are emitted for the declaration keywords,
-deprecated operators, tuple bracket coercions, and legacy methods where the
-parser/runtime supports them. `suppressDeprecationWarning()` suppresses
-runtime deprecation warnings; it does not make old syntax canonical.
+the `global.` call prefix, deprecated operators, tuple bracket coercions, and
+legacy methods where the parser/runtime supports them. `suppressDeprecationWarning()`
+suppresses runtime deprecation warnings; it does not make old syntax canonical.
 
 ## Function declarations
 
@@ -27,6 +27,33 @@ former `global.` and `local.` function prefixes are unnecessary. The `global.`
 prefix still has builtin/namespace behavior in some contexts; do not
 mechanically remove it from builtin calls or native-module forwarders without
 checking what the name refers to.
+
+### The `global.` prefix
+
+Every `global.<name>` in a program emits a parser deprecation warning with the
+code `deprecatedGlobalPrefix`, naming the bare replacement:
+
+```
+program.lynx:2:20: warning[deprecatedGlobalPrefix]: the 'global.' prefix is deprecated; use 'trim' instead
+```
+
+It is a warning, not an error: the form keeps working and program output is
+unchanged. It appears when a program is **run** and in `--lint` output (where it
+counts toward the warning total), so it also shows up in editor diagnostics.
+Mechanical tooling parses -- `--format`, `--ast`, `--compile` and the embedding
+runtime -- do not emit it, and **imported module sources are exempt**: the
+standard library still uses `global.<builtin>(...)` and
+`global.<namespace>.<op>(...)` internally without producing warnings. A macro
+body that uses `global.` is expanded into its caller, so that use is attributed
+to the importing program and does warn.
+
+`global.` is not a way to reach variables from another scope. Variables are
+looked up by bare name; `global.x` resolves to a variable only when that name
+already exists in the active environment chain (see
+[language.md](language.md#scoping)). With a bare name the lookup is identical,
+so drop the prefix in new code. The one form that genuinely needs the prefix
+is a function passed as a value to a built-in such as `nativeThreadStart`;
+that form also warns, since a bare named function works the same way.
 
 ## Legacy class form
 
