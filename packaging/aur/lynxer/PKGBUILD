@@ -9,7 +9,7 @@ license=('MIT')
 depends=('libffi' 'alsa-lib' 'bzip2')
 makedepends=('rust' 'pkgconf' 'cmake' 'clang' 'curl' 'git' 'libglvnd' 'libx11' 'libxext'
              'libxrandr' 'libxi' 'libxinerama' 'libxcursor' 'libxxf86vm')
-_commit=f9c1615adae8f1a3eeb0d009e3b94881491c76bd
+_commit=2225b1b73c7719120e455fbd9acd7afe2ce4ef21
 source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
 sha256sums=('SKIP')
 

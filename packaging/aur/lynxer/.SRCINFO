@@ -23,7 +23,7 @@ pkgbase = lynxer
 	depends = libffi
 	depends = alsa-lib
 	depends = bzip2
-	source = git+https://github.com/andy64lol/Lynxer.git#commit=f9c1615adae8f1a3eeb0d009e3b94881491c76bd
+	source = git+https://github.com/andy64lol/Lynxer.git#commit=2225b1b73c7719120e455fbd9acd7afe2ce4ef21
 	sha256sums = SKIP
 
 pkgname = lynxer
