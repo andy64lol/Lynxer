@@ -6,6 +6,8 @@
 
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,8 +20,14 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <io.h>
+#include <conio.h>
+#include <stdio.h>
 #else
 #include <dlfcn.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/select.h>
+#include <termios.h>
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -446,6 +454,384 @@ void sleepMilliseconds(long milliseconds) {
 #else
     std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 #endif
+}
+
+
+// ---------------------------------------------------------------------------
+// Interactive terminal primitives used by the built-in CLI IDE.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+#if defined(_WIN32)
+DWORD savedInputMode = 0;
+#else
+struct termios savedInputMode;
+#endif
+bool rawInputActive = false;
+
+#if !defined(_WIN32)
+int decodeCsi(const std::string& sequence) {
+    if (sequence == "A") return KEY_UP;
+    if (sequence == "B") return KEY_DOWN;
+    if (sequence == "C") return KEY_RIGHT;
+    if (sequence == "D") return KEY_LEFT;
+    if (sequence == "H" || sequence == "1~" || sequence == "7~") return KEY_HOME;
+    if (sequence == "F" || sequence == "4~" || sequence == "8~") return KEY_END;
+    if (sequence == "3~") return KEY_DELETE;
+    if (sequence == "5~") return KEY_PAGE_UP;
+    if (sequence == "6~") return KEY_PAGE_DOWN;
+    if (sequence == "1;5D") return KEY_CTRL_LEFT;
+    if (sequence == "1;5C") return KEY_CTRL_RIGHT;
+    if (sequence == "1;5A") return KEY_CTRL_UP;
+    if (sequence == "1;5B") return KEY_CTRL_DOWN;
+    if (sequence == "11~") return KEY_F1;
+    if (sequence == "12~") return KEY_F2;
+    if (sequence == "13~") return KEY_F3;
+    if (sequence == "14~") return KEY_F4;
+    if (sequence == "15~") return KEY_F5;
+    if (sequence == "17~") return KEY_F6;
+    if (sequence == "18~") return KEY_F7;
+    if (sequence == "19~") return KEY_F8;
+    if (sequence == "20~") return KEY_F9;
+    if (sequence == "21~") return KEY_F10;
+    if (sequence == "23~") return KEY_F11;
+    if (sequence == "24~") return KEY_F12;
+    return 0;
+}
+#endif
+
+} // namespace
+
+bool isInteractiveTerminal() {
+#if defined(_WIN32)
+    return ::_isatty(::_fileno(stdin)) != 0 &&
+           ::_isatty(::_fileno(stdout)) != 0;
+#else
+    return ::isatty(STDIN_FILENO) != 0 && ::isatty(STDOUT_FILENO) != 0;
+#endif
+}
+
+void terminalSize(int& columns, int& rows) {
+    columns = 80;
+    rows = 24;
+#if defined(_WIN32)
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (::GetConsoleScreenBufferInfo(::GetStdHandle(STD_OUTPUT_HANDLE),
+                                     &info) != 0) {
+        const int width = info.srWindow.Right - info.srWindow.Left + 1;
+        const int height = info.srWindow.Bottom - info.srWindow.Top + 1;
+        if (width > 0 && height > 0) {
+            columns = width;
+            rows = height;
+        }
+    }
+#else
+    struct winsize size {};
+    if (::ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_col > 0 &&
+        size.ws_row > 0) {
+        columns = size.ws_col;
+        rows = size.ws_row;
+    }
+#endif
+}
+
+bool enableRawInput(std::string& error) {
+    if (rawInputActive) {
+        return true;
+    }
+#if defined(_WIN32)
+    const HANDLE input = ::GetStdHandle(STD_INPUT_HANDLE);
+    if (::GetConsoleMode(input, &savedInputMode) == 0) {
+        error = "cannot read the console input mode";
+        return false;
+    }
+    DWORD mode = savedInputMode;
+    mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
+    if (::SetConsoleMode(input, mode) == 0) {
+        error = "cannot switch the console to raw input";
+        return false;
+    }
+#else
+    if (::tcgetattr(STDIN_FILENO, &savedInputMode) != 0) {
+        error = "cannot read the terminal attributes";
+        return false;
+    }
+    struct termios raw = savedInputMode;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= CS8;
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
+    if (::tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
+        error = "cannot switch the terminal to raw input";
+        return false;
+    }
+#endif
+    rawInputActive = true;
+    return true;
+}
+
+void disableRawInput() {
+    if (!rawInputActive) {
+        return;
+    }
+#if defined(_WIN32)
+    ::SetConsoleMode(::GetStdHandle(STD_INPUT_HANDLE), savedInputMode);
+#else
+    ::tcsetattr(STDIN_FILENO, TCSANOW, &savedInputMode);
+#endif
+    rawInputActive = false;
+}
+
+bool keyAvailable(int timeoutMs) {
+#if defined(_WIN32)
+    const int iterations = (timeoutMs + 4) / 5;
+    for (int index = 0; index < iterations; ++index) {
+        if (::_kbhit() != 0) {
+            return true;
+        }
+        sleepMilliseconds(5);
+    }
+    return ::_kbhit() != 0;
+#else
+    fd_set set;
+    FD_ZERO(&set);
+    FD_SET(STDIN_FILENO, &set);
+    struct timeval timeout {};
+    timeout.tv_sec = timeoutMs / 1000;
+    timeout.tv_usec = (timeoutMs % 1000) * 1000;
+    const int ready =
+        ::select(STDIN_FILENO + 1, &set, nullptr, nullptr, &timeout);
+    return ready > 0 && FD_ISSET(STDIN_FILENO, &set) != 0;
+#endif
+}
+
+KeyEvent readKey() {
+    KeyEvent event;
+#if defined(_WIN32)
+    const int first = ::_getch();
+    if (first == 0 || first == 224) {
+        if (!keyAvailable(50)) {
+            return event;
+        }
+        const int second = ::_getch();
+        switch (second) {
+            case 72: event.code = KEY_UP; break;
+            case 80: event.code = KEY_DOWN; break;
+            case 75: event.code = KEY_LEFT; break;
+            case 77: event.code = KEY_RIGHT; break;
+            case 71: event.code = KEY_HOME; break;
+            case 79: event.code = KEY_END; break;
+            case 73: event.code = KEY_PAGE_UP; break;
+            case 81: event.code = KEY_PAGE_DOWN; break;
+            case 83: event.code = KEY_DELETE; break;
+            case 115: event.code = KEY_CTRL_LEFT; break;
+            case 116: event.code = KEY_CTRL_RIGHT; break;
+            case 141: event.code = KEY_CTRL_UP; break;
+            case 145: event.code = KEY_CTRL_DOWN; break;
+            case 59: event.code = KEY_F1; break;
+            case 60: event.code = KEY_F2; break;
+            case 61: event.code = KEY_F3; break;
+            case 62: event.code = KEY_F4; break;
+            case 63: event.code = KEY_F5; break;
+            case 64: event.code = KEY_F6; break;
+            case 65: event.code = KEY_F7; break;
+            case 66: event.code = KEY_F8; break;
+            case 67: event.code = KEY_F9; break;
+            case 68: event.code = KEY_F10; break;
+            case 133: event.code = KEY_F11; break;
+            case 134: event.code = KEY_F12; break;
+            default: break;
+        }
+        return event;
+    }
+    event.bytes.push_back(static_cast<char>(first & 0xFF));
+#else
+    unsigned char first = 0;
+    if (::read(STDIN_FILENO, &first, 1) != 1) {
+        return event;
+    }
+    event.bytes.push_back(static_cast<char>(first));
+
+    if (first == 27) {
+        if (!keyAvailable(25)) {
+            return event;  // a lone Escape
+        }
+        unsigned char second = 0;
+        if (::read(STDIN_FILENO, &second, 1) != 1) {
+            return event;
+        }
+        if (second == '[') {
+            std::string sequence;
+            while (keyAvailable(25)) {
+                unsigned char part = 0;
+                if (::read(STDIN_FILENO, &part, 1) != 1) {
+                    break;
+                }
+                sequence.push_back(static_cast<char>(part));
+                if (part >= 0x40 && part <= 0x7E) {
+                    break;
+                }
+            }
+            event.bytes.clear();
+            event.code = decodeCsi(sequence);
+            return event;
+        }
+        if (second == 'O') {
+            event.bytes.clear();
+            if (keyAvailable(25)) {
+                unsigned char part = 0;
+                if (::read(STDIN_FILENO, &part, 1) == 1) {
+                    if (part >= 'P' && part <= 'S') {
+                        event.code = KEY_F1 + (part - 'P');
+                    }
+                }
+            }
+            return event;
+        }
+        // Unknown escape: report the lone Escape.
+        event.bytes.assign(1, static_cast<char>(27));
+        return event;
+    }
+
+    // Read the remaining bytes of a UTF-8 character as one key event.
+    int extra = 0;
+    if (first >= 0xC2 && first <= 0xDF) {
+        extra = 1;
+    } else if (first >= 0xE0 && first <= 0xEF) {
+        extra = 2;
+    } else if (first >= 0xF0 && first <= 0xF4) {
+        extra = 3;
+    }
+    for (int index = 0; index < extra && keyAvailable(25); ++index) {
+        unsigned char part = 0;
+        if (::read(STDIN_FILENO, &part, 1) != 1) {
+            break;
+        }
+        event.bytes.push_back(static_cast<char>(part));
+    }
+#endif
+    return event;
+}
+
+bool captureProcess(const std::vector<std::string>& command,
+                    CapturedCommand& result, std::string& error) {
+    if (command.empty()) {
+        error = "empty command";
+        return false;
+    }
+    std::string directory;
+    if (!makeTemporaryDirectory(directory, error)) {
+        return false;
+    }
+    struct Cleanup {
+        std::string path;
+        ~Cleanup() {
+            std::error_code ignored;
+            std::filesystem::remove_all(path, ignored);
+        }
+    } cleanup{directory};
+    const std::string outputPath = directory + "/output.txt";
+
+#if defined(_WIN32)
+    std::string line;
+    for (std::size_t index = 0; index < command.size(); ++index) {
+        if (index != 0) {
+            line += ' ';
+        }
+        line += quoteArgument(command[index]);
+    }
+    std::vector<char> mutableLine(line.begin(), line.end());
+    mutableLine.push_back('\0');
+
+    SECURITY_ATTRIBUTES attributes{};
+    attributes.nLength = sizeof(attributes);
+    attributes.bInheritHandle = TRUE;
+    const HANDLE output = ::CreateFileA(outputPath.c_str(), GENERIC_WRITE, 0,
+                                        &attributes, CREATE_ALWAYS,
+                                        FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (output == INVALID_HANDLE_VALUE) {
+        error = "cannot create the capture file";
+        return false;
+    }
+    const HANDLE nullInput =
+        ::CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                      &attributes, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                      nullptr);
+    STARTUPINFOA startup{};
+    startup.cb = sizeof(startup);
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    startup.hStdInput = nullInput != INVALID_HANDLE_VALUE
+                            ? nullInput
+                            : ::GetStdHandle(STD_INPUT_HANDLE);
+    startup.hStdOutput = output;
+    startup.hStdError = output;
+    PROCESS_INFORMATION process{};
+    const BOOL started =
+        ::CreateProcessA(nullptr, mutableLine.data(), nullptr, nullptr, TRUE,
+                         0, nullptr, nullptr, &startup, &process);
+    ::CloseHandle(output);
+    if (nullInput != INVALID_HANDLE_VALUE) {
+        ::CloseHandle(nullInput);
+    }
+    if (started == 0) {
+        error = "cannot start the process";
+        return false;
+    }
+    ::WaitForSingleObject(process.hProcess, INFINITE);
+    DWORD code = 1;
+    ::GetExitCodeProcess(process.hProcess, &code);
+    result.exitCode = static_cast<int>(code);
+    ::CloseHandle(process.hThread);
+    ::CloseHandle(process.hProcess);
+#else
+    std::vector<char*> argv;
+    argv.reserve(command.size() + 1);
+    for (const std::string& part : command) {
+        argv.push_back(const_cast<char*>(part.c_str()));
+    }
+    argv.push_back(nullptr);
+
+    const pid_t pid = ::fork();
+    if (pid < 0) {
+        error = "cannot fork";
+        return false;
+    }
+    if (pid == 0) {
+        const int nullInput = ::open("/dev/null", O_RDONLY);
+        if (nullInput >= 0) {
+            ::dup2(nullInput, STDIN_FILENO);
+            if (nullInput > STDERR_FILENO) {
+                ::close(nullInput);
+            }
+        }
+        const int fd = ::open(outputPath.c_str(),
+                              O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd >= 0) {
+            ::dup2(fd, STDOUT_FILENO);
+            ::dup2(fd, STDERR_FILENO);
+            if (fd > STDERR_FILENO) {
+                ::close(fd);
+            }
+        }
+        ::execvp(argv[0], argv.data());
+        ::_exit(127);
+    }
+    int status = 0;
+    if (::waitpid(pid, &status, 0) < 0) {
+        error = "cannot wait for the process";
+        return false;
+    }
+    result.exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+#endif
+
+    std::ifstream input(outputPath, std::ios::binary);
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    result.output = buffer.str();
+    return true;
 }
 
 } // namespace lynxer::platform

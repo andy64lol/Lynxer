@@ -404,7 +404,7 @@ endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
 .PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
-.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde where
+.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde testLynxerCliIde where
 
 test: testLynxer
 
@@ -681,7 +681,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerGuiIde $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerGuiIde testLynxerCliIde $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
 	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "lynxer: $(PYTHON) not found; Python 3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -1296,10 +1296,40 @@ testLynxerGui: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 # `global.` is deprecated. Source runs and --lint warn with
 # `warning[deprecatedGlobalPrefix]`; tooling parses (--format, --ast,
 # --compile) and imported module sources stay quiet.
-# `lynxer --gui-ide` is a hidden launcher for the native IDE: it is absent
-# from --help, hands the IDE this interpreter's path via --lynxer, and honours
+# `lynxer --gui-ide` launches the native IDE: it is listed in --help alongside
+# --cli-ide, hands the IDE this interpreter's path via --lynxer, and honours
 # LYNXER_IDE. `--ver` is an alias for `--version`. A stub script stands in for
 # the GUI so the test needs no display.
+# `lynxer --cli-ide` is the built-in full-screen terminal IDE. It is listed in
+# --help, refuses to start without a TTY, and is exercised under a
+# pseudo-terminal by scripts/cli_ide_pty_test.py (skipped where pty is absent).
+testLynxerCliIde: $(LYNXER_TARGET)
+	@src="$(CLYX_TMP)_cli_ide.lynx"; \
+	help="$(CLYX_TMP)_cli_ide_help.out"; \
+	err="$(CLYX_TMP)_cli_ide_err.out"; \
+	cleanup() { rm -f "$$src" "$$help" "$$err"; }; \
+	$(CLYX) --help > "$$help" 2>&1; \
+	if ! grep -q -- '--cli-ide' "$$help"; then \
+		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
+	if ! grep -q -- '--gui-ide' "$$help"; then \
+		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
+	if $(CLYX) --cli-ide a b > /dev/null 2> "$$err"; then \
+		echo "--cli-ide accepted two arguments"; cleanup; exit 1; fi; \
+	if ! grep -q 'at most one' "$$err"; then \
+		echo "--cli-ide did not explain its argument limit"; cleanup; exit 1; fi; \
+	if $(CLYX) --cli-ide > /dev/null 2> "$$err" < /dev/null; then \
+		echo "--cli-ide started without a TTY"; cleanup; exit 1; fi; \
+	if ! grep -q 'interactive terminal' "$$err"; then \
+		echo "--cli-ide did not explain the TTY requirement"; cleanup; exit 1; fi; \
+	printf 'fn setup(){}\nfn main(){ println("Hello, Lynxer!"); }\n' > "$$src"; \
+	if $(PYTHON) -c 'import pty' 2>/dev/null; then \
+		$(PYTHON) scripts/cli_ide_pty_test.py "$(abspath $(CLYX))" "$$src" || { cleanup; exit 1; }; \
+	else \
+		echo "skipping pty smoke test (no pty module on this host)"; \
+	fi; \
+	cleanup; \
+	echo "OK: terminal IDE (--cli-ide) passed."
+
 testLynxerGuiIde: $(LYNXER_TARGET)
 	@stub="$(CLYX_TMP)_ide_stub"; \
 	args="$(CLYX_TMP)_ide_args"; \
@@ -1310,8 +1340,10 @@ testLynxerGuiIde: $(LYNXER_TARGET)
 	if [ "$$ver" != "$$($(CLYX) --version)" ]; then \
 		echo "--ver did not match --version: $$ver"; cleanup; exit 1; fi; \
 	$(CLYX) --help > "$$help" 2>&1; \
-	if grep -q -- '--gui-ide' "$$help"; then \
-		echo "--gui-ide leaked into --help"; cleanup; exit 1; fi; \
+	if ! grep -q -- '--gui-ide' "$$help"; then \
+		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
+	if ! grep -q -- '--cli-ide' "$$help"; then \
+		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
 	printf '#!/bin/sh\nprintf "%%s\\n" "$$@" > "%s"\nexit 0\n' "$$args" > "$$stub"; \
 	chmod +x "$$stub"; \
 	if ! LYNXER_IDE="$$stub" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
@@ -1328,7 +1360,7 @@ testLynxerGuiIde: $(LYNXER_TARGET)
 	if ! grep -q 'LYNXER_IDE' "$$err"; then \
 		echo "--gui-ide did not explain an invalid LYNXER_IDE"; cat "$$err"; cleanup; exit 1; fi; \
 	cleanup; \
-	echo "OK: hidden --gui-ide launcher and --ver alias passed."
+	echo "OK: --gui-ide launcher, listed IDEs and --ver alias passed."
 
 testLynxerGlobalDeprecation: $(LYNXER_TARGET)
 	@src="$(CLYX_TMP)_global_prefix.lynx"; \
@@ -1508,7 +1540,8 @@ help:
 	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
 	@echo "  make testLynxerProject                --init / --build / --run project workflow"
 	@echo "  make testLynxerGlobalDeprecation      global. prefix deprecation warnings"
-	@echo "  make testLynxerGuiIde                hidden IDE launcher + --ver alias"
+	@echo "  make testLynxerGuiIde                GUI IDE launcher + --ver alias"
+	@echo "  make testLynxerCliIde                built-in terminal IDE (--cli-ide)"
 	@echo "  make testLynxerAmd64Syscalls           amd64 syscall fixtures (x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls           arm64 syscall fixtures (aarch64 host)"
 	@echo "  make testPackageManifests              Windows package manifest renderer"
@@ -1530,6 +1563,8 @@ help:
 	@echo "  ./lynxer/lynxer --init [name]        (scaffold a Lynxer project)"
 	@echo "  ./lynxer/lynxer --build              (compile the project into build/)"
 	@echo "  ./lynxer/lynxer --run                (build and run the project)"
+	@echo "  ./lynxer/lynxer --gui-ide            (launch the native GUI IDE)"
+	@echo "  ./lynxer/lynxer --cli-ide            (launch the terminal IDE)"
 	@echo "  ./lynxer/lynxer --format <file.lynx>"
 	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
 	@echo "  ./lynxer/lynxer --ast <file.lynx>"

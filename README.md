@@ -63,6 +63,8 @@ make build                                       # build the interpreter and eve
 ./lynxer/lynxer --init                           # scaffold a Lynxer project here
 ./lynxer/lynxer --build                          # compile the project into build/
 ./lynxer/lynxer --run                            # build and run the project
+./lynxer/lynxer --gui-ide                        # launch the native GUI IDE
+./lynxer/lynxer --cli-ide [file.lynx]            # launch the built-in terminal IDE
 ./lynxer/lynxer --version                        # print the version
 ./lynxer/lynxer --help                           # list every command
 

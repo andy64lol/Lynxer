@@ -67,6 +67,54 @@ Both commands require a `lynxer.config` in the working directory and take no
 arguments. `--run` returns the program's exit status. **All build artifacts
 live inside `build/`** — nothing is written next to the sources.
 
+## IDEs
+
+Lynxer ships two IDEs, both launched from the interpreter itself and both
+listed by `--help`:
+
+| Command | IDE | Needs |
+|---------|-----|-------|
+| `lynxer --gui-ide` | Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels | A graphical display and the `lynxer-ide` executable |
+| `lynxer --cli-ide [file.lynx]` | Built-in terminal IDE: a full-screen ANSI TUI with no separate binary | An interactive TTY on stdin **and** stdout |
+
+### GUI IDE
+
+`--gui-ide` resolves `lynxer-ide` next to the interpreter, in the installed
+`<prefix>/lib/lynxer` layout, or in `editors/ide/target/{release,debug}`. Set
+`LYNXER_IDE` to an explicit executable (or a directory containing it) to
+override. The launcher passes its own absolute path as `--lynxer <path>`, so
+Run / Lint / Format work even when `lynxer` is not on `PATH`. It takes no
+arguments and returns the IDE's exit code.
+
+### Terminal IDE
+
+`--cli-ide` runs inside the interpreter. It opens in the current directory and
+accepts one optional argument: a `.lynx` file to open, or a folder to browse.
+It refuses to start when stdin or stdout is redirected, and restores the
+terminal on exit (alternate screen, cursor and raw-input mode).
+
+Features: an expandable file tree, a tabbed editor with line numbers and Lynxer
+syntax highlighting (`.lynx` only), multi-key editing, search and go-to-line,
+an output/problems panel with parsed `lynxer --lint` warnings and errors, and
+Run / Lint / Format / Build / Run-project commands whose output is captured
+into the panel instead of overwriting the screen.
+
+Key bindings:
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+O` / `Ctrl+N` / `Ctrl+S` / `Ctrl+W` / `Ctrl+Q` | open / new / save / close tab / quit |
+| `Ctrl+B` | change folder |
+| `Ctrl+E` | switch focus between explorer and editor |
+| `Ctrl+P` / `Ctrl+K` | toggle output panel / clear output |
+| `Ctrl+G` / `Ctrl+F` / `F3` | go to line / find / next match |
+| `Ctrl+Left` / `Ctrl+Right` | previous / next tab |
+| `F1` / `Esc` | help / focus explorer |
+| `F4` / `F5` / `F6` / `F7` | next problem / run file / lint file / format file |
+| `F9` / `F10` | build project / run project |
+| Explorer: Up/Down, Enter, Right, Left | select, open, expand, collapse |
+| Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter | move and edit |
+
 ## Exit codes
 
 | Code | Meaning |
@@ -286,6 +334,7 @@ These are recognised and exit `1` with
 | `LYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
 | `LYNXER_GRAPHICS_HEADLESS=1` | run the `graphics` module without opening a window |
+| `LYNXER_IDE=/path/to/lynxer-ide` | executable (or directory) used by `--gui-ide` |
 
 `LYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
 makes `make testLynxer` skip the display and audio fixtures. See

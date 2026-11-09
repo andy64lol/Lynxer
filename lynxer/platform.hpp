@@ -63,4 +63,73 @@ int spawnProcess(const std::vector<std::string>& command);
 // Blocks the calling thread for `milliseconds`.
 void sleepMilliseconds(long milliseconds);
 
+// --- Interactive terminal (built-in CLI IDE) --------------------------------
+
+// True when stdin and stdout are both terminals. The CLI IDE refuses to start
+// otherwise, because a redirected stream cannot be restored afterwards.
+bool isInteractiveTerminal();
+
+// Terminal dimensions in characters, or 80x24 when they cannot be determined.
+void terminalSize(int& columns, int& rows);
+
+// Special key codes. All are greater than 0xFF so they never collide with a
+// printable byte.
+enum : int {
+    KEY_UP = 0x1000,
+    KEY_DOWN,
+    KEY_LEFT,
+    KEY_RIGHT,
+    KEY_HOME,
+    KEY_END,
+    KEY_PAGE_UP,
+    KEY_PAGE_DOWN,
+    KEY_DELETE,
+    KEY_CTRL_LEFT,
+    KEY_CTRL_RIGHT,
+    KEY_CTRL_UP,
+    KEY_CTRL_DOWN,
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
+};
+
+// One key press. `code` is a KEY_* value for special keys; otherwise `bytes`
+// holds the raw text (a single control byte or a whole UTF-8 character).
+struct KeyEvent {
+    int code = 0;
+    std::string bytes;
+};
+
+// Switch stdin to character-at-a-time, no-echo mode; disableRawInput restores
+// the original state. A no-op when already active.
+bool enableRawInput(std::string& error);
+void disableRawInput();
+
+// Whether a key is waiting (used to tell a lone Escape from an escape
+// sequence).
+bool keyAvailable(int timeoutMs);
+
+// Blocks for one key press. Never throws; returns an empty event on EOF.
+KeyEvent readKey();
+
+struct CapturedCommand {
+    std::string output;
+    int exitCode = -1;
+};
+
+// Runs `command` to completion with stdout and stderr captured into a private
+// temp file, so a full-screen TUI can display the result without being
+// trampled by the child's output. `command[0]` is resolved on PATH.
+bool captureProcess(const std::vector<std::string>& command,
+                    CapturedCommand& result, std::string& error);
+
 } // namespace lynxer::platform

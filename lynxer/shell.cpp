@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -180,6 +181,8 @@ void printUsage() {
 #endif
     std::cout << "      --cc <compiler>                          C++ compiler used to build the library\n";
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
+    std::cout << "  lynxer --gui-ide                            Launch the native GUI IDE (iced)\n";
+    std::cout << "  lynxer --cli-ide [file.lynx]                Launch the built-in terminal IDE\n";
     std::cout << "  lynxer --version                            Print version\n";
     std::cout << "  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
     std::cout << "  lynxer --install                            Install under "
@@ -1150,10 +1153,10 @@ bool writeProjectFile(const std::string& path, const std::string& content,
 // ---------------------------------------------------------------------------
 // GUI IDE
 //
-// `--gui-ide` is an internal launcher for the native Rust IDE in
-// `editors/ide`. It is intentionally absent from `printUsage()`/--help. The IDE
-// is a separate executable, so this command resolves it, tells it which
-// interpreter to use for Run/Lint/Format, and waits for it to exit.
+// `--gui-ide` is a launcher for the native Rust IDE in `editors/ide`. It is
+// listed in --help together with `--cli-ide`. The IDE is a separate
+// executable, so this command resolves it, tells it which interpreter to use
+// for Run/Lint/Format, and waits for it to exit.
 // ---------------------------------------------------------------------------
 
 std::string ideFileName() {
@@ -1251,6 +1254,1796 @@ int launchGuiIde(const char* argv0,
         return 1;
     }
     return status;
+}
+
+// ---------------------------------------------------------------------------
+// Terminal IDE
+//
+// `--cli-ide` runs a full-screen IDE inside the interpreter itself: no webview,
+// no second binary, no GUI toolkit. It uses ANSI escape sequences for the frame
+// and the portable terminal primitives in platform.hpp for raw input. All
+// Run / Lint / Format / project commands shell out to this same interpreter via
+// platform::captureProcess, so their output is shown in the output panel
+// instead of trampling the screen.
+// ---------------------------------------------------------------------------
+
+constexpr int IC_TEXT = 0, IC_KEYWORD = 1, IC_TYPE = 2, IC_BUILTIN = 3,
+              IC_CONSTANT = 4, IC_STRING = 5, IC_NUMBER = 6, IC_COMMENT = 7,
+              IC_DOC = 8, IC_ATTR = 9, IC_OP = 10, IC_BRACKET = 11,
+              IC_DELIM = 12, IC_ACCENT = 13, IC_MUTED = 14, IC_ERROR = 15,
+              IC_WARN = 16, IC_INFO = 17, IC_SURFACE = 18, IC_PANEL = 19,
+              IC_EDITOR = 20, IC_STATUS = 21, IC_GUTTER = 22,
+              IC_OK = 23;
+
+struct IdeRgb {
+    int r, g, b;
+};
+
+const IdeRgb kIdePalette[] = {
+    {0xd8, 0xdc, 0xe2},  // text
+    {0x56, 0x9c, 0xd6},  // keyword
+    {0x4e, 0xc9, 0xb0},  // type
+    {0xdc, 0xdc, 0xaa},  // builtin / function
+    {0x56, 0x9c, 0xd6},  // constant
+    {0xce, 0x91, 0x78},  // string
+    {0xb5, 0xce, 0xa8},  // number
+    {0x6a, 0x99, 0x55},  // comment
+    {0x60, 0x8b, 0x4e},  // doc comment
+    {0xc5, 0x86, 0xc0},  // attribute
+    {0xd4, 0xd4, 0xd4},  // operator
+    {0xff, 0xd7, 0x00},  // bracket
+    {0xd4, 0xd4, 0xd4},  // delimiter
+    {0x4e, 0xc9, 0xb0},  // accent
+    {0x89, 0x92, 0x9e},  // muted
+    {0xf1, 0x4c, 0x4c},  // error
+    {0xcc, 0xa7, 0x00},  // warning
+    {0x37, 0x94, 0xff},  // info
+    {0x1e, 0x20, 0x25},  // surface
+    {0x24, 0x27, 0x2d},  // panel
+    {0x18, 0x1a, 0x1e},  // editor
+    {0x0f, 0x45, 0x4f},  // status
+    {0x5a, 0x60, 0x6a},  // gutter
+    {0x4e, 0xc9, 0xb0},  // ok
+};
+
+std::string ideFg(int index) {
+    const IdeRgb& rgb = kIdePalette[index];
+    std::ostringstream out;
+    out << "\x1b[38;2;" << rgb.r << ';' << rgb.g << ';' << rgb.b << 'm';
+    return out.str();
+}
+
+std::string ideBg(int index) {
+    const IdeRgb& rgb = kIdePalette[index];
+    std::ostringstream out;
+    out << "\x1b[48;2;" << rgb.r << ';' << rgb.g << ';' << rgb.b << 'm';
+    return out.str();
+}
+
+const std::string kIdeReset = "\x1b[0m";
+const std::string kIdeBold = "\x1b[1m";
+const std::string kIdeDim = "\x1b[2m";
+const std::string kIdeReverse = "\x1b[7m";
+
+int ideUtf8Length(unsigned char lead) {
+    if (lead < 0x80) return 1;
+    if ((lead & 0xE0) == 0xC0) return 2;
+    if ((lead & 0xF0) == 0xE0) return 3;
+    if ((lead & 0xF8) == 0xF0) return 4;
+    return 1;
+}
+
+// Returns the index just past the escape sequence beginning at `start`.
+// A CSI sequence is ESC '[', parameter/intermediate bytes (0x20-0x3F) and
+// one final byte (0x40-0x7E) -- notably '[' itself is NOT the final byte, so
+// scanning from ESC+1 would stop immediately and treat colour parameters as
+// visible text.
+std::size_t ideEscapeEnd(const std::string& text, std::size_t start) {
+    std::size_t end = start + 1;
+    if (end < text.size() && text[end] == '[') {
+        ++end;
+        while (end < text.size() &&
+               static_cast<unsigned char>(text[end]) >= 0x20 &&
+               static_cast<unsigned char>(text[end]) <= 0x3F) {
+            ++end;
+        }
+    }
+    if (end < text.size()) ++end;
+    return end;
+}
+
+std::size_t ideVisibleWidth(const std::string& text) {
+    std::size_t width = 0;
+    for (std::size_t i = 0; i < text.size();) {
+        const unsigned char lead = static_cast<unsigned char>(text[i]);
+        if (lead == 0x1b) {
+            i = ideEscapeEnd(text, i);
+            continue;
+        }
+        const int length = ideUtf8Length(lead);
+        i += (i + static_cast<std::size_t>(length) <= text.size())
+                 ? static_cast<std::size_t>(length)
+                 : 1;
+        ++width;
+    }
+    return width;
+}
+
+// Keeps a row within `width` visible columns without ever cutting an ANSI
+// escape sequence in half.
+std::string ideClamp(const std::string& text, std::size_t width) {
+    std::string out;
+    std::size_t used = 0;
+    for (std::size_t i = 0; i < text.size() && used < width;) {
+        const unsigned char lead = static_cast<unsigned char>(text[i]);
+        if (lead == 0x1b) {
+            const std::size_t end = ideEscapeEnd(text, i);
+            out.append(text, i, end - i);
+            i = end;
+            continue;
+        }
+        const int length = ideUtf8Length(lead);
+        const std::size_t take =
+            (i + static_cast<std::size_t>(length) <= text.size())
+                ? static_cast<std::size_t>(length)
+                : 1;
+        out.append(text, i, take);
+        i += take;
+        ++used;
+    }
+    return out;
+}
+
+std::string idePad(const std::string& text, std::size_t width) {
+    const std::size_t current = ideVisibleWidth(text);
+    if (current >= width) return text;
+    return text + std::string(width - current, ' ');
+}
+
+void ideSetRow(std::vector<std::string>& rows, int index,
+               const std::string& content, int width, int background) {
+    if (index < 0 || index >= static_cast<int>(rows.size())) return;
+    rows[index] = ideBg(background) +
+                  idePad(ideClamp(content, static_cast<std::size_t>(width)),
+                         static_cast<std::size_t>(width)) +
+                  kIdeReset;
+}
+
+const std::unordered_set<std::string>& ideKeywords() {
+    static const std::unordered_set<std::string> words = {
+        "fn", "global", "func", "local", "lambda", "template", "build",
+        "named", "extending", "class", "extends", "struct", "enum", "setup",
+        "main", "return", "if", "elif", "else", "while", "for", "doWhile",
+        "iterate", "forever", "switch", "case", "default", "try", "catch",
+        "raise", "break", "continue", "restart", "new", "this", "super",
+        "import", "importAs", "export", "const", "shared", "type", "of",
+        "await", "exec", "codeblock", "inter", "true", "false", "none",
+        "and", "or", "not", "xor", "is", "isnt",
+    };
+    return words;
+}
+
+const std::unordered_set<std::string>& ideTypes() {
+    static const std::unordered_set<std::string> words = {
+        "any", "int", "float", "num", "char", "str", "bool", "numBool",
+        "bit", "void", "array", "map", "set", "tuple", "ptr", "ref",
+    };
+    return words;
+}
+
+const std::unordered_set<std::string>& ideBuiltins() {
+    static const std::unordered_set<std::string> words = {
+    "allOf",
+    "anyOf",
+    "assert",
+    "asyncGather",
+    "asyncPollClose",
+    "asyncPollCreate",
+    "asyncPollDispatch",
+    "asyncPollModify",
+    "asyncPollRegister",
+    "asyncPollRemove",
+    "asyncPollWait",
+    "asyncRun",
+    "asyncSleep",
+    "asyncTimerCancel",
+    "asyncTimerCreate",
+    "asyncWakeupClose",
+    "asyncWakeupCreate",
+    "asyncWakeupSignal",
+    "atomicAdd",
+    "atomicLoad",
+    "atomicStore",
+    "bundledFile",
+    "bundledFiles",
+    "byte",
+    "bytesAt",
+    "bytesFromHex",
+    "bytesLength",
+    "bytesOf",
+    "bytesToHex",
+    "bytesToList",
+    "bytesToStr",
+    "charAt",
+    "charCode",
+    "charOf",
+    "contains",
+    "exceptionCode",
+    "exceptionInfo",
+    "ffiCall",
+    "ffiCallback",
+    "ffiCloseLibrary",
+    "ffiFreeCallback",
+    "ffiLoadLibrary",
+    "ffiLookup",
+    "filesystemChmod",
+    "filesystemClose",
+    "filesystemLink",
+    "filesystemList",
+    "filesystemMkdir",
+    "filesystemOpen",
+    "filesystemRead",
+    "filesystemReadLink",
+    "filesystemRemove",
+    "filesystemRename",
+    "filesystemStat",
+    "filesystemWrite",
+    "float32",
+    "float64",
+    "floatOf",
+    "foreverDelay",
+    "functionAddress",
+    "getAddress",
+    "getAddressValue",
+    "input",
+    "inputln",
+    "int16",
+    "int32",
+    "int64",
+    "int8",
+    "intOf",
+    "listAvg",
+    "listClear",
+    "listContains",
+    "listCount",
+    "listExtend",
+    "listFirst",
+    "listFlatten",
+    "listGet",
+    "listHead",
+    "listIndex",
+    "listInsert",
+    "listJoin",
+    "listJsonArray",
+    "listJsonObject",
+    "listLast",
+    "listMax",
+    "listMin",
+    "listPop",
+    "listPush",
+    "listRemove",
+    "listRepeat",
+    "listSet",
+    "listSlice",
+    "listTail",
+    "listToBytes",
+    "listToTuple",
+    "listUnique",
+    "listZip",
+    "lower",
+    "memoryAllocate",
+    "memoryAllocateZeroed",
+    "memoryArrayAllocate",
+    "memoryArrayGet",
+    "memoryArrayLength",
+    "memoryArraySet",
+    "memoryArrayView",
+    "memoryBlockAllocate",
+    "memoryBlockGet",
+    "memoryBlockLength",
+    "memoryBlockSet",
+    "memoryBlockView",
+    "memoryCopy",
+    "memoryFree",
+    "memoryProtect",
+    "memoryReadByte",
+    "memoryReadEndian",
+    "memoryReadFloat32",
+    "memoryReadFloat64",
+    "memoryReadInt16",
+    "memoryReadInt32",
+    "memoryReadInt64",
+    "memoryReadInt8",
+    "memoryReadUInt16",
+    "memoryReadUInt32",
+    "memoryReadUInt64",
+    "memoryReadUInt8",
+    "memoryReallocate",
+    "memorySet",
+    "memoryStructAlignment",
+    "memoryStructAllocate",
+    "memoryStructFieldCount",
+    "memoryStructFieldOffset",
+    "memoryStructFieldSize",
+    "memoryStructFieldType",
+    "memoryStructGet",
+    "memoryStructSet",
+    "memoryStructSize",
+    "memoryTypeAlignment",
+    "memoryTypeSize",
+    "memoryViewGet",
+    "memoryViewLength",
+    "memoryViewSet",
+    "memoryWriteByte",
+    "memoryWriteEndian",
+    "memoryWriteFloat32",
+    "memoryWriteFloat64",
+    "memoryWriteInt16",
+    "memoryWriteInt32",
+    "memoryWriteInt64",
+    "memoryWriteInt8",
+    "memoryWriteUInt16",
+    "memoryWriteUInt32",
+    "memoryWriteUInt64",
+    "memoryWriteUInt8",
+    "modifyAddressValue",
+    "nativeCall",
+    "nativeConditionClose",
+    "nativeConditionCreate",
+    "nativeConditionNotify",
+    "nativeConditionNotifyAll",
+    "nativeConditionWait",
+    "nativeFunctionAddress",
+    "nativeHandleAddress",
+    "nativeHandleAllocate",
+    "nativeHandleFree",
+    "nativeHandleIsAlive",
+    "nativeModuleClose",
+    "nativeModuleConstant",
+    "nativeModuleDependencies",
+    "nativeModuleError",
+    "nativeModuleFunction",
+    "nativeModuleLoad",
+    "nativeModuleName",
+    "nativeModuleType",
+    "nativeMutexClose",
+    "nativeMutexCreate",
+    "nativeMutexLock",
+    "nativeMutexTryLock",
+    "nativeMutexUnlock",
+    "nativeSemaphoreClose",
+    "nativeSemaphoreCreate",
+    "nativeSemaphorePost",
+    "nativeSemaphoreTryWait",
+    "nativeSemaphoreWait",
+    "nativeStructAlignment",
+    "nativeStructAllocate",
+    "nativeStructFieldCount",
+    "nativeStructFieldOffset",
+    "nativeStructFieldSize",
+    "nativeStructFieldType",
+    "nativeStructGet",
+    "nativeStructSet",
+    "nativeStructSize",
+    "nativeThreadDetach",
+    "nativeThreadIsAlive",
+    "nativeThreadJoin",
+    "nativeThreadJoinAll",
+    "nativeThreadStart",
+    "nativeThreadStatus",
+    "nativeThreadYield",
+    "nativeTypeAlignment",
+    "networkingAccept",
+    "networkingAddress",
+    "networkingBind",
+    "networkingBlocking",
+    "networkingClose",
+    "networkingConnect",
+    "networkingListen",
+    "networkingOpen",
+    "networkingOption",
+    "networkingReceive",
+    "networkingResolve",
+    "networkingSend",
+    "networkingShutdown",
+    "object",
+    "overrideMain",
+    "print",
+    "printf",
+    "println",
+    "printlnf",
+    "processClose",
+    "processCloseInput",
+    "processPoll",
+    "processRead",
+    "processSendSignal",
+    "processSpawn",
+    "processWait",
+    "processWrite",
+    "raise",
+    "range",
+    "replace",
+    "returnLength",
+    "returnType",
+    "reverseList",
+    "sentinel",
+    "seqFromTo",
+    "sizeOf",
+    "sleep",
+    "sortList",
+    "soundIsPlaying",
+    "soundLoad",
+    "soundLoop",
+    "soundPause",
+    "soundPlay",
+    "soundRelease",
+    "soundResume",
+    "soundSetVolume",
+    "soundStop",
+    "splitStr",
+    "strOf",
+    "substring",
+    "sumOf",
+    "suppressDeprecationWarning",
+    "suppressForeverWarning",
+    "trim",
+    "tupleAll",
+    "tupleAny",
+    "tupleConcat",
+    "tupleContains",
+    "tupleCount",
+    "tupleCreate",
+    "tupleFirst",
+    "tupleFlatten",
+    "tupleGet",
+    "tupleIndex",
+    "tupleJoin",
+    "tupleJsonArray",
+    "tupleLast",
+    "tupleLen",
+    "tupleMax",
+    "tupleMean",
+    "tupleMin",
+    "tupleReverse",
+    "tupleSlice",
+    "tupleSort",
+    "tupleSortDesc",
+    "tupleSum",
+    "tupleToList",
+    "tupleUnique",
+    "tupleZip",
+    "uint16",
+    "uint32",
+    "uint64",
+    "uint8",
+    "upper",
+    "volatileRead",
+    "volatileWrite"
+    };
+    return words;
+}
+
+bool ideIsIdentChar(unsigned char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_';
+}
+
+// One palette index per byte, so the renderer can invert the cursor byte
+// without disturbing the surrounding colours.
+std::vector<int> ideTokenColors(const std::string& line) {
+    std::vector<int> colors(line.size(), IC_TEXT);
+    auto paint = [&](std::size_t from, std::size_t to, int color) {
+        for (std::size_t i = from; i < to && i < line.size(); ++i) {
+            colors[i] = color;
+        }
+    };
+    const std::size_t size = line.size();
+    std::size_t i = 0;
+    while (i < size) {
+        const unsigned char c = static_cast<unsigned char>(line[i]);
+        if ((c == '#' && i + 1 < size && line[i + 1] == '#') ||
+            (c == '/' && i + 2 < size && line[i + 1] == '/' &&
+             line[i + 2] == '/')) {
+            paint(i, size, IC_DOC);
+            break;
+        }
+        if (c == '#' || (c == '/' && i + 1 < size && line[i + 1] == '/')) {
+            paint(i, size, IC_COMMENT);
+            break;
+        }
+        if (c == '/' && i + 1 < size && line[i + 1] == '*') {
+            std::size_t end = i + 2;
+            while (end + 1 < size &&
+                   !(line[end] == '*' && line[end + 1] == '/')) {
+                ++end;
+            }
+            end = std::min(end + 2, size);
+            paint(i, end, IC_COMMENT);
+            i = end;
+            continue;
+        }
+        if (c == '"' || c == '\'') {
+            const char quote = static_cast<char>(c);
+            const std::size_t start = i++;
+            while (i < size) {
+                if (line[i] == '\\') {
+                    i = std::min(i + 2, size);
+                    continue;
+                }
+                if (line[i] == quote) {
+                    ++i;
+                    break;
+                }
+                ++i;
+            }
+            paint(start, i, IC_STRING);
+            continue;
+        }
+        if (c == '@' && i + 1 < size &&
+            (std::isalpha(static_cast<unsigned char>(line[i + 1])) != 0 ||
+             line[i + 1] == '_')) {
+            const std::size_t start = i++;
+            while (i < size && ideIsIdentChar(static_cast<unsigned char>(line[i]))) ++i;
+            paint(start, i, IC_ATTR);
+            continue;
+        }
+        if (c >= '0' && c <= '9') {
+            const std::size_t start = i;
+            if (c == '0' && i + 1 < size &&
+                (line[i + 1] == 'x' || line[i + 1] == 'X' ||
+                 line[i + 1] == 'b' || line[i + 1] == 'B' ||
+                 line[i + 1] == 'o' || line[i + 1] == 'O')) {
+                i += 2;
+                while (i < size && ideIsIdentChar(static_cast<unsigned char>(line[i]))) ++i;
+            } else {
+                while (i < size &&
+                       (std::isdigit(static_cast<unsigned char>(line[i])) != 0 ||
+                        line[i] == '_')) ++i;
+                if (i + 1 < size && line[i] == '.' &&
+                    std::isdigit(static_cast<unsigned char>(line[i + 1])) != 0) {
+                    ++i;
+                    while (i < size &&
+                           (std::isdigit(static_cast<unsigned char>(line[i])) != 0 ||
+                            line[i] == '_')) ++i;
+                }
+                if (i < size && (line[i] == 'e' || line[i] == 'E')) {
+                    std::size_t j = i + 1;
+                    if (j < size && (line[j] == '+' || line[j] == '-')) ++j;
+                    if (j < size && std::isdigit(static_cast<unsigned char>(line[j])) != 0) {
+                        i = j + 1;
+                        while (i < size && std::isdigit(static_cast<unsigned char>(line[i])) != 0) ++i;
+                    }
+                }
+            }
+            paint(start, i, IC_NUMBER);
+            continue;
+        }
+        if (std::isalpha(c) != 0 || c == '_') {
+            const std::size_t start = i;
+            while (i < size && ideIsIdentChar(static_cast<unsigned char>(line[i]))) ++i;
+            const std::string word = line.substr(start, i - start);
+            int color = IC_TEXT;
+            if (ideKeywords().count(word) != 0) {
+                color = (word == "true" || word == "false" || word == "none")
+                            ? IC_CONSTANT
+                            : IC_KEYWORD;
+            } else if (ideTypes().count(word) != 0) {
+                color = IC_TYPE;
+            } else if (ideBuiltins().count(word) != 0) {
+                color = IC_BUILTIN;
+            } else {
+                std::size_t j = i;
+                while (j < size && line[j] == ' ') ++j;
+                if (j < size && line[j] == '(') color = IC_BUILTIN;
+            }
+            paint(start, i, color);
+            continue;
+        }
+        std::size_t length = 1;
+        if (i + 1 < size) {
+            const char a = line[i];
+            const char b = line[i + 1];
+            if ((a == '-' && b == '>') || (a == '=' && b == '>') ||
+                (a == '=' && b == '=') || (a == '!' && b == '=') ||
+                (a == '<' && b == '=') || (a == '>' && b == '=') ||
+                (a == '&' && b == '&') || (a == '|' && b == '|') ||
+                (a == ':' && b == ':') || (a == '+' && b == '+') ||
+                (a == '-' && b == '-') || (a == '.' && b == '.')) {
+                length = 2;
+            }
+        }
+        int color = IC_TEXT;
+        if (c == '{' || c == '}' || c == '(' || c == ')' || c == '[' ||
+            c == ']') {
+            color = IC_BRACKET;
+        } else if (c == ';' || c == ',' || c == '.') {
+            color = IC_DELIM;
+        } else if (std::string("+-*/%=&|<>!^~:?").find(static_cast<char>(c)) !=
+                   std::string::npos) {
+            color = IC_OP;
+        }
+        paint(i, i + length, color);
+        i += length;
+    }
+    return colors;
+}
+
+std::string ideRenderLine(const std::string& line, bool lynx,
+                          std::size_t cursorColumn, bool current) {
+    std::string display;
+    for (const char c : line) display += (c == '\t') ? ' ' : c;
+    const std::vector<int> colors =
+        lynx ? ideTokenColors(display) : std::vector<int>(display.size(), IC_TEXT);
+    std::string out;
+    int active = -1;
+    for (std::size_t i = 0; i < display.size();) {
+        const int length = ideUtf8Length(static_cast<unsigned char>(display[i]));
+        const std::size_t take =
+            (i + static_cast<std::size_t>(length) <= display.size())
+                ? static_cast<std::size_t>(length)
+                : 1;
+        const int color = colors[i];
+        const bool caret = current && i == cursorColumn;
+        if (color != active || caret) {
+            out += ideFg(color);
+            active = color;
+        }
+        if (caret) out += kIdeReverse;
+        out.append(display, i, take);
+        if (caret) out += "\x1b[27m" + ideFg(color);
+        i += take;
+    }
+    if (current && cursorColumn >= display.size()) {
+        out += ideFg(IC_TEXT) + std::string(kIdeReverse) + " " + "\x1b[27m";
+    }
+    return out;
+}
+
+struct IdeBuffer {
+    std::string path;
+    std::vector<std::string> lines;
+    std::string saved;
+    std::size_t cursorLine = 0;
+    std::size_t cursorColumn = 0;
+    std::size_t topLine = 0;
+};
+
+struct IdeTreeRow {
+    std::string name;
+    std::string path;
+    bool isDir = false;
+    int depth = 0;
+    bool expanded = false;
+};
+
+struct IdeEntry {
+    std::string name;
+    std::string path;
+    bool isDir = false;
+};
+
+struct IdeDiagnostic {
+    std::string file;
+    int line = 0;
+    int column = 0;
+    std::string severity;
+    std::string code;
+    std::string message;
+};
+
+enum class IdePrompt { None, Open, New, Folder, Goto, Find, Quit };
+
+struct IdeState {
+    std::string root;
+    std::string interpreter;
+    std::string version;
+    std::vector<IdeTreeRow> tree;
+    std::size_t treeSelection = 0;
+    std::size_t treeTop = 0;
+    bool explorerFocus = false;
+    std::vector<IdeBuffer> buffers;
+    std::size_t active = 0;
+    std::string output;
+    std::vector<IdeDiagnostic> diagnostics;
+    std::size_t diagnosticIndex = 0;
+    std::string status;
+    std::string findQuery;
+    bool showOutput = true;
+    bool showHelp = false;
+    IdePrompt prompt = IdePrompt::None;
+    std::string promptLabel;
+    std::string promptValue;
+    int columns = 80;
+    int rows = 24;
+};
+
+std::vector<std::string> ideSplitLines(const std::string& text) {
+    std::vector<std::string> lines;
+    std::string current;
+    for (const char c : text) {
+        if (c == '\n') {
+            if (!current.empty() && current.back() == '\r') current.pop_back();
+            lines.push_back(current);
+            current.clear();
+        } else {
+            current += c;
+        }
+    }
+    if (!current.empty()) lines.push_back(current);
+    if (lines.empty()) lines.push_back(std::string());
+    return lines;
+}
+
+std::string ideJoinLines(const std::vector<std::string>& lines) {
+    std::string out;
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        if (i != 0) out += '\n';
+        out += lines[i];
+    }
+    out += '\n';
+    return out;
+}
+
+std::string ideTrim(const std::string& text) {
+    std::size_t begin = 0, end = text.size();
+    while (begin < end && std::isspace(static_cast<unsigned char>(text[begin])) != 0) ++begin;
+    while (end > begin && std::isspace(static_cast<unsigned char>(text[end - 1])) != 0) --end;
+    return text.substr(begin, end - begin);
+}
+
+std::string ideBaseName(const std::string& path) {
+    const std::size_t slash = path.find_last_of("/\\");
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+}
+
+bool ideReadText(const std::string& path, std::string& out, std::string& error) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        error = "cannot read '" + path + "'";
+        return false;
+    }
+    std::ostringstream buffer;
+    buffer << input.rdbuf();
+    out = buffer.str();
+    return true;
+}
+
+bool ideWriteText(const std::string& path, const std::string& text,
+                  std::string& error) {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output) {
+        error = "cannot write '" + path + "'";
+        return false;
+    }
+    output << text;
+    output.close();
+    if (!output) {
+        error = "cannot write '" + path + "'";
+        return false;
+    }
+    return true;
+}
+
+bool ideIsLynx(const std::string& path) {
+    const std::size_t dot = path.find_last_of('.');
+    const std::size_t slash = path.find_last_of("/\\");
+    if (dot == std::string::npos ||
+        (slash != std::string::npos && dot < slash)) {
+        return false;
+    }
+    std::string extension = path.substr(dot + 1);
+    for (char& c : extension) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return extension == "lynx";
+}
+
+std::vector<IdeEntry> ideListDir(const std::string& path) {
+    static const std::unordered_set<std::string> ignored = {
+        ".git", "node_modules", "target", ".cache", "__pycache__",
+    };
+    std::vector<IdeEntry> entries;
+    std::error_code error;
+    for (const auto& item :
+         std::filesystem::directory_iterator(path, error)) {
+        if (error) break;
+        const std::string name = item.path().filename().string();
+        if (!name.empty() && name[0] == '.' && name != ".gitignore") continue;
+        if (ignored.count(name) != 0) continue;
+        bool isDir = item.is_directory(error);
+        entries.push_back(IdeEntry{name, item.path().string(), isDir});
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const IdeEntry& a, const IdeEntry& b) {
+                  if (a.isDir != b.isDir) return a.isDir;
+                  std::string left = a.name, right = b.name;
+                  for (char& c : left) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                  for (char& c : right) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                  return left < right;
+              });
+    return entries;
+}
+
+void ideAppendTree(IdeState& state, const std::string& directory, int depth,
+                   const std::unordered_set<std::string>& expanded) {
+    if (depth > 32) return;
+    for (const IdeEntry& entry : ideListDir(directory)) {
+        const std::size_t index = state.tree.size();
+        state.tree.push_back(IdeTreeRow{entry.name, entry.path, entry.isDir,
+                                        depth, false});
+        if (entry.isDir && depth < 32 && expanded.count(entry.path) != 0) {
+            state.tree[index].expanded = true;
+            ideAppendTree(state, entry.path, depth + 1, expanded);
+        }
+    }
+}
+
+void ideRefreshTree(IdeState& state) {
+    std::unordered_set<std::string> expanded;
+    for (const IdeTreeRow& row : state.tree) {
+        if (row.expanded) expanded.insert(row.path);
+    }
+    state.tree.clear();
+    ideAppendTree(state, state.root, 0, expanded);
+    if (state.treeSelection >= state.tree.size()) {
+        state.treeSelection = state.tree.empty() ? 0 : state.tree.size() - 1;
+    }
+}
+
+void ideToggleDir(IdeState& state, std::size_t index) {
+    if (index >= state.tree.size() || !state.tree[index].isDir) return;
+    const IdeTreeRow row = state.tree[index];
+    if (row.expanded) {
+        std::size_t end = index + 1;
+        while (end < state.tree.size() && state.tree[end].depth > row.depth) ++end;
+        state.tree.erase(state.tree.begin() + static_cast<std::ptrdiff_t>(index + 1),
+                         state.tree.begin() + static_cast<std::ptrdiff_t>(end));
+        state.tree[index].expanded = false;
+    } else {
+        std::vector<IdeTreeRow> children;
+        for (const IdeEntry& entry : ideListDir(row.path)) {
+            children.push_back(IdeTreeRow{entry.name, entry.path, entry.isDir,
+                                          row.depth + 1, false});
+        }
+        state.tree[index].expanded = true;
+        state.tree.insert(state.tree.begin() + static_cast<std::ptrdiff_t>(index + 1),
+                          children.begin(), children.end());
+    }
+}
+
+bool ideHasBuffer(const IdeState& state) {
+    return state.active < state.buffers.size();
+}
+
+IdeBuffer& ideActive(IdeState& state) {
+    return state.buffers[state.active];
+}
+
+bool ideOpenFile(IdeState& state, const std::string& path) {
+    for (std::size_t i = 0; i < state.buffers.size(); ++i) {
+        if (state.buffers[i].path == path) {
+            state.active = i;
+            return true;
+        }
+    }
+    std::string text, error;
+    if (!ideReadText(path, text, error)) {
+        state.status = "Error: " + error;
+        return false;
+    }
+    IdeBuffer buffer;
+    buffer.path = path;
+    buffer.lines = ideSplitLines(text);
+    buffer.saved = ideJoinLines(buffer.lines);
+    state.buffers.push_back(std::move(buffer));
+    state.active = state.buffers.size() - 1;
+    state.status = "Opened " + path;
+    return true;
+}
+
+void ideSaveActive(IdeState& state) {
+    if (!ideHasBuffer(state)) return;
+    IdeBuffer& buffer = ideActive(state);
+    std::string error;
+    if (!ideWriteText(buffer.path, ideJoinLines(buffer.lines), error)) {
+        state.status = "Error: " + error;
+        return;
+    }
+    buffer.saved = ideJoinLines(buffer.lines);
+    state.status = "Saved " + buffer.path;
+}
+
+void ideCloseTab(IdeState& state) {
+    if (!ideHasBuffer(state)) return;
+    state.buffers.erase(state.buffers.begin() +
+                        static_cast<std::ptrdiff_t>(state.active));
+    if (state.active > 0 && state.active >= state.buffers.size()) --state.active;
+}
+
+void ideEnsureVisible(IdeState& state, int editorHeight) {
+    if (!ideHasBuffer(state)) return;
+    IdeBuffer& buffer = ideActive(state);
+    if (editorHeight < 1) editorHeight = 1;
+    if (buffer.cursorLine < buffer.topLine) {
+        buffer.topLine = buffer.cursorLine;
+    } else if (buffer.cursorLine >=
+               buffer.topLine + static_cast<std::size_t>(editorHeight)) {
+        buffer.topLine = buffer.cursorLine -
+                         static_cast<std::size_t>(editorHeight) + 1;
+    }
+}
+
+bool ideFindPosition(const std::string& line, std::size_t& after, int& row,
+                     int& column) {
+    for (std::size_t i = 0; i < line.size(); ++i) {
+        if (line[i] != ':') continue;
+        std::size_t j = i + 1;
+        const std::size_t lineStart = j;
+        while (j < line.size() && std::isdigit(static_cast<unsigned char>(line[j])) != 0) ++j;
+        if (j == lineStart || j >= line.size() || line[j] != ':') continue;
+        const int parsedLine = std::atoi(line.substr(lineStart, j - lineStart).c_str());
+        std::size_t k = j + 1;
+        const std::size_t columnStart = k;
+        while (k < line.size() && std::isdigit(static_cast<unsigned char>(line[k])) != 0) ++k;
+        if (k == columnStart || k >= line.size() || line[k] != ':') continue;
+        const int parsedColumn = std::atoi(line.substr(columnStart, k - columnStart).c_str());
+        after = k + 1;
+        row = parsedLine;
+        column = parsedColumn;
+        return true;
+    }
+    return false;
+}
+
+std::string ideCodeAndMessage(const std::string& rest, std::string& code) {
+    const std::size_t open = rest.find('[');
+    if (open == std::string::npos) return ideTrim(rest);
+    const std::size_t close = rest.find(']', open);
+    if (close == std::string::npos) return ideTrim(rest);
+    code = rest.substr(open + 1, close - open - 1);
+    std::string message = ideTrim(rest.substr(close + 1));
+    if (!message.empty() && message[0] == ':') message = ideTrim(message.substr(1));
+    return message;
+}
+
+std::vector<IdeDiagnostic> ideParseDiagnostics(const std::string& text) {
+    std::vector<IdeDiagnostic> out;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line)) {
+        const std::string trimmed = ideTrim(line);
+        if (trimmed.empty() || trimmed.rfind("Lint OK", 0) == 0 ||
+            trimmed.rfind("help:", 0) == 0 || trimmed[0] == '|') {
+            continue;
+        }
+        std::size_t after = 0;
+        int row = 0, column = 0;
+        if (!ideFindPosition(line, after, row, column)) {
+            if (trimmed.rfind("lynxer:", 0) == 0) {
+                out.push_back(IdeDiagnostic{"", 0, 0, "error", "", trimmed});
+            }
+            continue;
+        }
+        const std::string rest = ideTrim(line.substr(after));
+        if (rest.empty()) continue;
+        IdeDiagnostic diagnostic;
+        diagnostic.line = row;
+        diagnostic.column = column;
+        if (rest.rfind("warning[", 0) == 0) {
+            diagnostic.severity = "warning";
+        } else if (rest.rfind("error[", 0) == 0 || rest[0] == '[') {
+            diagnostic.severity = "error";
+        } else {
+            continue;
+        }
+        diagnostic.message = ideCodeAndMessage(rest, diagnostic.code);
+        if (diagnostic.message.empty()) continue;
+        out.push_back(std::move(diagnostic));
+    }
+    return out;
+}
+
+void ideCounts(const IdeState& state, int& errors, int& warnings) {
+    errors = 0;
+    warnings = 0;
+    for (const IdeDiagnostic& diagnostic : state.diagnostics) {
+        if (diagnostic.severity == "error") ++errors;
+        else if (diagnostic.severity == "warning") ++warnings;
+    }
+}
+
+void ideRender(IdeState& state) {
+    platform::terminalSize(state.columns, state.rows);
+    const int columns = state.columns;
+    const int rows = state.rows;
+    std::vector<std::string> frame(static_cast<std::size_t>(rows), std::string());
+
+    if (columns < 40 || rows < 10) {
+        std::cout << "\x1b[2J\x1b[H" << kIdeReset
+                  << "Lynxer IDE: terminal too small (need 40x10)\n"
+                  << std::flush;
+        return;
+    }
+
+    const int statusRow = rows - 2;
+    const int hintRow = rows - 1;
+    const int outputHeight = state.showOutput ? std::min(8, rows / 3) : 0;
+    const int outputStart = rows - 2 - outputHeight;
+    const int mainStart = 2;
+    const int mainEnd = outputHeight > 0 ? outputStart - 1 : statusRow - 1;
+    const int mainHeight = mainEnd - mainStart + 1;
+    const int explorerWidth = std::min(32, std::max(22, columns / 4));
+
+    // ------------------------------------------------------------- header
+    std::string header = std::string(kIdeBold) + ideFg(IC_ACCENT) + " LYNXER " +
+                         kIdeReset + ideFg(IC_MUTED) + "IDE" + kIdeReset + "  ";
+    if (ideHasBuffer(state)) {
+        const IdeBuffer& buffer = ideActive(state);
+        header += ideFg(IC_TEXT) + ideBaseName(buffer.path) +
+                  (ideJoinLines(buffer.lines) != buffer.saved
+                       ? ideFg(IC_WARN) + " *"
+                       : std::string());
+        header += kIdeReset + "   " + ideFg(IC_MUTED) + buffer.path + kIdeReset;
+    } else {
+        header += ideFg(IC_MUTED) + "No file open" + kIdeReset;
+    }
+    header += "   " + ideFg(IC_MUTED) + state.version + kIdeReset;
+    ideSetRow(frame, 0, header, columns, IC_SURFACE);
+
+    // ------------------------------------------------------------- tab bar
+    std::string tabs;
+    if (state.buffers.empty()) {
+        tabs = ideFg(IC_MUTED) + "  (no tabs)  Ctrl+O open a file" + kIdeReset;
+    } else {
+        for (std::size_t i = 0; i < state.buffers.size(); ++i) {
+            const bool active = i == state.active;
+            tabs += (active ? ideBg(IC_EDITOR) + ideFg(IC_ACCENT)
+                            : ideFg(IC_MUTED));
+            tabs += " " + ideBaseName(state.buffers[i].path) + " ";
+            tabs += kIdeReset + " ";
+        }
+    }
+    ideSetRow(frame, 1, tabs, columns, IC_SURFACE);
+
+    // --------------------------------------------------------------- body
+    const std::vector<std::string> helpLines = {
+        "  LYNXER TERMINAL IDE - KEY BINDINGS",
+        "",
+        "  Ctrl+O  open file      Ctrl+N  new file     Ctrl+S  save",
+        "  Ctrl+W  close tab      Ctrl+Q  quit         Ctrl+B  change folder",
+        "  Ctrl+E  focus pane     Ctrl+P  output pane   Ctrl+K  clear output",
+        "  Ctrl+G  go to line     Ctrl+F  find          F3     next match",
+        "  Ctrl+Left / Ctrl+Right    previous / next tab",
+        "",
+        "  F1  this help      F4  next problem    F5  run file",
+        "  F6  lint file      F7  format file    F9  build project",
+        "  F10 run project",
+        "",
+        "  Explorer: Up/Down select, Enter open, Right expand, Left collapse",
+        "  Editor:   arrows move, type to edit, Enter newline, Tab indent",
+        "            Backspace/Delete remove, Home/End line bounds",
+        "",
+        "  Highlighting is enabled for .lynx files only.",
+        "  Press F1 or Esc to close this help.",
+    };
+
+    for (int r = 0; r < mainHeight; ++r) {
+        const int row = mainStart + r;
+        std::string left;
+        std::string right;
+        if (state.showHelp) {
+            left = std::string(columns, ' ');
+            const std::size_t index = static_cast<std::size_t>(r);
+            if (index < helpLines.size() && r < mainHeight) {
+                const std::string text = helpLines[index];
+                left = ideBg(IC_PANEL) + ideFg(index == 0 ? IC_ACCENT : IC_TEXT) +
+                       idePad(text, static_cast<std::size_t>(columns)) + kIdeReset;
+            }
+            frame[static_cast<std::size_t>(row)] = ideClamp(left, static_cast<std::size_t>(columns));
+            continue;
+        }
+
+        // Explorer column.
+        const std::size_t treeIndex = state.treeTop + static_cast<std::size_t>(r);
+        if (treeIndex < state.tree.size()) {
+            const IdeTreeRow& item = state.tree[treeIndex];
+            const std::string indent(static_cast<std::size_t>(item.depth) * 2, ' ');
+            const std::string marker = item.isDir
+                                           ? (item.expanded ? "[-] " : "[+] ")
+                                           : (ideIsLynx(item.path) ? " L  " : " .  ");
+            const bool selected = treeIndex == state.treeSelection && state.explorerFocus;
+            left = (selected ? ideBg(IC_EDITOR) : std::string()) +
+                   (item.isDir ? ideFg(IC_ACCENT) :
+                                 (ideIsLynx(item.path) ? ideFg(IC_OK) : ideFg(IC_MUTED))) +
+                   indent + marker + item.name + kIdeReset;
+        }
+        left = idePad(ideClamp(left, static_cast<std::size_t>(explorerWidth - 1)),
+                      static_cast<std::size_t>(explorerWidth - 1));
+        left += ideFg(IC_MUTED) + "\xe2\x94\x82" + kIdeReset;
+
+        // Editor column.
+        const int editorWidth = columns - explorerWidth;
+        if (ideHasBuffer(state)) {
+            IdeBuffer& buffer = ideActive(state);
+            const std::size_t lineIndex = buffer.topLine + static_cast<std::size_t>(r);
+            if (lineIndex < buffer.lines.size()) {
+                std::ostringstream gutter;
+                gutter << std::setw(4) << (lineIndex + 1) << " \xe2\x94\x82 ";
+                const bool current = lineIndex == buffer.cursorLine;
+                right = ideBg(IC_EDITOR) + ideFg(IC_GUTTER) + gutter.str() +
+                        kIdeReset + ideBg(IC_EDITOR) +
+                        ideRenderLine(buffer.lines[lineIndex],
+                                      ideIsLynx(buffer.path),
+                                      buffer.cursorColumn, current) +
+                        kIdeReset;
+            } else {
+                right = ideBg(IC_EDITOR) + ideFg(IC_GUTTER) + "     \xe2\x94\x82 ~" +
+                        kIdeReset;
+            }
+        } else {
+            if (r == mainHeight / 2) {
+                right = ideBg(IC_EDITOR) + ideFg(IC_MUTED) +
+                        "  Open a file with Ctrl+O, or pick one in the explorer" +
+                        kIdeReset;
+            } else {
+                right = ideBg(IC_EDITOR);
+            }
+        }
+        frame[static_cast<std::size_t>(row)] = ideBg(IC_PANEL) +
+            ideClamp(left, static_cast<std::size_t>(explorerWidth)) +
+            ideClamp(right, static_cast<std::size_t>(editorWidth));
+    }
+
+    // ------------------------------------------------------- output panel
+    if (outputHeight > 0 && !state.showHelp) {
+        int errors = 0, warnings = 0;
+        ideCounts(state, errors, warnings);
+        std::ostringstream panelHeader;
+        panelHeader << kIdeBold << ideFg(IC_ACCENT) << " OUTPUT " << kIdeReset
+                    << ideFg(errors > 0 ? IC_ERROR : IC_MUTED) << "E " << errors
+                    << kIdeReset << "  "
+                    << ideFg(warnings > 0 ? IC_WARN : IC_MUTED) << "W " << warnings
+                    << kIdeReset << ideFg(IC_MUTED)
+                    << "    F5 run  F6 lint  F7 format  F9 build  F10 run-project"
+                    << kIdeReset;
+        ideSetRow(frame, outputStart, panelHeader.str(), columns, IC_PANEL);
+        const std::vector<std::string> outputLines = ideSplitLines(state.output);
+        const int visible = outputHeight - 1;
+        const std::size_t first = outputLines.size() >
+                                         static_cast<std::size_t>(visible)
+                                     ? outputLines.size() -
+                                           static_cast<std::size_t>(visible)
+                                     : 0;
+        for (int i = 0; i < visible; ++i) {
+            const std::size_t index = first + static_cast<std::size_t>(i);
+            std::string text = index < outputLines.size() ? outputLines[index] : std::string();
+            int color = IC_MUTED;
+            if (text.find("error") != std::string::npos ||
+                text.find("Error") != std::string::npos) color = IC_ERROR;
+            else if (text.find("warning") != std::string::npos ||
+                     text.find("Warning") != std::string::npos) color = IC_WARN;
+            else if (!text.empty() && text[0] == '[') color = IC_INFO;
+            ideSetRow(frame, outputStart + 1 + i,
+                      ideFg(color) + " " + text + kIdeReset, columns, IC_EDITOR);
+        }
+    }
+
+    // --------------------------------------------------------- status bar
+    std::ostringstream status;
+    if (ideHasBuffer(state)) {
+        const IdeBuffer& buffer = ideActive(state);
+        status << " Ln " << (buffer.cursorLine + 1) << ", Col "
+               << (buffer.cursorColumn + 1) << "   "
+               << (ideIsLynx(buffer.path) ? "Lynxer" : "Plain text") << "   UTF-8";
+        if (ideJoinLines(buffer.lines) != buffer.saved) {
+            status << "   " << ideFg(IC_WARN) << "modified" << kIdeReset;
+        }
+    } else {
+        status << " No file";
+    }
+    int errors = 0, warnings = 0;
+    ideCounts(state, errors, warnings);
+    status << "   " << ideFg(errors > 0 ? IC_ERROR : IC_MUTED) << errors
+           << " errors" << kIdeReset << "  "
+           << ideFg(warnings > 0 ? IC_WARN : IC_MUTED) << warnings
+           << " warnings" << kIdeReset;
+    status << "   " << ideFg(IC_MUTED) << state.status << kIdeReset;
+    ideSetRow(frame, statusRow, status.str(), columns, IC_STATUS);
+
+    // ------------------------------------------------------------ hint row
+    std::string hint;
+    if (state.prompt != IdePrompt::None) {
+        hint = ideFg(IC_ACCENT) + " " + state.promptLabel + ": " + kIdeReset +
+               ideFg(IC_TEXT) + state.promptValue + kIdeReverse + " " +
+               "\x1b[27m" + ideFg(IC_MUTED) + "  (Enter confirm, Esc cancel)" +
+               kIdeReset;
+    } else {
+        hint = ideFg(IC_MUTED) +
+               " ^O open  ^N new  ^S save  ^Q quit  F1 help  F5 run  F6 lint  F7 format  F9 build  F10 run-project" +
+               kIdeReset;
+    }
+    ideSetRow(frame, hintRow, hint, columns, IC_SURFACE);
+
+    std::string output;
+    for (int i = 0; i < rows; ++i) {
+        output += "\x1b[" + std::to_string(i + 1) + ";1H\x1b[0m\x1b[K";
+        output += frame[static_cast<std::size_t>(i)];
+        output += kIdeReset;
+    }
+    std::cout << output << std::flush;
+}
+
+void ideRunCommand(IdeState& state, const std::vector<std::string>& arguments,
+                   const std::string& label, bool lint, bool reload) {
+    std::vector<std::string> command = {state.interpreter};
+    for (const std::string& argument : arguments) command.push_back(argument);
+    state.status = label + " ...";
+    ideRender(state);
+    platform::CapturedCommand captured;
+    std::string error;
+    if (!platform::captureProcess(command, captured, error)) {
+        state.output = "error: " + error + "\n";
+        state.status = label + " failed";
+        return;
+    }
+    std::ostringstream out;
+    out << label << " [exit " << captured.exitCode << "]\n";
+    out << captured.output;
+    state.output = out.str();
+    if (state.output.empty() || state.output.back() != '\n') state.output += '\n';
+    state.status = label + " finished [exit " +
+                   std::to_string(captured.exitCode) + "]";
+    if (lint) {
+        state.diagnostics = ideParseDiagnostics(captured.output);
+        state.diagnosticIndex = 0;
+    }
+    if (reload && ideHasBuffer(state)) {
+        std::string text, readError;
+        if (ideReadText(ideActive(state).path, text, readError)) {
+            IdeBuffer& buffer = ideActive(state);
+            buffer.lines = ideSplitLines(text);
+            buffer.saved = ideJoinLines(buffer.lines);
+            buffer.cursorLine = std::min(buffer.cursorLine, buffer.lines.size() - 1);
+            buffer.cursorColumn = 0;
+        }
+    }
+}
+
+void ideCommandForFile(IdeState& state, const std::string& flag,
+                       const std::string& label, bool lint, bool reload) {
+    if (!ideHasBuffer(state)) {
+        state.status = "Open a file first";
+        return;
+    }
+    ideSaveActive(state);
+    std::vector<std::string> arguments;
+    if (!flag.empty()) arguments.push_back(flag);
+    arguments.push_back(ideActive(state).path);
+    ideRunCommand(state, arguments, label, lint, reload);
+}
+
+void ideInsertText(IdeState& state, const std::string& text) {
+    if (!ideHasBuffer(state)) return;
+    IdeBuffer& buffer = ideActive(state);
+    std::string& line = buffer.lines[buffer.cursorLine];
+    buffer.cursorColumn = std::min(buffer.cursorColumn, line.size());
+    line.insert(buffer.cursorColumn, text);
+    buffer.cursorColumn += text.size();
+}
+
+void ideNewline(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    const std::string& line = buffer.lines[buffer.cursorLine];
+    const std::string tail = line.substr(buffer.cursorColumn);
+    buffer.lines[buffer.cursorLine] = line.substr(0, buffer.cursorColumn);
+    buffer.lines.insert(buffer.lines.begin() +
+                            static_cast<std::ptrdiff_t>(buffer.cursorLine + 1),
+                        tail);
+    ++buffer.cursorLine;
+    buffer.cursorColumn = 0;
+}
+
+void ideBackspace(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    if (buffer.cursorColumn > 0) {
+        std::string& line = buffer.lines[buffer.cursorLine];
+        std::size_t start = buffer.cursorColumn - 1;
+        while (start > 0 &&
+               (static_cast<unsigned char>(line[start]) & 0xC0) == 0x80) {
+            --start;
+        }
+        line.erase(start, buffer.cursorColumn - start);
+        buffer.cursorColumn = start;
+    } else if (buffer.cursorLine > 0) {
+        const std::string tail = buffer.lines[buffer.cursorLine];
+        buffer.cursorColumn = buffer.lines[buffer.cursorLine - 1].size();
+        buffer.lines[buffer.cursorLine - 1] += tail;
+        buffer.lines.erase(buffer.lines.begin() +
+                           static_cast<std::ptrdiff_t>(buffer.cursorLine));
+        --buffer.cursorLine;
+    }
+}
+
+void ideDelete(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    std::string& line = buffer.lines[buffer.cursorLine];
+    if (buffer.cursorColumn < line.size()) {
+        std::size_t end = buffer.cursorColumn + 1;
+        while (end < line.size() &&
+               (static_cast<unsigned char>(line[end]) & 0xC0) == 0x80) {
+            ++end;
+        }
+        line.erase(buffer.cursorColumn, end - buffer.cursorColumn);
+    } else if (buffer.cursorLine + 1 < buffer.lines.size()) {
+        line += buffer.lines[buffer.cursorLine + 1];
+        buffer.lines.erase(buffer.lines.begin() +
+                           static_cast<std::ptrdiff_t>(buffer.cursorLine + 1));
+    }
+}
+
+void ideMoveCursor(IdeState& state, int deltaLine, int deltaColumn) {
+    IdeBuffer& buffer = ideActive(state);
+    const std::size_t maxLine = buffer.lines.size() - 1;
+    if (deltaLine < 0) {
+        buffer.cursorLine = buffer.cursorLine > static_cast<std::size_t>(-deltaLine)
+                                ? buffer.cursorLine - static_cast<std::size_t>(-deltaLine)
+                                : 0;
+    } else if (deltaLine > 0) {
+        buffer.cursorLine = std::min(buffer.cursorLine + static_cast<std::size_t>(deltaLine), maxLine);
+    }
+    const std::string& line = buffer.lines[buffer.cursorLine];
+    if (deltaColumn < 0) {
+        std::size_t target = buffer.cursorColumn;
+        for (int i = 0; i < -deltaColumn && target > 0; ++i) {
+            --target;
+            while (target > 0 && (static_cast<unsigned char>(line[target]) & 0xC0) == 0x80) --target;
+        }
+        buffer.cursorColumn = target;
+    } else if (deltaColumn > 0) {
+        std::size_t target = buffer.cursorColumn;
+        for (int i = 0; i < deltaColumn && target < line.size(); ++i) {
+            ++target;
+            while (target < line.size() && (static_cast<unsigned char>(line[target]) & 0xC0) == 0x80) ++target;
+        }
+        buffer.cursorColumn = target;
+    }
+    buffer.cursorColumn = std::min(buffer.cursorColumn, buffer.lines[buffer.cursorLine].size());
+}
+
+void ideFindNext(IdeState& state) {
+    if (!ideHasBuffer(state) || state.findQuery.empty()) {
+        state.status = "Nothing to find (use Ctrl+F)";
+        return;
+    }
+    IdeBuffer& buffer = ideActive(state);
+    const std::size_t count = buffer.lines.size();
+    for (std::size_t step = 0; step < count; ++step) {
+        const std::size_t index = (buffer.cursorLine + step) % count;
+        std::size_t from = (step == 0) ? buffer.cursorColumn + 1 : 0;
+        const std::string& line = buffer.lines[index];
+        const std::size_t found = line.find(state.findQuery, from);
+        if (found != std::string::npos) {
+            buffer.cursorLine = index;
+            buffer.cursorColumn = found;
+            state.status = "Found '" + state.findQuery + "'";
+            return;
+        }
+    }
+    state.status = "Not found: " + state.findQuery;
+}
+
+void ideNextDiagnostic(IdeState& state) {
+    if (state.diagnostics.empty()) {
+        state.status = "No problems";
+        return;
+    }
+    for (std::size_t step = 0; step < state.diagnostics.size(); ++step) {
+        state.diagnosticIndex = (state.diagnosticIndex + 1) % state.diagnostics.size();
+        const IdeDiagnostic& diagnostic = state.diagnostics[state.diagnosticIndex];
+        if (diagnostic.line <= 0 || !ideHasBuffer(state)) continue;
+        IdeBuffer& buffer = ideActive(state);
+        buffer.cursorLine = std::min(static_cast<std::size_t>(diagnostic.line - 1),
+                                     buffer.lines.size() - 1);
+        buffer.cursorColumn = static_cast<std::size_t>(std::max(0, diagnostic.column - 1));
+        buffer.cursorColumn = std::min(buffer.cursorColumn,
+                                       buffer.lines[buffer.cursorLine].size());
+        state.status = diagnostic.severity + ": " + diagnostic.message;
+        return;
+    }
+    state.status = "No located problems";
+}
+
+void ideConfirmPrompt(IdeState& state, bool& quit) {
+    const std::string value = ideTrim(state.promptValue);
+    switch (state.prompt) {
+        case IdePrompt::Open:
+            if (!value.empty()) {
+                if (ideOpenFile(state, value)) state.explorerFocus = false;
+            }
+            break;
+        case IdePrompt::New: {
+            if (value.empty()) break;
+            std::string error;
+            if (!ideWriteText(value, "\n", error)) {
+                state.status = "Error: " + error;
+                break;
+            }
+            ideRefreshTree(state);
+            if (ideOpenFile(state, value)) state.explorerFocus = false;
+            break;
+        }
+        case IdePrompt::Folder: {
+            std::error_code error;
+            if (!value.empty() && std::filesystem::is_directory(value, error)) {
+                state.root = std::filesystem::absolute(value, error).string();
+                state.tree.clear();
+                state.treeSelection = 0;
+                state.treeTop = 0;
+                ideRefreshTree(state);
+                state.status = "Folder: " + state.root;
+            } else {
+                state.status = "Not a directory: " + value;
+            }
+            break;
+        }
+        case IdePrompt::Goto: {
+            const int target = std::atoi(value.c_str());
+            if (ideHasBuffer(state) && target > 0) {
+                IdeBuffer& buffer = ideActive(state);
+                buffer.cursorLine = std::min(static_cast<std::size_t>(target - 1),
+                                             buffer.lines.size() - 1);
+                buffer.cursorColumn = 0;
+                state.status = "Line " + std::to_string(target);
+            }
+            break;
+        }
+        case IdePrompt::Find:
+            state.findQuery = value;
+            ideFindNext(state);
+            break;
+        case IdePrompt::Quit:
+            if (value == "y" || value == "Y" || value == "yes") quit = true;
+            break;
+        case IdePrompt::None:
+            break;
+    }
+    state.prompt = IdePrompt::None;
+    state.promptValue.clear();
+}
+
+bool ideAnyDirty(const IdeState& state) {
+    for (const IdeBuffer& buffer : state.buffers) {
+        if (ideJoinLines(buffer.lines) != buffer.saved) return true;
+    }
+    return false;
+}
+
+bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
+    bool quit = false;
+
+    // ------------------------------------------------------- prompt editing
+    if (state.prompt != IdePrompt::None) {
+        if (event.code == 0 && !event.bytes.empty()) {
+            const unsigned char c = static_cast<unsigned char>(event.bytes[0]);
+            if (c == 27) {
+                state.prompt = IdePrompt::None;
+                state.promptValue.clear();
+                state.status = "Cancelled";
+            } else if (c == '\r' || c == '\n') {
+                ideConfirmPrompt(state, quit);
+            } else if (c == 8 || c == 127) {
+                if (!state.promptValue.empty()) state.promptValue.pop_back();
+            } else if (c >= 32) {
+                state.promptValue += event.bytes;
+            }
+        }
+        return quit;
+    }
+
+    // ------------------------------------------------------------- help pane
+    if (state.showHelp) {
+        if (event.code == platform::KEY_F1 ||
+            (event.code == 0 && !event.bytes.empty() &&
+             (event.bytes[0] == 27 || event.bytes[0] == 'q'))) {
+            state.showHelp = false;
+        }
+        return false;
+    }
+
+    const int key = event.code;
+    int control = 0;
+    if (key == 0 && event.bytes.size() == 1) {
+        const unsigned char c = static_cast<unsigned char>(event.bytes[0]);
+        if (c < 32) control = static_cast<int>(c);
+    }
+
+    // ---------------------------------------------------------- global keys
+    switch (control) {
+        case 17:  // Ctrl+Q
+            if (ideAnyDirty(state)) {
+                state.prompt = IdePrompt::Quit;
+                state.promptLabel = "Unsaved changes; quit anyway? (y/N)";
+            } else {
+                quit = true;
+            }
+            return quit;
+        case 19:  // Ctrl+S
+            ideSaveActive(state);
+            return false;
+        case 15:  // Ctrl+O
+            state.prompt = IdePrompt::Open;
+            state.promptLabel = "Open file";
+            state.promptValue.clear();
+            return false;
+        case 14:  // Ctrl+N
+            state.prompt = IdePrompt::New;
+            state.promptLabel = "New file";
+            state.promptValue.clear();
+            return false;
+        case 2:  // Ctrl+B
+            state.prompt = IdePrompt::Folder;
+            state.promptLabel = "Open folder";
+            state.promptValue = state.root;
+            return false;
+        case 23:  // Ctrl+W
+            ideCloseTab(state);
+            return false;
+        case 5:  // Ctrl+E
+            state.explorerFocus = !state.explorerFocus;
+            return false;
+        case 16:  // Ctrl+P
+            state.showOutput = !state.showOutput;
+            return false;
+        case 7:  // Ctrl+G
+            state.prompt = IdePrompt::Goto;
+            state.promptLabel = "Go to line";
+            state.promptValue.clear();
+            return false;
+        case 6:  // Ctrl+F
+            state.prompt = IdePrompt::Find;
+            state.promptLabel = "Find";
+            state.promptValue = state.findQuery;
+            return false;
+        case 11:  // Ctrl+K
+            state.output.clear();
+            state.diagnostics.clear();
+            state.status = "Output cleared";
+            return false;
+        case 9:  // Tab
+            if (state.explorerFocus) {
+                state.explorerFocus = false;
+            } else if (ideHasBuffer(state)) {
+                ideInsertText(state, "    ");
+            }
+            return false;
+        case 8:   // Backspace
+        case 127:
+            if (state.explorerFocus) return false;
+            if (ideHasBuffer(state)) ideBackspace(state);
+            return false;
+        case 13:  // Enter
+            if (state.explorerFocus) {
+                if (state.treeSelection < state.tree.size()) {
+                    const IdeTreeRow row = state.tree[state.treeSelection];
+                    if (row.isDir) {
+                        ideToggleDir(state, state.treeSelection);
+                    } else if (ideOpenFile(state, row.path)) {
+                        state.explorerFocus = false;
+                    }
+                }
+            } else if (ideHasBuffer(state)) {
+                ideNewline(state);
+            }
+            return false;
+        default:
+            break;
+    }
+
+    if (key == platform::KEY_F1) {
+        state.showHelp = true;
+        return false;
+    }
+    if (key == platform::KEY_F3) {
+        ideFindNext(state);
+        return false;
+    }
+    if (key == platform::KEY_F4) {
+        ideNextDiagnostic(state);
+        return false;
+    }
+    if (key == platform::KEY_F5) {
+        ideCommandForFile(state, "", "Run", false, false);
+        return false;
+    }
+    if (key == platform::KEY_F6) {
+        ideCommandForFile(state, "--lint", "Lint", true, false);
+        return false;
+    }
+    if (key == platform::KEY_F7) {
+        ideCommandForFile(state, "--format", "Format", false, true);
+        return false;
+    }
+    if (key == platform::KEY_F9) {
+        ideRunCommand(state, {"--build"}, "Build project", false, false);
+        return false;
+    }
+    if (key == platform::KEY_F10) {
+        ideRunCommand(state, {"--run"}, "Run project", false, false);
+        return false;
+    }
+    if (key == platform::KEY_CTRL_LEFT) {
+        if (ideHasBuffer(state)) state.active = state.active > 0 ? state.active - 1 : state.buffers.size() - 1;
+        return false;
+    }
+    if (key == platform::KEY_CTRL_RIGHT) {
+        if (ideHasBuffer(state)) state.active = (state.active + 1) % state.buffers.size();
+        return false;
+    }
+
+    if (state.explorerFocus) {
+        switch (key) {
+            case platform::KEY_UP:
+                if (state.treeSelection > 0) --state.treeSelection;
+                break;
+            case platform::KEY_DOWN:
+                if (state.treeSelection + 1 < state.tree.size()) ++state.treeSelection;
+                break;
+            case platform::KEY_RIGHT:
+                ideToggleDir(state, state.treeSelection);
+                break;
+            case platform::KEY_LEFT: {
+                if (state.treeSelection >= state.tree.size()) break;
+                const IdeTreeRow row = state.tree[state.treeSelection];
+                if (row.expanded) {
+                    ideToggleDir(state, state.treeSelection);
+                } else if (row.depth > 0) {
+                    for (std::size_t i = state.treeSelection; i > 0; --i) {
+                        if (state.tree[i - 1].depth < row.depth) {
+                            state.treeSelection = i - 1;
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            case platform::KEY_HOME:
+                state.treeSelection = 0;
+                break;
+            case platform::KEY_END:
+                if (!state.tree.empty()) state.treeSelection = state.tree.size() - 1;
+                break;
+            case platform::KEY_PAGE_UP:
+                state.treeSelection = state.treeSelection > 10 ? state.treeSelection - 10 : 0;
+                break;
+            case platform::KEY_PAGE_DOWN:
+                state.treeSelection = std::min(state.treeSelection + 10,
+                                               state.tree.empty() ? 0 : state.tree.size() - 1);
+                break;
+            default:
+                break;
+        }
+        // Keep the selection inside the visible explorer pane.
+        const int paneHeight = std::max(1, state.rows - 2 -
+            (state.showOutput ? std::min(8, state.rows / 3) : 0) - 3);
+        if (state.treeSelection < state.treeTop) {
+            state.treeTop = state.treeSelection;
+        } else if (state.treeSelection >=
+                   state.treeTop + static_cast<std::size_t>(paneHeight)) {
+            state.treeTop = state.treeSelection -
+                            static_cast<std::size_t>(paneHeight) + 1;
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------- editor keys
+    if (!ideHasBuffer(state)) {
+        if (key == 0 && control == 0 && !event.bytes.empty() &&
+            static_cast<unsigned char>(event.bytes[0]) == 27) {
+            state.explorerFocus = true;
+        }
+        return false;
+    }
+    switch (key) {
+        case platform::KEY_UP: ideMoveCursor(state, -1, 0); break;
+        case platform::KEY_DOWN: ideMoveCursor(state, 1, 0); break;
+        case platform::KEY_LEFT: ideMoveCursor(state, 0, -1); break;
+        case platform::KEY_RIGHT: ideMoveCursor(state, 0, 1); break;
+        case platform::KEY_HOME:
+            ideActive(state).cursorColumn = 0;
+            break;
+        case platform::KEY_END:
+            ideActive(state).cursorColumn =
+                ideActive(state).lines[ideActive(state).cursorLine].size();
+            break;
+        case platform::KEY_PAGE_UP:
+            ideMoveCursor(state, -std::max(1, state.rows / 2), 0);
+            break;
+        case platform::KEY_PAGE_DOWN:
+            ideMoveCursor(state, std::max(1, state.rows / 2), 0);
+            break;
+        case platform::KEY_DELETE:
+            ideDelete(state);
+            break;
+        default:
+            break;
+    }
+    if (key == 0 && control == 0 && !event.bytes.empty()) {
+        const unsigned char first = static_cast<unsigned char>(event.bytes[0]);
+        if (first == 27) {
+            state.explorerFocus = true;
+        } else if (first >= 32 && first != 127) {
+            ideInsertText(state, event.bytes);
+        }
+    }
+
+    const int editorHeight = std::max(1, state.rows - 2 -
+        (state.showOutput ? std::min(8, state.rows / 3) : 0) - 3);
+    ideEnsureVisible(state, editorHeight);
+    return false;
+}
+
+int launchCliIde(const char* argv0,
+                 const std::vector<std::string>& arguments) {
+    if (arguments.size() > 1) {
+        std::cerr << "lynxer: --cli-ide takes at most one file or folder\n";
+        return 1;
+    }
+    if (!platform::isInteractiveTerminal()) {
+        std::cerr << "lynxer: --cli-ide requires an interactive terminal\n";
+        std::cerr << "lynxer: stdin and stdout must both be attached to a TTY\n";
+        return 1;
+    }
+
+    IdeState state;
+    state.interpreter = runningExecutable(argv0);
+    if (state.interpreter.empty()) {
+        std::cerr << "lynxer: could not locate the running executable\n";
+        return 1;
+    }
+    std::error_code pathError;
+    const std::filesystem::path absolute =
+        std::filesystem::absolute(state.interpreter, pathError);
+    if (!pathError) state.interpreter = absolute.string();
+    state.version = "Lynxer " +
+                    Config::instance().get("version", "0.1.9b2");
+
+    std::error_code cwdError;
+    state.root = std::filesystem::current_path(cwdError).string();
+    if (cwdError) state.root = ".";
+
+    if (!arguments.empty()) {
+        const std::string& target = arguments.front();
+        std::error_code error;
+        if (std::filesystem::is_directory(target, error)) {
+            const std::filesystem::path resolved =
+                std::filesystem::absolute(target, error);
+            state.root = error ? target : resolved.string();
+        } else if (!ideOpenFile(state, target)) {
+            std::cerr << "lynxer: " << state.status << '\n';
+            return 1;
+        }
+    }
+    ideRefreshTree(state);
+    state.status = "Ready";
+
+    std::string error;
+    if (!platform::enableRawInput(error)) {
+        std::cerr << "lynxer: " << error << '\n';
+        return 1;
+    }
+    std::cout << "\x1b[?1049h\x1b[?25l\x1b[2J\x1b[H" << std::flush;
+
+    struct Guard {
+        ~Guard() {
+            std::cout << "\x1b[0m\x1b[?25h\x1b[?1049l" << std::flush;
+            platform::disableRawInput();
+        }
+    } guard;
+
+    while (true) {
+        ideRender(state);
+        const bool quit = ideHandleKey(state, platform::readKey());
+        if (quit) break;
+    }
+    return 0;
 }
 
 // Scaffolds a project into the current working directory. Refuses to
@@ -2041,9 +3834,13 @@ int shellMain(int argc, char** argv) {
         printEasterEgg();
         return 0;
     }
-    // Hidden on purpose: not listed by printUsage().
     if (args[0] == "--gui-ide") {
         return launchGuiIde(
+            argv[0],
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (args[0] == "--cli-ide" || args[0] == "-cli-ide") {
+        return launchCliIde(
             argv[0],
             std::vector<std::string>(args.begin() + 1, args.end()));
     }
