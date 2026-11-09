@@ -190,9 +190,6 @@ void printUsage() {
               << " (override with LYNXER_PREFIX)\n";
     std::cout << "  lynxer --uninstall                          Remove the installed interpreter\n";
     std::cout << "\n";
-    std::cout << "Removed with the bytecode backend (use --compile):\n";
-    std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
-    std::cout << "\n";
 }
 
 void printVersion() {

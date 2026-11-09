@@ -1313,6 +1313,8 @@ testLynxerCliIde: $(LYNXER_TARGET)
 		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
 	if ! grep -q -- '--gui-ide' "$$help"; then \
 		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
+	if grep -q 'Removed with the bytecode backend' "$$help"; then \
+		echo "--help still lists the removed bytecode backend"; cleanup; exit 1; fi; \
 	if $(CLYX) --cli-ide a b > /dev/null 2> "$$err"; then \
 		echo "--cli-ide accepted two arguments"; cleanup; exit 1; fi; \
 	if ! grep -q 'at most one' "$$err"; then \

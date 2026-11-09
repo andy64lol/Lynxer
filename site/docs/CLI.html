@@ -227,9 +227,6 @@ lynxer --emit-library app.lynx -o app.dll        # Windows</code></pre>
 sudo lynxer --uninstall    # remove the installed interpreter</code></pre>
 <p><code>--install</code> copies the running executable (resolved through <code>/proc/self/exe</code>), its <code>stdlib/</code> directory and <code>lynxer.config</code> into a self-contained tree under <code>/usr/lib/lynxer</code>, then creates the symlink <code>/usr/bin/lynxer</code> to the real binary. The symlink resolves through <code>/proc/self/exe</code>, so the installed interpreter finds its stdlib from any working directory — <code>lynxer app.lynx</code> works with no build tree present. Set <code>LYNXER_PREFIX</code> to use a prefix other than <code>/usr</code> (for example <code>LYNXER_PREFIX=$HOME/.local</code>), and pass the same value to <code>--uninstall</code>. Without write permission it prints the failure and a <code>sudo</code> hint and exits <code>1</code>. <code>--uninstall</code> removes the symlink and the tree; when neither is present it reports why and exits <code>1</code>.</p>
 <p>On Windows the default prefix is <code>%LOCALAPPDATA%\Programs\Lynxer</code>, the launcher is a copy (<code>bin\lynxer.exe</code>) rather than a symlink, and the installed binary is <code>lynxer.exe</code>. See <a href="windows.html">windows</a>.</p>
-<h2 id="removed-with-the-bytecode-backend">Removed with the bytecode backend</h2>
-<p>These are recognised and exit <code>1</code> with <code>lynxer: &#x27;&lt;flag&gt;&#x27; was removed with the bytecode backend; use lynxer --compile instead</code>:</p>
-<p><code>--view-bytecode</code> (aliases <code>--inspect-bytecode</code>, <code>--disasm</code>), <code>--benchmark-compile</code> (alias <code>--bench-compile</code>), <code>--no-cache</code>.</p>
 <h2 id="environment-variables">Environment variables</h2>
 <table>
 <tr><th>Variable</th><th>Effect</th></tr>

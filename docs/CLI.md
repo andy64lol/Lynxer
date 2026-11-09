@@ -318,14 +318,6 @@ On Windows the default prefix is `%LOCALAPPDATA%\Programs\Lynxer`, the launcher
 is a copy (`bin\lynxer.exe`) rather than a symlink, and the installed binary is
 `lynxer.exe`. See [windows.md](windows.md).
 
-## Removed with the bytecode backend
-
-These are recognised and exit `1` with
-`lynxer: '<flag>' was removed with the bytecode backend; use lynxer --compile instead`:
-
-`--view-bytecode` (aliases `--inspect-bytecode`, `--disasm`),
-`--benchmark-compile` (alias `--bench-compile`), `--no-cache`.
-
 ## Environment variables
 
 | Variable | Effect |
