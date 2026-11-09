@@ -1,0 +1,24 @@
+[package]
+name = "lynxer-ide"
+version = "0.1.0"
+edition = "2021"
+description = "Lynxer IDE - a native Rust GUI (iced), no webview"
+
+# iced draws with wgpu/tiny-skia in a native window. rfd provides native file
+# dialogs. No Tauri, no React, no Monaco, no webview.
+#
+# RUNTIME DEPENDENCY (not a Cargo crate): the IDE shells out to the `lynxer`
+# interpreter. Build it from the repo root with `make build`, or run
+# `make check-lynxer` here. See README.md.
+[dependencies]
+iced = { version = "=0.14.0", default-features = true, features = ["advanced", "svg", "image-without-codecs"] }
+rfd = "=0.17.2"
+# Only the PNG codec is needed to decode the embedded logo; enabling iced's
+# full `image` feature would pull in every codec (including the AVIF encoder).
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

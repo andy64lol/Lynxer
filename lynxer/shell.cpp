@@ -1153,7 +1153,7 @@ bool writeProjectFile(const std::string& path, const std::string& content,
 // ---------------------------------------------------------------------------
 // GUI IDE
 //
-// `--gui-ide` is a launcher for the native Rust IDE in `editors/ide`. It is
+// `--gui-ide` is a launcher for the native Rust IDE in `lynxer/ide`. It is
 // listed in --help together with `--cli-ide`. The IDE is a separate
 // executable, so this command resolves it, tells it which interpreter to use
 // for Run/Lint/Format, and waits for it to exit.
@@ -1192,10 +1192,8 @@ std::string findIdeBinary() {
     const std::vector<std::filesystem::path> candidates = {
         beside / ideFileName(),
         beside / ".." / "lib" / "lynxer" / ideFileName(),
-        beside / ".." / "editors" / "ide" / "target" / "release" /
-            ideFileName(),
-        beside / ".." / "editors" / "ide" / "target" / "debug" /
-            ideFileName(),
+        beside / "ide" / "target" / "release" / ideFileName(),
+        beside / "ide" / "target" / "debug" / ideFileName(),
     };
     for (const auto& candidate : candidates) {
         if (isIdeFile(candidate.string())) {
@@ -1226,8 +1224,8 @@ int launchGuiIde(const char* argv0,
             std::cerr << "lynxer: the Lynxer IDE executable ("
                       << ideFileName()
                       << ") was not found beside the interpreter or in "
-                         "editors/ide/target/{release,debug}\n";
-            std::cerr << "lynxer: build it with 'make -C editors/ide build', "
+                         "lynxer/ide/target/{release,debug}\n";
+            std::cerr << "lynxer: build it with 'make -C lynxer/ide build', "
                          "or set LYNXER_IDE to its path\n";
         }
         return 1;

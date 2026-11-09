@@ -1506,6 +1506,7 @@ cleanLynxer:
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
+	@rm -rf $(LYNXER_DIR)/ide/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
 cleanAll: clean cleanLynxer

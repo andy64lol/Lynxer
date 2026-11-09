@@ -80,7 +80,7 @@ listed by `--help`:
 ### GUI IDE
 
 `--gui-ide` resolves `lynxer-ide` next to the interpreter, in the installed
-`<prefix>/lib/lynxer` layout, or in `editors/ide/target/{release,debug}`. Set
+`<prefix>/lib/lynxer` layout, or in `lynxer/ide/target/{release,debug}`. Set
 `LYNXER_IDE` to an explicit executable (or a directory containing it) to
 override. The launcher passes its own absolute path as `--lynxer <path>`, so
 Run / Lint / Format work even when `lynxer` is not on `PATH`. It takes no
