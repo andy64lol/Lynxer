@@ -1408,6 +1408,7 @@ testLynxerGlobalDeprecation: $(LYNXER_TARGET)
 
 testLynxerProject: $(LYNXER_TARGET)
 	@project="$(CLYX_TMP)_project"; \
+	suffix="$(if $(LYNXER_ON_WINDOWS),.exe,)"; \
 	rm -rf "$$project"; mkdir -p "$$project"; \
 	lynxer="$(abspath $(CLYX))"; \
 	if ! (cd "$$project" && "$$lynxer" --init demo > /dev/null); then \
@@ -1422,8 +1423,8 @@ testLynxerProject: $(LYNXER_TARGET)
 		echo "project .gitignore does not ignore build/"; rm -rf "$$project"; exit 1; fi; \
 	if ! (cd "$$project" && "$$lynxer" --build > /dev/null); then \
 		echo "lynxer --build failed"; rm -rf "$$project"; exit 1; fi; \
-	if [ ! -x "$$project/build/demo" ]; then \
-		echo "lynxer --build did not produce build/demo"; rm -rf "$$project"; exit 1; fi; \
+	if [ ! -x "$$project/build/demo$$suffix" ]; then \
+		echo "lynxer --build did not produce build/demo$$suffix"; rm -rf "$$project"; exit 1; fi; \
 	output="$$(cd "$$project" && "$$lynxer" --run 2>/dev/null)"; \
 	status=$$?; \
 	if [ "$$status" -ne 0 ]; then \

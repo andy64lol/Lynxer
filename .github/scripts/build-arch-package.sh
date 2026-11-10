@@ -190,7 +190,12 @@ if [[ "$smoke_output" != "3" ]]; then
   rm -f /tmp/lynxer-package-smoke.lynx
   exit 1
 fi
-if ! /usr/bin/lynxer --list-stdlibs | grep -Fxq '  math'; then
+# Capture the full listing before grepping. Piping a large listing straight
+# into `grep -q` makes grep exit on the first match; under `set -o pipefail`
+# the writer then dies on SIGPIPE and the pipeline reports 141 even though the
+# match was found. A here-string keeps this a single command (no pipeline).
+installed_stdlibs="$(/usr/bin/lynxer --list-stdlibs)"
+if ! grep -Fxq '  math' <<< "$installed_stdlibs"; then
   printf 'Installed Lynxer did not find its stdlib.\n' >&2
   rm -f /tmp/lynxer-package-smoke.lynx
   exit 1
