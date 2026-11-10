@@ -505,8 +505,21 @@ int decodeCsi(const std::string& sequence) {
 
 bool isInteractiveTerminal() {
 #if defined(_WIN32)
-    return ::_isatty(::_fileno(stdin)) != 0 &&
-           ::_isatty(::_fileno(stdout)) != 0;
+    // `_isatty()` treats any character device as a terminal, including the NUL
+    // device that `/dev/null` maps to under MSYS2. A redirected stream still
+    // looked interactive, so the IDE skipped its guard and failed later in
+    // enableRawInput() with a confusing message. GetConsoleMode only succeeds
+    // on a real console handle, which is exactly what the IDE needs.
+    DWORD mode = 0;
+    const DWORD streams[] = {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
+    for (const DWORD which : streams) {
+        const HANDLE stream = ::GetStdHandle(which);
+        if (stream == nullptr || stream == INVALID_HANDLE_VALUE ||
+            ::GetConsoleMode(stream, &mode) == 0) {
+            return false;
+        }
+    }
+    return true;
 #else
     return ::isatty(STDIN_FILENO) != 0 && ::isatty(STDOUT_FILENO) != 0;
 #endif
