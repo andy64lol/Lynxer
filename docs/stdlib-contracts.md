@@ -31,9 +31,10 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 
 ### Operation names
 
-- The backend registers each operation under the name the wrapper calls; new
-  wrappers declare the lowerCamelCase public function with `fn`. Existing
-  `global` declarations remain accepted as deprecated syntax.
+- The backend registers each operation under the name the wrapper calls; every
+  wrapper declares its lowerCamelCase public function with `fn`. The language
+  still accepts `global`/`func`/`local` declarations as deprecated syntax, but
+  the standard library no longer uses them.
 - The wrapper imports its backend once, in `setup()`, with
   `importAs("<name>.so", "native<Name>")`. Nothing else in the wrapper refers to
   the backend.

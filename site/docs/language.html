@@ -167,7 +167,7 @@ fn main() {
 fn main() {
     println(calculate(21));
 }</code></pre>
-<p><code>fn setup()</code> is an optional initialization entry point; <code>fn main()</code> is mandatory. Other declarations, including functions, may follow <code>main()</code>. A template's or class's parent must still be declared before the child. The legacy <code>global</code>, <code>local</code> and <code>func</code> function keywords continue to parse with deprecation warnings when a program is run or linted; use <code>fn</code> for new code. The new <code>fn</code> keyword is accepted for top-level and nested declarations.</p>
+<p><code>fn setup()</code> is an optional initialization entry point; <code>fn main()</code> is mandatory. Other declarations, including functions, may follow <code>main()</code>. A template's or class's parent must still be declared before the child. The legacy <code>global</code>, <code>local</code> and <code>func</code> function keywords continue to parse with deprecation warnings when a program is run or linted; use <code>fn</code> for new code. The <code>global.</code> call prefix is likewise deprecated (it warns with <code>deprecatedGlobalPrefix</code>); variables, builtins and module members are all reached by bare name. The new <code>fn</code> keyword is accepted for top-level and nested declarations.</p>
 <p>Executable code outside a function body is a syntax error (<code>expected top-level function declaration</code>).</p>
 <p><code>setup()</code> and <code>main()</code> may take <strong>defaulted parameters</strong>; they are filled in before the body runs:</p>
 <pre><code>fn setup(int retries = 3) {

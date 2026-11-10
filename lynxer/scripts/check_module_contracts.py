@@ -314,7 +314,11 @@ class Wrapper:
         self.skipped: list[tuple[int, str]] = []
 
 
-GLOBAL_FUNCTION = re.compile(r"\bglobal\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+# `fn` is the canonical declaration keyword; the legacy `global`/`func`/
+# `local` spellings are still accepted and remain here for older wrappers.
+FUNCTION_DECL = re.compile(
+    r"\b(?:fn|global|func|local)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("
+)
 IMPORT_AS = re.compile(r'importAs\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)')
 
 
@@ -333,7 +337,7 @@ def parse_wrapper(path: Path, module: str) -> Wrapper:
         r"\bglobal\." + re.escape(wrapper.alias) + r"\.([A-Za-z_][A-Za-z0-9_]*)\s*\("
     )
 
-    for function in GLOBAL_FUNCTION.finditer(text):
+    for function in FUNCTION_DECL.finditer(text):
         # Parameters run from the `(` to its matching `)`.
         params_open = function.end() - 1
         params_close = params_open

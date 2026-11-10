@@ -11,119 +11,119 @@ backed by the Rust `url` crate.
 Requires a Rust toolchain to build (see `rust/network`); the module is skipped
 when `cargo` is unavailable.
 ////
-global setup(){ importAs("network.so", "nativeNetwork"); }
+fn setup(){ importAs("network.so", "nativeNetwork"); }
 
-global get(str url) -> str { return global.nativeNetwork.get(url); }
-global getStatus(str url) -> int { return global.nativeNetwork.getStatus(url); }
-global getHeaders(str url) -> str { return global.nativeNetwork.getHeaders(url); }
-global post(str url, str body, str contentType) -> str {
+fn get(str url) -> str { return global.nativeNetwork.get(url); }
+fn getStatus(str url) -> int { return global.nativeNetwork.getStatus(url); }
+fn getHeaders(str url) -> str { return global.nativeNetwork.getHeaders(url); }
+fn post(str url, str body, str contentType) -> str {
     return global.nativeNetwork.post(url, body, contentType);
 }
-global put(str url, str body, str contentType) -> str {
+fn put(str url, str body, str contentType) -> str {
     return global.nativeNetwork.put(url, body, contentType);
 }
-global delete(str url) -> str { return global.nativeNetwork.delete(url); }
-global patch(str url, str body, str contentType) -> str {
+fn delete(str url) -> str { return global.nativeNetwork.delete(url); }
+fn patch(str url, str body, str contentType) -> str {
     return global.nativeNetwork.patch(url, body, contentType);
 }
-global getJson(str url) -> str { return global.nativeNetwork.getJson(url); }
-global postJson(str url, str jsonBody) -> str {
+fn getJson(str url) -> str { return global.nativeNetwork.getJson(url); }
+fn postJson(str url, str jsonBody) -> str {
     return global.nativeNetwork.postJson(url, jsonBody);
 }
-global download(str url, str filepath) -> str {
+fn download(str url, str filepath) -> str {
     return global.nativeNetwork.download(url, filepath);
 }
-global urlencode(str text) -> str { return global.nativeNetwork.urlencode(text); }
-global httpHead(str url) -> int { return global.nativeNetwork.httpHead(url); }
-global urlScheme(str url) -> str { return global.nativeNetwork.urlScheme(url); }
-global urlHost(str url) -> str { return global.nativeNetwork.urlHost(url); }
-global urlPath(str url) -> str { return global.nativeNetwork.urlPath(url); }
-global urlParse(str url) -> str { return global.nativeNetwork.urlParse(url); }
-global getHostname() -> str { return global.nativeNetwork.getHostname(); }
-global resolveHost(str hostname) -> str {
+fn urlencode(str text) -> str { return global.nativeNetwork.urlencode(text); }
+fn httpHead(str url) -> int { return global.nativeNetwork.httpHead(url); }
+fn urlScheme(str url) -> str { return global.nativeNetwork.urlScheme(url); }
+fn urlHost(str url) -> str { return global.nativeNetwork.urlHost(url); }
+fn urlPath(str url) -> str { return global.nativeNetwork.urlPath(url); }
+fn urlParse(str url) -> str { return global.nativeNetwork.urlParse(url); }
+fn getHostname() -> str { return global.nativeNetwork.getHostname(); }
+fn resolveHost(str hostname) -> str {
     return global.nativeNetwork.resolveHost(hostname);
 }
 
 // RFC 3986 URL manipulation (the Rust `url` crate).
-global urlIsValid(str url) -> bool {
+fn urlIsValid(str url) -> bool {
     return global.nativeNetwork.urlIsValid(url) isnt 0;
 }
-global urlJoin(str base, str ref) -> str {
+fn urlJoin(str base, str ref) -> str {
     return global.nativeNetwork.urlJoin(base, ref);
 }
-global urlNormalize(str url) -> str {
+fn urlNormalize(str url) -> str {
     return global.nativeNetwork.urlNormalize(url);
 }
-global urlGet(str url, str part) -> str {
+fn urlGet(str url, str part) -> str {
     return global.nativeNetwork.urlGet(url, part);
 }
-global urlSetScheme(str url, str scheme) -> str {
+fn urlSetScheme(str url, str scheme) -> str {
     return global.nativeNetwork.urlSetScheme(url, scheme);
 }
-global urlSetHost(str url, str host) -> str {
+fn urlSetHost(str url, str host) -> str {
     return global.nativeNetwork.urlSetHost(url, host);
 }
-global urlSetPort(str url, int port) -> str {
+fn urlSetPort(str url, int port) -> str {
     return global.nativeNetwork.urlSetPort(url, port);
 }
-global urlSetPath(str url, str path) -> str {
+fn urlSetPath(str url, str path) -> str {
     return global.nativeNetwork.urlSetPath(url, path);
 }
-global urlQueryGet(str url, str key) -> str {
+fn urlQueryGet(str url, str key) -> str {
     return global.nativeNetwork.urlQueryGet(url, key);
 }
-global urlQuerySet(str url, str key, str value) -> str {
+fn urlQuerySet(str url, str key, str value) -> str {
     return global.nativeNetwork.urlQuerySet(url, key, value);
 }
-global urlQueryRemove(str url, str key) -> str {
+fn urlQueryRemove(str url, str key) -> str {
     return global.nativeNetwork.urlQueryRemove(url, key);
 }
-global urlQueryAppend(str url, str key, str value) -> str {
+fn urlQueryAppend(str url, str key, str value) -> str {
     return global.nativeNetwork.urlQueryAppend(url, key, value);
 }
-global urlEncodeComponent(str text) -> str {
+fn urlEncodeComponent(str text) -> str {
     return global.nativeNetwork.urlEncodeComponent(text);
 }
-global urlDecodeComponent(str text) -> str {
+fn urlDecodeComponent(str text) -> str {
     return global.nativeNetwork.urlDecodeComponent(text);
 }
 
-global wsConnect(str name, str uri) -> str {
+fn wsConnect(str name, str uri) -> str {
     return global.nativeNetwork.wsConnect(name, uri);
 }
-global wsSend(str name, str message) -> str {
+fn wsSend(str name, str message) -> str {
     return global.nativeNetwork.wsSend(name, message);
 }
-global wsReceive(str name) -> str { return global.nativeNetwork.wsReceive(name); }
-global wsSendReceive(str name, str message) -> str {
+fn wsReceive(str name) -> str { return global.nativeNetwork.wsReceive(name); }
+fn wsSendReceive(str name, str message) -> str {
     return global.nativeNetwork.wsSendReceive(name, message);
 }
-global wsClose(str name) -> str { return global.nativeNetwork.wsClose(name); }
-global wsConnected(str name) -> bool {
+fn wsClose(str name) -> str { return global.nativeNetwork.wsClose(name); }
+fn wsConnected(str name) -> bool {
     return global.nativeNetwork.wsConnected(name) isnt 0;
 }
 
-global tcpConnect(str name, str host, int port) -> str {
+fn tcpConnect(str name, str host, int port) -> str {
     return global.nativeNetwork.tcpConnect(name, host, port);
 }
-global tcpSend(str name, str data) -> str {
+fn tcpSend(str name, str data) -> str {
     return global.nativeNetwork.tcpSend(name, data);
 }
-global tcpReceive(str name, int bufSize) -> str {
+fn tcpReceive(str name, int bufSize) -> str {
     return global.nativeNetwork.tcpReceive(name, bufSize);
 }
-global tcpSendReceive(str name, str data, int bufSize) -> str {
+fn tcpSendReceive(str name, str data, int bufSize) -> str {
     return global.nativeNetwork.tcpSendReceive(name, data, bufSize);
 }
-global tcpClose(str name) -> str {
+fn tcpClose(str name) -> str {
     return global.nativeNetwork.tcpClose(name);
 }
-global isPortOpen(str host, int port, int timeoutSecs) -> bool {
+fn isPortOpen(str host, int port, int timeoutSecs) -> bool {
     return global.nativeNetwork.isPortOpen(host, port, timeoutSecs) isnt 0;
 }
-global ping(str host) -> bool {
+fn ping(str host) -> bool {
     return global.nativeNetwork.ping(host) isnt 0;
 }
-global getLocalIP() -> str { return global.nativeNetwork.getLocalIP(); }
+fn getLocalIP() -> str { return global.nativeNetwork.getLocalIP(); }
 
-global main(){}
+fn main(){}

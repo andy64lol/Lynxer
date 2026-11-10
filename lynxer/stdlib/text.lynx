@@ -4,9 +4,9 @@ Unicode text operations and Lynxer string helpers for searching, replacing and
 repetition.
 ////
 
-global setup(){ importAs("text.so", "nativeText"); }
+fn setup(){ importAs("text.so", "nativeText"); }
 
-global reverse(str value) -> str {
+fn reverse(str value) -> str {
     str result = "";
     int index = returnLength(value) - 1;
     while(index >= 0){
@@ -15,14 +15,14 @@ global reverse(str value) -> str {
     }
     return result;
 }
-global repeat(str value, int count) -> str {
+fn repeat(str value, int count) -> str {
     str result = "";
     int index = 0;
     while(index < count){ result = result + value; index = index + 1; }
     return result;
 }
-global trim(str value) -> str { return global.trim(value); }
-global contains(str value, str needle) -> bool {
+fn trim(str value) -> str { return global.trim(value); }
+fn contains(str value, str needle) -> bool {
     if(needle is ""){ return true; }
     int index = 0;
     while(index <= returnLength(value) - returnLength(needle)){
@@ -33,15 +33,15 @@ global contains(str value, str needle) -> bool {
     }
     return false;
 }
-global startsWith(str value, str prefix) -> bool {
+fn startsWith(str value, str prefix) -> bool {
     return substring(value, 0, returnLength(prefix)) is prefix;
 }
-global endsWith(str value, str suffix) -> bool {
+fn endsWith(str value, str suffix) -> bool {
     int start = returnLength(value) - returnLength(suffix);
     if(start < 0){ return false; }
     return substring(value, start, returnLength(value)) is suffix;
 }
-global count(str value, str needle) -> int {
+fn count(str value, str needle) -> int {
     if(needle is ""){ return 0; }
     int total = 0;
     int index = 0;
@@ -53,51 +53,51 @@ global count(str value, str needle) -> int {
     }
     return total;
 }
-global replace(str value, str oldValue, str newValue) -> str {
+fn replace(str value, str oldValue, str newValue) -> str {
     return global.replace(value, oldValue, newValue);
 }
-global upper(str value) -> str { return global.nativeText.upper(value); }
-global lower(str value) -> str { return global.nativeText.lower(value); }
-global upperAscii(str value) -> str { return global.upper(value); }
-global lowerAscii(str value) -> str { return global.lower(value); }
-global isEmpty(str value) -> bool { return returnLength(value) is 0; }
-global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
+fn upper(str value) -> str { return global.nativeText.upper(value); }
+fn lower(str value) -> str { return global.nativeText.lower(value); }
+fn upperAscii(str value) -> str { return global.upper(value); }
+fn lowerAscii(str value) -> str { return global.lower(value); }
+fn isEmpty(str value) -> bool { return returnLength(value) is 0; }
+fn isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
 
 // Space, tab, carriage return and newline. Python's text helpers strip all
 // Unicode whitespace; the ASCII set is what Lynxer matches.
-func textIsSpace(str value) -> bool {
+fn textIsSpace(str value) -> bool {
     return returnLength(value) is 1 and contains(" \t\n\r", value);
 }
 
 // Forwarders to the interpreter's own string builtins, so that
 // `global.text.<name>` resolves like the reference module.
-global substring(str value, int start, int end) -> str {
+fn substring(str value, int start, int end) -> str {
     return global.substring(value, start, end);
 }
-global charAt(str value, int index) -> str {
+fn charAt(str value, int index) -> str {
     return global.charAt(value, index);
 }
-global split(str value, str separator) -> list {
+fn split(str value, str separator) -> list {
     return global.splitStr(value, separator);
 }
-global join(list parts, str separator) -> str {
+fn join(list parts, str separator) -> str {
     return global.listJoin(parts, separator);
 }
-global trimLeft(str value) -> str {
+fn trimLeft(str value) -> str {
     int index = 0;
     while(index < returnLength(value) and textIsSpace(charAt(value, index))){
         index = index + 1;
     }
     return substring(value, index, returnLength(value));
 }
-global trimRight(str value) -> str {
+fn trimRight(str value) -> str {
     int end = returnLength(value);
     while(end > 0 and textIsSpace(charAt(value, end - 1))){
         end = end - 1;
     }
     return substring(value, 0, end);
 }
-global replaceFirst(str value, str oldValue, str newValue) -> str {
+fn replaceFirst(str value, str oldValue, str newValue) -> str {
     if(returnLength(oldValue) is 0){ return value; }
     int index = 0;
     while(index <= returnLength(value) - returnLength(oldValue)){
@@ -110,14 +110,14 @@ global replaceFirst(str value, str oldValue, str newValue) -> str {
     }
     return value;
 }
-global remove(str value, str target) -> str {
+fn remove(str value, str target) -> str {
     return global.replace(value, target, "");
 }
-global capitalize(str value) -> str {
+fn capitalize(str value) -> str {
     if(returnLength(value) is 0){ return ""; }
     return upper(charAt(value, 0)) + lower(substring(value, 1, returnLength(value)));
 }
-global swapCase(str value) -> str {
+fn swapCase(str value) -> str {
     str result = "";
     int index = 0;
     while(index < returnLength(value)){
@@ -133,7 +133,7 @@ global swapCase(str value) -> str {
     }
     return result;
 }
-global title(str value) -> str {
+fn title(str value) -> str {
     str result = "";
     bool boundary = true;
     int index = 0;
@@ -152,14 +152,14 @@ global title(str value) -> str {
     }
     return result;
 }
-global isAlpha(str value) -> bool {
+fn isAlpha(str value) -> bool {
     return global.nativeText.isAlpha(value) isnt 0;
 }
-global isNumeric(str value) -> bool {
+fn isNumeric(str value) -> bool {
     return global.nativeText.isNumeric(value) isnt 0;
 }
-global isDigit(str value) -> bool { return isNumeric(value); }
-global isAlphaAscii(str value) -> bool {
+fn isDigit(str value) -> bool { return isNumeric(value); }
+fn isAlphaAscii(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
@@ -170,7 +170,7 @@ global isAlphaAscii(str value) -> bool {
     }
     return true;
 }
-global isNumericAscii(str value) -> bool {
+fn isNumericAscii(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
@@ -180,8 +180,8 @@ global isNumericAscii(str value) -> bool {
     }
     return true;
 }
-global isDigitAscii(str value) -> bool { return isNumericAscii(value); }
-global isAlphaNumeric(str value) -> bool {
+fn isDigitAscii(str value) -> bool { return isNumericAscii(value); }
+fn isAlphaNumeric(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
@@ -193,7 +193,7 @@ global isAlphaNumeric(str value) -> bool {
     }
     return true;
 }
-global isAlphaNumericAscii(str value) -> bool {
+fn isAlphaNumericAscii(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
@@ -204,25 +204,25 @@ global isAlphaNumericAscii(str value) -> bool {
     }
     return true;
 }
-global padLeft(str value, int width, str fill) -> str {
+fn padLeft(str value, int width, str fill) -> str {
     int missing = width - returnLength(value);
     if(missing <= 0 or returnLength(fill) is 0){ return value; }
     str padding = repeat(fill, missing /% returnLength(fill) + 1);
     return substring(padding, 0, missing) + value;
 }
-global padRight(str value, int width, str fill) -> str {
+fn padRight(str value, int width, str fill) -> str {
     int missing = width - returnLength(value);
     if(missing <= 0 or returnLength(fill) is 0){ return value; }
     str padding = repeat(fill, missing /% returnLength(fill) + 1);
     return value + substring(padding, 0, missing);
 }
-global center(str value, int width, str fill) -> str {
+fn center(str value, int width, str fill) -> str {
     int margin = width - returnLength(value);
     if(margin <= 0 or returnLength(fill) is 0){ return value; }
     int left = margin /% 2 + (margin % 2) * (width % 2);
     return padLeft("", left, fill) + value + padLeft("", margin - left, fill);
 }
-global splitLines(str value) -> list {
+fn splitLines(str value) -> list {
     list parts = [];
     str current = "";
     int index = 0;
@@ -243,10 +243,10 @@ global splitLines(str value) -> list {
     if(returnLength(current) > 0){ parts = listPush(parts, current); }
     return parts;
 }
-global indent(str value, str prefix) -> str {
+fn indent(str value, str prefix) -> str {
     return prefix + global.replace(value, "\n", "\n" + prefix);
 }
-global indexOf(str value, str needle) -> int {
+fn indexOf(str value, str needle) -> int {
     if(returnLength(needle) is 0){ return 0; }
     int index = 0;
     while(index <= returnLength(value) - returnLength(needle)){
@@ -257,8 +257,8 @@ global indexOf(str value, str needle) -> int {
     }
     return -1;
 }
-global spaces(int count) -> str { return repeat(" ", count); }
-global zfill(str value, int width) -> str {
+fn spaces(int count) -> str { return repeat(" ", count); }
+fn zfill(str value, int width) -> str {
     if(returnLength(value) >= width){ return value; }
     str sign = "";
     str digits = value;
@@ -271,7 +271,7 @@ global zfill(str value, int width) -> str {
     }
     return sign + padLeft(digits, width - returnLength(sign), "0");
 }
-global wordWrap(str value, int width) -> str {
+fn wordWrap(str value, int width) -> str {
     if(width <= 0){ return value; }
     list words = split(value, " ");
     str line = "";
@@ -292,7 +292,7 @@ global wordWrap(str value, int width) -> str {
     if(returnLength(line) > 0){ lines = listPush(lines, line); }
     return join(lines, "\n");
 }
-global expandTabs(str value, int tabSize) -> str {
+fn expandTabs(str value, int tabSize) -> str {
     if(tabSize <= 0){ return value; }
     str result = "";
     int column = 0;
@@ -314,7 +314,7 @@ global expandTabs(str value, int tabSize) -> str {
     }
     return result;
 }
-global splitFirst(str value, str separator) -> list {
+fn splitFirst(str value, str separator) -> list {
     if(returnLength(separator) is 0){ return ["", value]; }
     int at = indexOf(value, separator);
     if(at < 0){ return [value, ""]; }
@@ -322,4 +322,4 @@ global splitFirst(str value, str separator) -> list {
             substring(value, at + returnLength(separator), returnLength(value))];
 }
 
-global main(){}
+fn main(){}

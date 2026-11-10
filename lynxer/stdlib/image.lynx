@@ -8,196 +8,196 @@ OpenEXR, and farbfeld through the enabled Rust codecs, and rasterises SVG
 (`openSvg`). Transform functions return new handles unless documented as
 mutating (`setPixel`, `setPixelA`, `fill`, `paste`, and `pasteWithAlpha`).
 ////
-global setup(){ importAs("image.so", "nativeImage"); }
+fn setup(){ importAs("image.so", "nativeImage"); }
 
-global open(str path) -> int { return global.nativeImage.open(path); }
+fn open(str path) -> int { return global.nativeImage.open(path); }
 
 // Rasterise an SVG (or SVGZ) at its intrinsic size.
-global openSvg(str path) -> int { return global.nativeImage.openSvg(path, 0, 0); }
+fn openSvg(str path) -> int { return global.nativeImage.openSvg(path, 0, 0); }
 // Rasterise an SVG scaled to fit inside width x height, preserving aspect ratio.
-global openSvgSize(str path, int width, int height) -> int {
+fn openSvgSize(str path, int width, int height) -> int {
     return global.nativeImage.openSvg(path, width, height);
 }
-global create(int width, int height, str mode, int r, int g, int b) -> int {
+fn create(int width, int height, str mode, int r, int g, int b) -> int {
     return global.nativeImage.create(width, height, mode, r, g, b);
 }
-global save(int idx, str path) -> bool { return global.nativeImage.save(idx, path) is 0; }
-global saveQuality(int idx, str path, int quality) -> bool {
+fn save(int idx, str path) -> bool { return global.nativeImage.save(idx, path) is 0; }
+fn saveQuality(int idx, str path, int quality) -> bool {
     return global.nativeImage.saveQuality(idx, path, quality) is 0;
 }
-global copy(int idx) -> int { return global.nativeImage.copy(idx); }
-global close(int idx) -> bool { return global.nativeImage.close(idx) is 0; }
-global getWidth(int idx) -> int { return global.nativeImage.getWidth(idx); }
-global getHeight(int idx) -> int { return global.nativeImage.getHeight(idx); }
-global getMode(int idx) -> str { return global.nativeImage.getMode(idx); }
-global getFormat(int idx) -> str { return global.nativeImage.getFormat(idx); }
-global info(int idx) -> str { return global.nativeImage.info(idx); }
+fn copy(int idx) -> int { return global.nativeImage.copy(idx); }
+fn close(int idx) -> bool { return global.nativeImage.close(idx) is 0; }
+fn getWidth(int idx) -> int { return global.nativeImage.getWidth(idx); }
+fn getHeight(int idx) -> int { return global.nativeImage.getHeight(idx); }
+fn getMode(int idx) -> str { return global.nativeImage.getMode(idx); }
+fn getFormat(int idx) -> str { return global.nativeImage.getFormat(idx); }
+fn info(int idx) -> str { return global.nativeImage.info(idx); }
 
-global resize(int idx, int width, int height) -> int {
+fn resize(int idx, int width, int height) -> int {
     return global.nativeImage.resize(idx, width, height);
 }
-global thumbnail(int idx, int width, int height) -> int {
+fn thumbnail(int idx, int width, int height) -> int {
     return global.nativeImage.thumbnail(idx, width, height);
 }
-global scale(int idx, float factor) -> int {
+fn scale(int idx, float factor) -> int {
     return global.nativeImage.scale(idx, factor);
 }
-global crop(int idx, int x1, int y1, int x2, int y2) -> int {
+fn crop(int idx, int x1, int y1, int x2, int y2) -> int {
     return global.nativeImage.crop(idx, x1, y1, x2, y2);
 }
-global rotate(int idx, float angle, bool expand) -> int {
+fn rotate(int idx, float angle, bool expand) -> int {
     return global.nativeImage.rotate(idx, angle, expand);
 }
-global flipH(int idx) -> int { return global.nativeImage.flipH(idx); }
-global flipV(int idx) -> int { return global.nativeImage.flipV(idx); }
-global pad(int idx, int top, int right, int bottom, int left, int r, int g, int b) -> int {
+fn flipH(int idx) -> int { return global.nativeImage.flipH(idx); }
+fn flipV(int idx) -> int { return global.nativeImage.flipV(idx); }
+fn pad(int idx, int top, int right, int bottom, int left, int r, int g, int b) -> int {
     return global.nativeImage.pad(idx, top, right, bottom, left, r, g, b);
 }
 
-global convert(int idx, str mode) -> int { return global.nativeImage.convert(idx, mode); }
-global grayscale(int idx) -> int { return global.nativeImage.grayscale(idx); }
-global toRGB(int idx) -> int { return global.nativeImage.toRGB(idx); }
-global toRGBA(int idx) -> int { return global.nativeImage.toRGBA(idx); }
-global toBinary(int idx, int threshold) -> int {
+fn convert(int idx, str mode) -> int { return global.nativeImage.convert(idx, mode); }
+fn grayscale(int idx) -> int { return global.nativeImage.grayscale(idx); }
+fn toRGB(int idx) -> int { return global.nativeImage.toRGB(idx); }
+fn toRGBA(int idx) -> int { return global.nativeImage.toRGBA(idx); }
+fn toBinary(int idx, int threshold) -> int {
     return global.nativeImage.toBinary(idx, threshold);
 }
-global brightness(int idx, float factor) -> int {
+fn brightness(int idx, float factor) -> int {
     return global.nativeImage.brightness(idx, factor);
 }
-global contrast(int idx, float factor) -> int {
+fn contrast(int idx, float factor) -> int {
     return global.nativeImage.contrast(idx, factor);
 }
-global invert(int idx) -> int { return global.nativeImage.invert(idx); }
-global blur(int idx, float radius) -> int { return global.nativeImage.blur(idx, radius); }
-global boxBlur(int idx, float radius) -> int {
+fn invert(int idx) -> int { return global.nativeImage.invert(idx); }
+fn blur(int idx, float radius) -> int { return global.nativeImage.blur(idx, radius); }
+fn boxBlur(int idx, float radius) -> int {
     return global.nativeImage.boxBlur(idx, radius);
 }
-global unsharpMask(int idx, float radius, int percent, int threshold) -> int {
+fn unsharpMask(int idx, float radius, int percent, int threshold) -> int {
     return global.nativeImage.unsharpMask(idx, radius, percent, threshold);
 }
-global sharpen(int idx) -> int { return global.nativeImage.sharpen(idx); }
+fn sharpen(int idx) -> int { return global.nativeImage.sharpen(idx); }
 
-global getPixel(int idx, int x, int y) -> str {
+fn getPixel(int idx, int x, int y) -> str {
     return global.nativeImage.getPixel(idx, x, y);
 }
-global setPixel(int idx, int x, int y, int r, int g, int b) -> bool {
+fn setPixel(int idx, int x, int y, int r, int g, int b) -> bool {
     return global.nativeImage.setPixel(idx, x, y, r, g, b) is 0;
 }
-global setPixelA(int idx, int x, int y, int r, int g, int b, int a) -> bool {
+fn setPixelA(int idx, int x, int y, int r, int g, int b, int a) -> bool {
     return global.nativeImage.setPixelA(idx, x, y, r, g, b, a) is 0;
 }
-global fill(int idx, int r, int g, int b) -> bool {
+fn fill(int idx, int r, int g, int b) -> bool {
     return global.nativeImage.fill(idx, r, g, b) is 0;
 }
-global paste(int dstIdx, int srcIdx, int x, int y) -> bool {
+fn paste(int dstIdx, int srcIdx, int x, int y) -> bool {
     return global.nativeImage.paste(dstIdx, srcIdx, x, y) is 0;
 }
-global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y) -> bool {
+fn pasteWithAlpha(int dstIdx, int srcIdx, int x, int y) -> bool {
     return global.nativeImage.pasteWithAlpha(dstIdx, srcIdx, x, y) is 0;
 }
-global blend(int idx1, int idx2, float alpha) -> int {
+fn blend(int idx1, int idx2, float alpha) -> int {
     return global.nativeImage.blend(idx1, idx2, alpha);
 }
-global addAlpha(int idx) -> int { return global.nativeImage.addAlpha(idx); }
-global setAlpha(int idx, int alpha) -> int {
+fn addAlpha(int idx) -> int { return global.nativeImage.addAlpha(idx); }
+fn setAlpha(int idx, int alpha) -> int {
     return global.nativeImage.setAlpha(idx, alpha);
 }
-global removeAlpha(int idx) -> int { return global.nativeImage.removeAlpha(idx); }
+fn removeAlpha(int idx) -> int { return global.nativeImage.removeAlpha(idx); }
 
-global getAverageColor(int idx) -> str {
+fn getAverageColor(int idx) -> str {
     return global.nativeImage.getAverageColor(idx);
 }
-global getDominantColor(int idx) -> str {
+fn getDominantColor(int idx) -> str {
     return global.nativeImage.getDominantColor(idx);
 }
-global getHistogram(int idx) -> str {
+fn getHistogram(int idx) -> str {
     return global.nativeImage.getHistogram(idx);
 }
-global tile(int idx, int cols, int rows) -> int {
+fn tile(int idx, int cols, int rows) -> int {
     return global.nativeImage.tile(idx, cols, rows);
 }
-global toBase64(int idx, str format) -> str {
+fn toBase64(int idx, str format) -> str {
     return global.nativeImage.toBase64(idx, format);
 }
-global fromBase64(str value) -> int {
+fn fromBase64(str value) -> int {
     return global.nativeImage.fromBase64(value);
 }
-global toDataUrl(int idx, str format) -> str {
+fn toDataUrl(int idx, str format) -> str {
     return global.nativeImage.toDataUrl(idx, format);
 }
 
-global fit(int idx, int width, int height) -> int {
+fn fit(int idx, int width, int height) -> int {
     return global.nativeImage.fit(idx, width, height);
 }
-global contain(int idx, int width, int height, int r, int g, int b) -> int {
+fn contain(int idx, int width, int height, int r, int g, int b) -> int {
     return global.nativeImage.contain(idx, width, height, r, g, b);
 }
-global color(int idx, float factor) -> int {
+fn color(int idx, float factor) -> int {
     return global.nativeImage.color(idx, factor);
 }
-global sharpness(int idx, float factor) -> int {
+fn sharpness(int idx, float factor) -> int {
     return global.nativeImage.sharpness(idx, factor);
 }
-global smooth(int idx) -> int { return global.nativeImage.smooth(idx); }
-global detail(int idx) -> int { return global.nativeImage.detail(idx); }
-global edgeEnhance(int idx) -> int { return global.nativeImage.edgeEnhance(idx); }
-global emboss(int idx) -> int { return global.nativeImage.emboss(idx); }
-global findEdges(int idx) -> int { return global.nativeImage.findEdges(idx); }
-global contour(int idx) -> int { return global.nativeImage.contour(idx); }
-global medianFilter(int idx, int size) -> int {
+fn smooth(int idx) -> int { return global.nativeImage.smooth(idx); }
+fn detail(int idx) -> int { return global.nativeImage.detail(idx); }
+fn edgeEnhance(int idx) -> int { return global.nativeImage.edgeEnhance(idx); }
+fn emboss(int idx) -> int { return global.nativeImage.emboss(idx); }
+fn findEdges(int idx) -> int { return global.nativeImage.findEdges(idx); }
+fn contour(int idx) -> int { return global.nativeImage.contour(idx); }
+fn medianFilter(int idx, int size) -> int {
     return global.nativeImage.medianFilter(idx, size);
 }
-global minFilter(int idx, int size) -> int {
+fn minFilter(int idx, int size) -> int {
     return global.nativeImage.minFilter(idx, size);
 }
-global maxFilter(int idx, int size) -> int {
+fn maxFilter(int idx, int size) -> int {
     return global.nativeImage.maxFilter(idx, size);
 }
-global composite(int baseIdx, int overlayIdx, int maskIdx) -> int {
+fn composite(int baseIdx, int overlayIdx, int maskIdx) -> int {
     return global.nativeImage.composite(baseIdx, overlayIdx, maskIdx);
 }
-global autoContrast(int idx) -> int { return global.nativeImage.autoContrast(idx); }
-global equalize(int idx) -> int { return global.nativeImage.equalize(idx); }
-global solarize(int idx, int threshold) -> int {
+fn autoContrast(int idx) -> int { return global.nativeImage.autoContrast(idx); }
+fn equalize(int idx) -> int { return global.nativeImage.equalize(idx); }
+fn solarize(int idx, int threshold) -> int {
     return global.nativeImage.solarize(idx, threshold);
 }
-global posterize(int idx, int bits) -> int {
+fn posterize(int idx, int bits) -> int {
     return global.nativeImage.posterize(idx, bits);
 }
-global quantize(int idx, int colors) -> int {
+fn quantize(int idx, int colors) -> int {
     return global.nativeImage.quantize(idx, colors);
 }
-global splitChannels(int idx) -> str { return global.nativeImage.splitChannels(idx); }
-global mergeChannels(int idxR, int idxG, int idxB, int idxA) -> int {
+fn splitChannels(int idx) -> str { return global.nativeImage.splitChannels(idx); }
+fn mergeChannels(int idxR, int idxG, int idxB, int idxA) -> int {
     return global.nativeImage.mergeChannels(idxR, idxG, idxB, idxA);
 }
-global drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, int lineWidth) -> bool {
+fn drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, int lineWidth) -> bool {
     return global.nativeImage.drawLine(idx, x1, y1, x2, y2, r, g, b, lineWidth) is 0;
 }
-global drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
+fn drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
     return global.nativeImage.drawRect(idx, x1, y1, x2, y2, r, g, b, fill) is 0;
 }
-global drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill, int radius) -> bool {
+fn drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill, int radius) -> bool {
     return global.nativeImage.drawRoundedRect(idx, x1, y1, x2, y2, r, g, b, fill, radius) is 0;
 }
-global drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool fill) -> bool {
+fn drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool fill) -> bool {
     return global.nativeImage.drawCircle(idx, cx, cy, radius, r, g, b, fill) is 0;
 }
-global drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
+fn drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
     return global.nativeImage.drawEllipse(idx, x1, y1, x2, y2, r, g, b, fill) is 0;
 }
-global drawPolygon(int idx, str coordsJson, int r, int g, int b) -> bool {
+fn drawPolygon(int idx, str coordsJson, int r, int g, int b) -> bool {
     return global.nativeImage.drawPolygon(idx, coordsJson, r, g, b) is 0;
 }
-global drawText(int idx, int x, int y, str text, int r, int g, int b, int size) -> bool {
+fn drawText(int idx, int x, int y, str text, int r, int g, int b, int size) -> bool {
     return global.nativeImage.drawText(idx, x, y, text, r, g, b, size) is 0;
 }
-global drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int size, str fontPath) -> bool {
+fn drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int size, str fontPath) -> bool {
     return global.nativeImage.drawTextFont(idx, x, y, text, r, g, b, size, fontPath) is 0;
 }
-global floodFill(int idx, int x, int y, int r, int g, int b) -> bool {
+fn floodFill(int idx, int x, int y, int r, int g, int b) -> bool {
     return global.nativeImage.floodFill(idx, x, y, r, g, b) is 0;
 }
-global show(int idx) -> bool { return global.nativeImage.show(idx) is 0; }
+fn show(int idx) -> bool { return global.nativeImage.show(idx) is 0; }
 
-global main(){}
+fn main(){}

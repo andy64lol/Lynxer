@@ -11,15 +11,15 @@ failure is the scalar sentinel: `""` for a document operation and `false` for
 
 Requires a Rust toolchain to build (see `rust/ini`).
 ////
-global setup(){ importAs("ini.so", "nativeIni"); }
+fn setup(){ importAs("ini.so", "nativeIni"); }
 
 // The INI document as a JSON string, or "" when it does not parse.
-global iniParse(str text) -> str { return global.nativeIni.iniParse(text); }
+fn iniParse(str text) -> str { return global.nativeIni.iniParse(text); }
 // The JSON object as an INI document, or "".
-global iniSerialize(str json) -> str { return global.nativeIni.iniSerialize(json); }
+fn iniSerialize(str json) -> str { return global.nativeIni.iniSerialize(json); }
 // True when `text` is a well-formed INI document.
-global iniValid(str text) -> bool { return global.nativeIni.iniValid(text) isnt 0; }
+fn iniValid(str text) -> bool { return global.nativeIni.iniValid(text) isnt 0; }
 // The value of `key` in `section` (use "" for the unnamed section), or "".
-global iniGet(str text, str section, str key) -> str { return global.nativeIni.iniGet(text, section, key); }
+fn iniGet(str text, str section, str key) -> str { return global.nativeIni.iniGet(text, section, key); }
 
-global main(){}
+fn main(){}

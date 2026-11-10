@@ -8,111 +8,111 @@ the underlying operation fails. `readTextEncoding`/`writeTextEncoding` use
 UTF-8 by default and support ASCII, Latin-1, Windows-1252, UTF-16/32 and
 host-supported `iconv` encodings; invalid conversions use the failure sentinel.
 ////
-global setup(){ importAs("path.so", "nativePath"); }
+fn setup(){ importAs("path.so", "nativePath"); }
 
-global platform() -> str { return global.nativePath.platform(); }
-global separator() -> str { return global.nativePath.separator(); }
-global listSeparator() -> str { return global.nativePath.listSeparator(); }
-global cwd() -> str { return global.nativePath.cwd(); }
-global home() -> str { return global.nativePath.home(); }
-global absolute(str path) -> str { return global.nativePath.absolute(path); }
-global resolve(str path) -> str { return global.nativePath.resolve(path); }
-global expandUser(str path) -> str { return global.nativePath.expandUser(path); }
-global join(str base, str child) -> str {
+fn platform() -> str { return global.nativePath.platform(); }
+fn separator() -> str { return global.nativePath.separator(); }
+fn listSeparator() -> str { return global.nativePath.listSeparator(); }
+fn cwd() -> str { return global.nativePath.cwd(); }
+fn home() -> str { return global.nativePath.home(); }
+fn absolute(str path) -> str { return global.nativePath.absolute(path); }
+fn resolve(str path) -> str { return global.nativePath.resolve(path); }
+fn expandUser(str path) -> str { return global.nativePath.expandUser(path); }
+fn join(str base, str child) -> str {
     return global.nativePath.join(base, child);
 }
-global join3(str first, str second, str third) -> str {
+fn join3(str first, str second, str third) -> str {
     return global.nativePath.join3(first, second, third);
 }
-global normalize(str path) -> str { return global.nativePath.normalize(path); }
-global name(str path) -> str { return global.nativePath.name(path); }
-global stem(str path) -> str { return global.nativePath.stem(path); }
-global suffix(str path) -> str { return global.nativePath.suffix(path); }
-global suffixes(str path) -> list {
+fn normalize(str path) -> str { return global.nativePath.normalize(path); }
+fn name(str path) -> str { return global.nativePath.name(path); }
+fn stem(str path) -> str { return global.nativePath.stem(path); }
+fn suffix(str path) -> str { return global.nativePath.suffix(path); }
+fn suffixes(str path) -> list {
     str raw = global.nativePath.suffixes(path);
     if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global parent(str path) -> str { return global.nativePath.parent(path); }
-global anchor(str path) -> str { return global.nativePath.anchor(path); }
-global root(str path) -> str { return global.nativePath.root(path); }
-global drive(str path) -> str { return global.nativePath.drive(path); }
-global isAbsolute(str path) -> bool {
+fn parent(str path) -> str { return global.nativePath.parent(path); }
+fn anchor(str path) -> str { return global.nativePath.anchor(path); }
+fn root(str path) -> str { return global.nativePath.root(path); }
+fn drive(str path) -> str { return global.nativePath.drive(path); }
+fn isAbsolute(str path) -> bool {
     return global.nativePath.isAbsolute(path) isnt 0;
 }
-global parts(str path) -> list {
+fn parts(str path) -> list {
     str raw = global.nativePath.parts(path);
     if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global match(str path, str pattern) -> bool {
+fn match(str path, str pattern) -> bool {
     return global.nativePath.match(path, pattern) isnt 0;
 }
-global relativeTo(str path, str base) -> str {
+fn relativeTo(str path, str base) -> str {
     return global.nativePath.relativeTo(path, base);
 }
-global withName(str path, str newName) -> str {
+fn withName(str path, str newName) -> str {
     return global.nativePath.withName(path, newName);
 }
-global withSuffix(str path, str newSuffix) -> str {
+fn withSuffix(str path, str newSuffix) -> str {
     return global.nativePath.withSuffix(path, newSuffix);
 }
-global exists(str path) -> bool { return global.nativePath.exists(path) isnt 0; }
-global isFile(str path) -> bool { return global.nativePath.isFile(path) isnt 0; }
-global isDir(str path) -> bool { return global.nativePath.isDir(path) isnt 0; }
-global isSymlink(str path) -> bool {
+fn exists(str path) -> bool { return global.nativePath.exists(path) isnt 0; }
+fn isFile(str path) -> bool { return global.nativePath.isFile(path) isnt 0; }
+fn isDir(str path) -> bool { return global.nativePath.isDir(path) isnt 0; }
+fn isSymlink(str path) -> bool {
     return global.nativePath.isSymlink(path) isnt 0;
 }
-global isMount(str path) -> bool { return global.nativePath.isMount(path) isnt 0; }
-global sameFile(str first, str second) -> bool {
+fn isMount(str path) -> bool { return global.nativePath.isMount(path) isnt 0; }
+fn sameFile(str first, str second) -> bool {
     return global.nativePath.sameFile(first, second) isnt 0;
 }
-global iterDir(str path) -> list {
+fn iterDir(str path) -> list {
     str raw = global.nativePath.iterDir(path);
     if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global glob(str path, str pattern) -> list {
+fn glob(str path, str pattern) -> list {
     str raw = global.nativePath.glob(path, pattern);
     if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global rglob(str path, str pattern) -> list {
+fn rglob(str path, str pattern) -> list {
     str raw = global.nativePath.rglob(path, pattern);
     if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global mkdir(str path) -> bool { return global.nativePath.mkdir(path) isnt 0; }
-global mkdirs(str path) -> bool { return global.nativePath.mkdirs(path) isnt 0; }
-global rmdir(str path) -> bool { return global.nativePath.rmdir(path) isnt 0; }
-global unlink(str path) -> bool { return global.nativePath.unlink(path) isnt 0; }
-global unlinkMissingOk(str path) -> bool {
+fn mkdir(str path) -> bool { return global.nativePath.mkdir(path) isnt 0; }
+fn mkdirs(str path) -> bool { return global.nativePath.mkdirs(path) isnt 0; }
+fn rmdir(str path) -> bool { return global.nativePath.rmdir(path) isnt 0; }
+fn unlink(str path) -> bool { return global.nativePath.unlink(path) isnt 0; }
+fn unlinkMissingOk(str path) -> bool {
     return global.nativePath.unlinkMissingOk(path) isnt 0;
 }
-global touch(str path) -> bool { return global.nativePath.touch(path) isnt 0; }
-global rename(str path, str target) -> str {
+fn touch(str path) -> bool { return global.nativePath.touch(path) isnt 0; }
+fn rename(str path, str target) -> str {
     return global.nativePath.rename(path, target);
 }
-global replace(str path, str target) -> str {
+fn replace(str path, str target) -> str {
     return global.nativePath.replace(path, target);
 }
-global readText(str path) -> str { return global.nativePath.readText(path); }
-global readTextEncoding(str path, str encoding) -> str {
+fn readText(str path) -> str { return global.nativePath.readText(path); }
+fn readTextEncoding(str path, str encoding) -> str {
     return global.nativePath.readTextEncoding(path, encoding);
 }
-global writeText(str path, str content) -> bool {
+fn writeText(str path, str content) -> bool {
     return global.nativePath.writeText(path, content) isnt 0;
 }
-global writeTextEncoding(str path, str content, str encoding) -> bool {
+fn writeTextEncoding(str path, str content, str encoding) -> bool {
     return global.nativePath.writeTextEncoding(path, content, encoding) isnt 0;
 }
-global appendText(str path, str content) -> bool {
+fn appendText(str path, str content) -> bool {
     return global.nativePath.appendText(path, content) isnt 0;
 }
-global size(str path) -> int { return global.nativePath.size(path); }
-global modifiedTime(str path) -> float {
+fn size(str path) -> int { return global.nativePath.size(path); }
+fn modifiedTime(str path) -> float {
     return global.nativePath.modifiedTime(path);
 }
-global asUri(str path) -> str { return global.nativePath.asUri(path); }
+fn asUri(str path) -> str { return global.nativePath.asUri(path); }
 
-global main(){}
+fn main(){}

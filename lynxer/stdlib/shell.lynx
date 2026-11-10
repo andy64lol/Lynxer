@@ -1,40 +1,40 @@
 ////
 Shell command helpers backed by the native C++ process API.
 ////
-global setup(){ importAs("shell.so", "nativeShell"); }
-global runShell(str command) -> int {
+fn setup(){ importAs("shell.so", "nativeShell"); }
+fn runShell(str command) -> int {
     return global.nativeShell.runShell(command);
 }
-global runShellCapture(str command) -> str {
+fn runShellCapture(str command) -> str {
     return global.nativeShell.runShellCapture(command);
 }
-global runShellSilent(str command) -> int {
+fn runShellSilent(str command) -> int {
     return global.nativeShell.runShellSilent(command);
 }
-global commandExists(str command) -> bool {
+fn commandExists(str command) -> bool {
     return global.nativeShell.commandExists(command) isnt 0;
 }
-global checkShell(str shell) -> bool {
+fn checkShell(str shell) -> bool {
     return global.nativeShell.checkShell(shell) isnt 0;
 }
-global runShellCode(str command) -> int {
+fn runShellCode(str command) -> int {
     return global.nativeShell.runShellCode(command);
 }
-global runShellAs(str shell, str command) -> int {
+fn runShellAs(str shell, str command) -> int {
     return global.nativeShell.runShellAs(shell, command);
 }
-global runShellCaptureAs(str shell, str command) -> str {
+fn runShellCaptureAs(str shell, str command) -> str {
     return global.nativeShell.runShellCaptureAs(shell, command);
 }
-global currentShell() -> str { return global.nativeShell.currentShell(); }
-global shellPath(str command) -> str {
+fn currentShell() -> str { return global.nativeShell.currentShell(); }
+fn shellPath(str command) -> str {
     return global.nativeShell.shellPath(command);
 }
-global runShellErr(str command) -> str {
+fn runShellErr(str command) -> str {
     return global.nativeShell.runShellErr(command);
 }
-global shellVersion(str shell) -> str {
+fn shellVersion(str shell) -> str {
     return global.nativeShell.shellVersion(shell);
 }
-global availableShells() -> str { return global.nativeShell.availableShells(); }
-global main(){}
+fn availableShells() -> str { return global.nativeShell.availableShells(); }
+fn main(){}

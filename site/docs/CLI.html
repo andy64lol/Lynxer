@@ -156,6 +156,54 @@ lynxer/lynxer --help</code></pre>
 lynxer --no-opt program.lynx    # run without the AST optimizer</code></pre>
 <p>Anything the parser does not recognise as a flag is treated as a <strong>file path</strong>, not an option. <code>lynxer --bogus-flag</code> therefore reports <code>lynxer: file not found: &#x27;--bogus-flag&#x27;</code> and exits <code>1</code>.</p>
 <p>A <code>.lynxc</code> argument is rejected explicitly: <code>lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead</code>.</p>
+<h2 id="projects">Projects</h2>
+<p><code>--init</code> scaffolds a Lynxer project in the current directory:</p>
+<pre><code>mkdir my-app &amp;&amp; cd my-app
+lynxer --init            # project name defaults to the directory name
+lynxer --init my-app     # or name it explicitly</code></pre>
+<p>It refuses to overwrite any file it would create. The resulting layout is:</p>
+<pre><code>README
+src/main.lynx
+lynxer.config
+.gitignore
+build/</code></pre>
+<p><code>lynxer.config</code> is a <code>key = value</code> file (lines starting with <code>#</code> are comments). Two keys drive the build:</p>
+<table>
+<tr><th>Key</th><th>Meaning</th></tr>
+<tr><td><code>entry</code></td><td>Source file to compile, e.g. <code>src/main.lynx</code>. Required.</td></tr>
+<tr><td><code>name</code></td><td>Executable name inside <code>build/</code>. Defaults to the entry's base name.</td></tr>
+</table>
+<p><code>main</code> is accepted as an alias for <code>entry</code>. The project config is read directly by the build commands; it does not replace the interpreter's own <code>lynxer.config</code> that ships beside the executable.</p>
+<pre><code>lynxer --build   # compile `entry` into build/&lt;name&gt; only
+lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its exit code</code></pre>
+<p>Both commands require a <code>lynxer.config</code> in the working directory and take no arguments. <code>--run</code> returns the program's exit status. <strong>All build artifacts live inside <code>build/</code></strong> — nothing is written next to the sources.</p>
+<h2 id="ides">IDEs</h2>
+<p>Lynxer ships two IDEs, both launched from the interpreter itself and both listed by <code>--help</code>:</p>
+<table>
+<tr><th>Command</th><th>IDE</th><th>Needs</th></tr>
+<tr><td><code>lynxer --gui-ide</code></td><td>Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels</td><td>A graphical display and the <code>lynxer-ide</code> executable</td></tr>
+<tr><td><code>lynxer --cli-ide [file.lynx]</code></td><td>Built-in terminal IDE: a full-screen ANSI TUI with no separate binary</td><td>An interactive TTY on stdin <strong>and</strong> stdout</td></tr>
+</table>
+<h3 id="gui-ide">GUI IDE</h3>
+<p><code>--gui-ide</code> resolves <code>lynxer-ide</code> next to the interpreter, in the installed <code>&lt;prefix&gt;/lib/lynxer</code> layout, or in <code>lynxer/ide/target/{release,debug}</code>. Set <code>LYNXER_IDE</code> to an explicit executable (or a directory containing it) to override. The launcher passes its own absolute path as <code>--lynxer &lt;path&gt;</code>, so Run / Lint / Format work even when <code>lynxer</code> is not on <code>PATH</code>. It takes no arguments and returns the IDE's exit code.</p>
+<h3 id="terminal-ide">Terminal IDE</h3>
+<p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
+<p>Features: an expandable file tree, a tabbed editor with line numbers and Lynxer syntax highlighting (<code>.lynx</code> only), multi-key editing, search and go-to-line, an output/problems panel with parsed <code>lynxer --lint</code> warnings and errors, and Run / Lint / Format / Build / Run-project commands whose output is captured into the panel instead of overwriting the screen.</p>
+<p>Key bindings:</p>
+<table>
+<tr><th>Key</th><th>Action</th></tr>
+<tr><td><code>Ctrl+O</code> / <code>Ctrl+N</code> / <code>Ctrl+S</code> / <code>Ctrl+W</code> / <code>Ctrl+Q</code></td><td>open / new / save / close tab / quit</td></tr>
+<tr><td><code>Ctrl+B</code></td><td>change folder</td></tr>
+<tr><td><code>Ctrl+E</code></td><td>switch focus between explorer and editor</td></tr>
+<tr><td><code>Ctrl+P</code> / <code>Ctrl+K</code></td><td>toggle output panel / clear output</td></tr>
+<tr><td><code>Ctrl+G</code> / <code>Ctrl+F</code> / <code>F3</code></td><td>go to line / find / next match</td></tr>
+<tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>previous / next tab</td></tr>
+<tr><td><code>F1</code> / <code>Esc</code></td><td>help / focus explorer</td></tr>
+<tr><td><code>F4</code> / <code>F5</code> / <code>F6</code> / <code>F7</code></td><td>next problem / run file / lint file / format file</td></tr>
+<tr><td><code>F9</code> / <code>F10</code></td><td>build project / run project</td></tr>
+<tr><td>Explorer: Up/Down, Enter, Right, Left</td><td>select, open, expand, collapse</td></tr>
+<tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
+</table>
 <h2 id="exit-codes">Exit codes</h2>
 <table>
 <tr><th>Code</th><th>Meaning</th></tr>
@@ -217,7 +265,7 @@ lynxer --emit-library app.lynx -o app.dll        # Windows</code></pre>
 <h2 id="version-help-easter-egg">Version, help, easter egg</h2>
 <table>
 <tr><th>Flag</th><th>Aliases</th><th>Effect</th></tr>
-<tr><td><code>--version</code></td><td><code>-v</code>, <code>-version</code>, <code>--v</code></td><td>print <code>Lynxer &lt;version&gt;</code></td></tr>
+<tr><td><code>--version</code></td><td><code>-v</code>, <code>-version</code>, <code>--v</code>, <code>--ver</code>, <code>-ver</code></td><td>print <code>Lynxer &lt;version&gt;</code></td></tr>
 <tr><td><code>--help</code></td><td><code>-h</code></td><td>print the usage summary</td></tr>
 <tr><td><code>--easterEgg</code></td><td><code>-easterEgg</code>, <code>--idklmao</code>, <code>-wnwnerbcyunwrbygnubeuyxnqybxun</code></td><td>print the easter egg</td></tr>
 </table>
@@ -234,6 +282,7 @@ sudo lynxer --uninstall    # remove the installed interpreter</code></pre>
 <tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>print the optimizer counts to stderr after the run</td></tr>
 <tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>run the <code>game</code> module without opening a window</td></tr>
 <tr><td><code>LYNXER_GRAPHICS_HEADLESS=1</code></td><td>run the <code>graphics</code> module without opening a window</td></tr>
+<tr><td><code>LYNXER_IDE=/path/to/lynxer-ide</code></td><td>executable (or directory) used by <code>--gui-ide</code></td></tr>
 </table>
 <p><code>LYNXER_SKIP_DISPLAY=1</code> is a <strong>build/test</strong> variable, not a run-time one: it makes <code>make testLynxer</code> skip the display and audio fixtures. See <a href="install.html#environment-variables">install</a>.</p>
 <p>If <code>LYNXER_STDLIB</code> is unset, empty, or does not name an existing directory, Lynxer uses its normal executable-relative stdlib lookup. Imports still check project and local stdlib paths before this bundled-stdlib location; see <a href="modules.html#search-order">modules</a>.</p>

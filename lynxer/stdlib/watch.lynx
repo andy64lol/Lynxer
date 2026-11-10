@@ -19,37 +19,37 @@ A failure is the scalar sentinel: `watchAdd`/`watchFd`/`watchWait` return `-1`,
 
 Requires a Rust toolchain to build (see `rust/watch`).
 ////
-global setup(){ importAs("watch.so", "nativeWatch"); }
+fn setup(){ importAs("watch.so", "nativeWatch"); }
 
 // Watch a path, recursing into subdirectories when `recursive` is true. Returns
 // a handle, or -1 when the path cannot be watched.
-global watchAdd(str path, bool recursive) -> int {
+fn watchAdd(str path, bool recursive) -> int {
     return global.nativeWatch.add(path, recursive);
 }
 // The backend descriptor for the poll set, or -1 for an unknown handle. On
 // Windows this is always -1; use `watchWait`.
-global watchFd(int handle) -> int { return global.nativeWatch.fd(handle); }
+fn watchFd(int handle) -> int { return global.nativeWatch.fd(handle); }
 // The pending events as a JSON array of {"path", "kind"}, or "" for an unknown
 // handle. Does not block.
-global watchDrain(int handle) -> str { return global.nativeWatch.drain(handle); }
+fn watchDrain(int handle) -> str { return global.nativeWatch.drain(handle); }
 // Block until the descriptor is readable or `timeoutMs` elapses (a negative
 // timeout waits without a limit). Returns 1 when readable, 0 on timeout, -1 for
 // an unknown handle. The interpreter lock is released while it blocks.
-global watchWait(int handle, int timeoutMs) -> int {
+fn watchWait(int handle, int timeoutMs) -> int {
     return global.nativeWatch.wait(handle, timeoutMs);
 }
 // Coalesce repeated events for the same path within `milliseconds` in a later
 // `watchDrain`, keeping the most recent kind. 0 disables coalescing.
-global watchSetDebounce(int handle, int milliseconds) -> bool {
+fn watchSetDebounce(int handle, int milliseconds) -> bool {
     return global.nativeWatch.setDebounce(handle, milliseconds) isnt 0;
 }
 // Stop watching and release the handle.
-global watchRemove(int handle) -> bool {
+fn watchRemove(int handle) -> bool {
     return global.nativeWatch.remove(handle) isnt 0;
 }
 // An alias for `watchRemove`.
-global watchClose(int handle) -> bool {
+fn watchClose(int handle) -> bool {
     return global.nativeWatch.remove(handle) isnt 0;
 }
 
-global main(){}
+fn main(){}

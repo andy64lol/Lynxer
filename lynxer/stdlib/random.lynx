@@ -6,33 +6,33 @@ Random number and character helpers backed by the native C++ module
 The generator is a seeded linear congruential sequence, so a given seed always
 produces the same sequence. `seed(0)` restores the default seed.
 ////
-global setup(){ importAs("random.so", "nativeRandom"); }
+fn setup(){ importAs("random.so", "nativeRandom"); }
 
 // Reseed the generator; 0 restores the default seed.
-global seed(int value) { global.nativeRandom.seed(value); }
+fn seed(int value) { global.nativeRandom.seed(value); }
 // Uniform integer in [low, high]. Returns low when high <= low.
-global randint(int low, int high) -> int {
+fn randint(int low, int high) -> int {
     return global.nativeRandom.randint(low, high);
 }
 // Uniform integer in [start, stop). Returns start when stop <= start.
-global randrange(int start, int stop) -> int {
+fn randrange(int start, int stop) -> int {
     return global.nativeRandom.randrange(start, stop);
 }
 // Float in [0.0, 1.0).
-global random() -> float { return global.nativeRandom.random(); }
+fn random() -> float { return global.nativeRandom.random(); }
 // Float in [low, high].
-global uniform(float low, float high) -> float {
+fn uniform(float low, float high) -> float {
     return global.nativeRandom.uniform(low, high);
 }
 // Equal-probability boolean.
-global coinflip() -> bool { return global.nativeRandom.coinflip() isnt 0; }
+fn coinflip() -> bool { return global.nativeRandom.coinflip() isnt 0; }
 // Alias of coinflip.
-global randBool() -> bool { return global.nativeRandom.coinflip() isnt 0; }
+fn randBool() -> bool { return global.nativeRandom.coinflip() isnt 0; }
 // Pick one character of the input string, or "" when it is empty.
-global choice(str items) -> str { return global.nativeRandom.choice(items); }
+fn choice(str items) -> str { return global.nativeRandom.choice(items); }
 
 // A random lowercase hex string of `n` characters.
-global randHex(int n) -> str {
+fn randHex(int n) -> str {
     str digits = "0123456789abcdef";
     str result = "";
     int index = 0;
@@ -44,13 +44,13 @@ global randHex(int n) -> str {
 }
 // Uniform multiple of `step` in [start, stop). Returns start when the range is
 // empty or `step` is not positive.
-global randrangeStep(int start, int stop, int step) -> int {
+fn randrangeStep(int start, int stop, int step) -> int {
     if(step <= 0 or start >= stop){ return start; }
     int terms = (stop - start + step - 1) /% step;
     return start + randint(0, terms - 1) * step;
 }
 // The non-empty "|"-separated parts of `items`.
-func splitParts(str items) -> list {
+fn splitParts(str items) -> list {
     list parts = global.splitStr(items, "|");
     list kept = [];
     int index = 0;
@@ -62,13 +62,13 @@ func splitParts(str items) -> list {
     return kept;
 }
 // A random non-empty part of a "|"-separated list, trimmed; "" when there is none.
-global sampleStr(str items) -> str {
+fn sampleStr(str items) -> str {
     list kept = splitParts(items);
     if(returnLength(kept) is 0){ return ""; }
     return global.trim(global.listGet(kept, randint(0, returnLength(kept) - 1)));
 }
 // Like sampleStr, parsed as an integer; 0 when the part is missing or not a number.
-global sampleInt(str items) -> int {
+fn sampleInt(str items) -> int {
     str chosen = sampleStr(items);
     if(returnLength(chosen) is 0){ return 0; }
     try {
@@ -78,7 +78,7 @@ global sampleInt(str items) -> int {
     }
 }
 // `k` distinct parts chosen without replacement, joined by "|".
-global sample(str items, int k) -> str {
+fn sample(str items, int k) -> str {
     list kept = splitParts(items);
     int count = returnLength(kept);
     if(k > count){ k = count; }
@@ -99,7 +99,7 @@ global sample(str items, int k) -> str {
     return global.listJoin(chosen, "|");
 }
 // A shuffled copy of the non-empty parts, joined by "|".
-global shuffle(str items) -> str {
+fn shuffle(str items) -> str {
     list kept = splitParts(items);
     int last = returnLength(kept) - 1;
     while(last > 0){
@@ -112,15 +112,15 @@ global shuffle(str items) -> str {
     return global.listJoin(kept, "|");
 }
 // Gaussian sample with mean `mu` and standard deviation `sigma`.
-global gauss(float mu, float sigma) -> float {
+fn gauss(float mu, float sigma) -> float {
     return global.nativeRandom.gauss(mu, sigma);
 }
 // Triangular sample over [low, high] peaking at `mid`.
-global triangular(float low, float high, float mid) -> float {
+fn triangular(float low, float high, float mid) -> float {
     return global.nativeRandom.triangular(low, high, mid);
 }
 // A random RFC 4122 version-4 UUID, lowercase.
-global uuid4() -> str {
+fn uuid4() -> str {
     str raw = randHex(32);
     str versioned = global.substring(raw, 0, 12) + "4" +
                     global.substring(raw, 13, 16) + "8" +
@@ -132,4 +132,4 @@ global uuid4() -> str {
            global.substring(versioned, 20, 32);
 }
 
-global main(){}
+fn main(){}

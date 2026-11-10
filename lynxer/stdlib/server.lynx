@@ -7,127 +7,127 @@ listener on 127.0.0.1.
 Requires a Rust toolchain to build (see `rust/server`); the module is skipped
 when `cargo` is unavailable.
 ////
-global setup(){ importAs("server.so", "nativeServer"); }
+fn setup(){ importAs("server.so", "nativeServer"); }
 
-global routeGet(str path, str body) -> str {
+fn routeGet(str path, str body) -> str {
     return global.nativeServer.routeGet(path, body);
 }
-global routePost(str path, str body) -> str {
+fn routePost(str path, str body) -> str {
     return global.nativeServer.routePost(path, body);
 }
-global routeGetCallback(str path, str handlerName) -> str {
+fn routeGetCallback(str path, str handlerName) -> str {
     return global.nativeServer.routeGetCallback(path, handlerName);
 }
-global routePostCallback(str path, str handlerName) -> str {
+fn routePostCallback(str path, str handlerName) -> str {
     return global.nativeServer.routePostCallback(path, handlerName);
 }
-global routeCallback(str path, str handlerName) -> str {
+fn routeCallback(str path, str handlerName) -> str {
     return global.nativeServer.routeCallback(path, handlerName);
 }
-global respond(int status, str contentType, str body) -> str {
+fn respond(int status, str contentType, str body) -> str {
     return global.nativeServer.respond(status, contentType, body);
 }
 // Register fixed HTML responses. These aliases match the higher-level server
 // API while routeGet/routePost remain available for existing Lynxer programs.
-global get(str path, str html) -> str {
+fn get(str path, str html) -> str {
     return routeGet(path, html);
 }
-global post(str path, str html) -> str {
+fn post(str path, str html) -> str {
     return routePost(path, html);
 }
-global htmlGet(str path, str html) -> str {
+fn htmlGet(str path, str html) -> str {
     return routeGet(path, html);
 }
-global htmlPost(str path, str html) -> str {
+fn htmlPost(str path, str html) -> str {
     return routePost(path, html);
 }
-global routeEcho(str path) -> str { return global.nativeServer.routeEcho(path); }
-global wsEcho(str path) -> str { return global.nativeServer.wsEcho(path); }
-global clearRoutes() -> str { return global.nativeServer.clearRoutes(); }
-global start(int port) -> str { return global.nativeServer.start(port); }
-global stop() -> str { return global.nativeServer.stop(); }
-global running() -> bool { return global.nativeServer.running() isnt 0; }
-global port() -> int { return global.nativeServer.port(); }
+fn routeEcho(str path) -> str { return global.nativeServer.routeEcho(path); }
+fn wsEcho(str path) -> str { return global.nativeServer.wsEcho(path); }
+fn clearRoutes() -> str { return global.nativeServer.clearRoutes(); }
+fn start(int port) -> str { return global.nativeServer.start(port); }
+fn stop() -> str { return global.nativeServer.stop(); }
+fn running() -> bool { return global.nativeServer.running() isnt 0; }
+fn port() -> int { return global.nativeServer.port(); }
 
 // Additional HTTP verbs and JSON/template/file route kinds.
-global put(str path, str body) -> str { return global.nativeServer.put(path, body); }
-global delete(str path, str body) -> str { return global.nativeServer.delete(path, body); }
-global patch(str path, str body) -> str { return global.nativeServer.patch(path, body); }
-global anyHttp(str path, str body) -> str { return global.nativeServer.anyHttp(path, body); }
-global getStatus(str path, str body, int status) -> str {
+fn put(str path, str body) -> str { return global.nativeServer.put(path, body); }
+fn delete(str path, str body) -> str { return global.nativeServer.delete(path, body); }
+fn patch(str path, str body) -> str { return global.nativeServer.patch(path, body); }
+fn anyHttp(str path, str body) -> str { return global.nativeServer.anyHttp(path, body); }
+fn getStatus(str path, str body, int status) -> str {
     return global.nativeServer.getStatus(path, body, status);
 }
-global jsonGet(str path, str json) -> str {
+fn jsonGet(str path, str json) -> str {
     return global.nativeServer.jsonGet(path, json);
 }
-global jsonPost(str path, str json) -> str {
+fn jsonPost(str path, str json) -> str {
     return global.nativeServer.jsonPost(path, json);
 }
-global jsonRoute(str path, str json) -> str {
+fn jsonRoute(str path, str json) -> str {
     return global.nativeServer.jsonRoute(path, json);
 }
-global jsonStatus(str path, str json, int status) -> str {
+fn jsonStatus(str path, str json, int status) -> str {
     return global.nativeServer.jsonStatus(path, json, status);
 }
-global redirect(str path, str target) -> str {
+fn redirect(str path, str target) -> str {
     return global.nativeServer.redirect(path, target);
 }
-global redirect301(str path, str target) -> str {
+fn redirect301(str path, str target) -> str {
     return global.nativeServer.redirect301(path, target);
 }
-global template(str path, str file, str dataJson) -> str {
+fn template(str path, str file, str dataJson) -> str {
     return global.nativeServer.template(path, file, dataJson);
 }
-global templatePost(str path, str file, str dataJson) -> str {
+fn templatePost(str path, str file, str dataJson) -> str {
     return global.nativeServer.templatePost(path, file, dataJson);
 }
-global templateString(str path, str source, str dataJson) -> str {
+fn templateString(str path, str source, str dataJson) -> str {
     return global.nativeServer.templateString(path, source, dataJson);
 }
-global serveFile(str path, str filepath) -> str {
+fn serveFile(str path, str filepath) -> str {
     return global.nativeServer.serveFile(path, filepath);
 }
-global staticFiles(str prefix, str directory) -> str {
+fn staticFiles(str prefix, str directory) -> str {
     return global.nativeServer.staticFiles(prefix, directory);
 }
-global staticSite(str directory) -> str {
+fn staticSite(str directory) -> str {
     return global.nativeServer.staticSite(directory);
 }
-global setTemplateFolder(str folder) -> str {
+fn setTemplateFolder(str folder) -> str {
     return global.nativeServer.setTemplateFolder(folder);
 }
 // Custom error bodies.
-global notFound(str body) -> str { return global.nativeServer.notFound(body); }
-global serverError(str body) -> str { return global.nativeServer.serverError(body); }
-global forbidden(str body) -> str { return global.nativeServer.forbidden(body); }
-global methodNotAllowed(str body) -> str {
+fn notFound(str body) -> str { return global.nativeServer.notFound(body); }
+fn serverError(str body) -> str { return global.nativeServer.serverError(body); }
+fn forbidden(str body) -> str { return global.nativeServer.forbidden(body); }
+fn methodNotAllowed(str body) -> str {
     return global.nativeServer.methodNotAllowed(body);
 }
 // Middleware.
-global cors() -> str { return global.nativeServer.cors(); }
-global corsOrigin(str origin) -> str { return global.nativeServer.corsOrigin(origin); }
-global addGlobalHeader(str key, str value) -> str {
+fn cors() -> str { return global.nativeServer.cors(); }
+fn corsOrigin(str origin) -> str { return global.nativeServer.corsOrigin(origin); }
+fn addGlobalHeader(str key, str value) -> str {
     return global.nativeServer.addGlobalHeader(key, value);
 }
-global enableRequestLog() -> str { return global.nativeServer.enableRequestLog(); }
-global setDebug(bool enabled) -> str { return global.nativeServer.setDebug(enabled); }
+fn enableRequestLog() -> str { return global.nativeServer.enableRequestLog(); }
+fn setDebug(bool enabled) -> str { return global.nativeServer.setDebug(enabled); }
 // Readers for the most recently handled request.
-global getMethod() -> str { return global.nativeServer.getMethod(); }
-global getPath() -> str { return global.nativeServer.getPath(); }
-global getUrl() -> str { return global.nativeServer.getUrl(); }
-global getBody() -> str { return global.nativeServer.getBody(); }
-global getContentType() -> str { return global.nativeServer.getContentType(); }
-global getRemoteAddr() -> str { return global.nativeServer.getRemoteAddr(); }
-global getHeader(str name) -> str { return global.nativeServer.getHeader(name); }
-global getCookie(str name) -> str { return global.nativeServer.getCookie(name); }
-global getArg(str name) -> str { return global.nativeServer.getArg(name); }
-global getForm(str name) -> str { return global.nativeServer.getForm(name); }
+fn getMethod() -> str { return global.nativeServer.getMethod(); }
+fn getPath() -> str { return global.nativeServer.getPath(); }
+fn getUrl() -> str { return global.nativeServer.getUrl(); }
+fn getBody() -> str { return global.nativeServer.getBody(); }
+fn getContentType() -> str { return global.nativeServer.getContentType(); }
+fn getRemoteAddr() -> str { return global.nativeServer.getRemoteAddr(); }
+fn getHeader(str name) -> str { return global.nativeServer.getHeader(name); }
+fn getCookie(str name) -> str { return global.nativeServer.getCookie(name); }
+fn getArg(str name) -> str { return global.nativeServer.getArg(name); }
+fn getForm(str name) -> str { return global.nativeServer.getForm(name); }
 // Lifecycle.
-global init(str host, int port) -> str { return global.nativeServer.init(host, port); }
-global run() -> str { return global.nativeServer.run(); }
-global runHTTPS(str cert, str key) -> str {
+fn init(str host, int port) -> str { return global.nativeServer.init(host, port); }
+fn run() -> str { return global.nativeServer.run(); }
+fn runHTTPS(str cert, str key) -> str {
     return global.nativeServer.runHTTPS(cert, key);
 }
-global runSSLAdhoc() -> str { return global.nativeServer.runSSLAdhoc(); }
+fn runSSLAdhoc() -> str { return global.nativeServer.runSSLAdhoc(); }
 
-global main(){}
+fn main(){}

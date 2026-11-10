@@ -1364,6 +1364,10 @@ testLynxerGuiIde: $(LYNXER_TARGET)
 	cleanup; \
 	echo "OK: --gui-ide launcher, listed IDEs and --ver alias passed."
 
+# The stdlib-import check uses `typing`: it is pure Lynx (no native module),
+# declares its functions with `fn`, and still calls builtins through `global.`
+# prefixes, so importing it proves those calls stay warning-exempt. `sys` is
+# excluded from Windows builds (docs/windows.md), so it cannot be used here.
 testLynxerGlobalDeprecation: $(LYNXER_TARGET)
 	@src="$(CLYX_TMP)_global_prefix.lynx"; \
 	tooling="$(CLYX_TMP)_global_tooling.lynx"; \
@@ -1398,7 +1402,7 @@ testLynxerGlobalDeprecation: $(LYNXER_TARGET)
 		echo "--compile failed on a global-prefix program"; cleanup; exit 1; fi; \
 	if [ -s $(CLYX_TMP)_gp_comp.err ]; then \
 		echo "--compile emitted deprecation warnings"; cat $(CLYX_TMP)_gp_comp.err; cleanup; exit 1; fi; \
-	printf 'fn setup(){ import("sys"); }\nfn main(){ println("ok"); }\n' > "$$tooling"; \
+	printf 'fn setup(){ import("typing"); }\nfn main(){ println("ok"); }\n' > "$$tooling"; \
 	if ! $(CLYX) "$$tooling" > $(CLYX_TMP)_gp_mod.out 2> $(CLYX_TMP)_gp_mod.err; then \
 		echo "stdlib-import program failed"; cat $(CLYX_TMP)_gp_mod.err; cleanup; exit 1; fi; \
 	if grep -q 'deprecatedGlobalPrefix' $(CLYX_TMP)_gp_mod.err; then \

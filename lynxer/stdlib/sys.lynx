@@ -9,49 +9,49 @@ absent. `argv()`/`getArg()`/`argCount()` describe the program's own command
 line — the script path (or the compiled executable) followed by the arguments
 passed after it — not the `lynxer` process command line.
 ////
-global setup(){ importAs("sys.so", "nativeSys"); }
-global platform() -> str { return global.nativeSys.platform(); }
+fn setup(){ importAs("sys.so", "nativeSys"); }
+fn platform() -> str { return global.nativeSys.platform(); }
 // The canonical syscall architecture of this build ("amd64" or "arm64").
-global architecture() -> str { return global.nativeSys.architecture(); }
+fn architecture() -> str { return global.nativeSys.architecture(); }
 // Online processor count (0 when unknown).
-global cpuCount() -> int { return global.nativeSys.cpuCount(); }
+fn cpuCount() -> int { return global.nativeSys.cpuCount(); }
 // Memory page size in bytes (0 when unknown).
-global pageSize() -> int { return global.nativeSys.pageSize(); }
+fn pageSize() -> int { return global.nativeSys.pageSize(); }
 // Total physical memory in bytes (0 when unknown).
-global memoryTotal() -> int { return global.nativeSys.memoryTotal(); }
+fn memoryTotal() -> int { return global.nativeSys.memoryTotal(); }
 // Available physical memory in bytes (0 when unknown).
-global memoryAvailable() -> int { return global.nativeSys.memoryAvailable(); }
+fn memoryAvailable() -> int { return global.nativeSys.memoryAvailable(); }
 // Seconds since boot (0 when unknown).
-global uptime() -> int { return global.nativeSys.uptime(); }
+fn uptime() -> int { return global.nativeSys.uptime(); }
 // Approximate boot time as a Unix timestamp (0 when unknown).
-global bootTime() -> int { return global.nativeSys.bootTime(); }
+fn bootTime() -> int { return global.nativeSys.bootTime(); }
 // Load averages over 1, 5 and 15 minutes, as a JSON array.
-global loadAverage() -> str { return global.nativeSys.loadAverage(); }
-global version() -> str { return global.nativeSys.version(); }
-global versionInfo() -> str { return global.nativeSys.versionInfo(); }
-global implementation() -> str { return global.nativeSys.implementation(); }
-global apiVersion() -> str { return global.nativeSys.apiVersion(); }
-global isFrozen() -> bool { return global.nativeSys.isFrozen() isnt 0; }
-global getpid() -> int { return global.nativeSys.getpid(); }
-global getMaxSize() -> int { return global.nativeSys.getMaxSize(); }
-global getByteOrder() -> str { return global.nativeSys.getByteOrder(); }
-global getDefaultEncoding() -> str {
+fn loadAverage() -> str { return global.nativeSys.loadAverage(); }
+fn version() -> str { return global.nativeSys.version(); }
+fn versionInfo() -> str { return global.nativeSys.versionInfo(); }
+fn implementation() -> str { return global.nativeSys.implementation(); }
+fn apiVersion() -> str { return global.nativeSys.apiVersion(); }
+fn isFrozen() -> bool { return global.nativeSys.isFrozen() isnt 0; }
+fn getpid() -> int { return global.nativeSys.getpid(); }
+fn getMaxSize() -> int { return global.nativeSys.getMaxSize(); }
+fn getByteOrder() -> str { return global.nativeSys.getByteOrder(); }
+fn getDefaultEncoding() -> str {
     return global.nativeSys.getDefaultEncoding();
 }
-global getFilesystemEncoding() -> str {
+fn getFilesystemEncoding() -> str {
     return global.nativeSys.getFilesystemEncoding();
 }
-global isatty() -> bool { return global.nativeSys.isatty() isnt 0; }
-global stdinName() -> str { return global.nativeSys.stdinName(); }
-global stdoutName() -> str { return global.nativeSys.stdoutName(); }
-global executable() -> str { return global.nativeSys.executable(); }
-global prefix() -> str { return global.nativeSys.prefix(); }
-global execPrefix() -> str { return global.nativeSys.execPrefix(); }
-global argv() -> str { return global.nativeSys.argv(); }
-global argCount() -> int { return global.nativeSys.argCount(); }
-global getArg(int index) -> str { return global.nativeSys.getArg(index); }
+fn isatty() -> bool { return global.nativeSys.isatty() isnt 0; }
+fn stdinName() -> str { return global.nativeSys.stdinName(); }
+fn stdoutName() -> str { return global.nativeSys.stdoutName(); }
+fn executable() -> str { return global.nativeSys.executable(); }
+fn prefix() -> str { return global.nativeSys.prefix(); }
+fn execPrefix() -> str { return global.nativeSys.execPrefix(); }
+fn argv() -> str { return global.nativeSys.argv(); }
+fn argCount() -> int { return global.nativeSys.argCount(); }
+fn getArg(int index) -> str { return global.nativeSys.getArg(index); }
 // Exit the process with the given code (0 = success).
-global exit(int code) { global.nativeSys.exit(code); }
-global exitOk() { global.nativeSys.exit(0); }
-global exitError() { global.nativeSys.exit(1); }
-global main(){}
+fn exit(int code) { global.nativeSys.exit(code); }
+fn exitOk() { global.nativeSys.exit(0); }
+fn exitError() { global.nativeSys.exit(1); }
+fn main(){}

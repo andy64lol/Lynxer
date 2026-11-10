@@ -9,16 +9,16 @@ sentinel: `""` for a document operation and `false` for `tomlValid`.
 
 Requires a Rust toolchain to build (see `rust/toml`).
 ////
-global setup(){ importAs("toml.so", "nativeToml"); }
+fn setup(){ importAs("toml.so", "nativeToml"); }
 
 // The TOML document as a JSON string, or "" when it does not parse.
-global tomlParse(str text) -> str { return global.nativeToml.tomlParse(text); }
+fn tomlParse(str text) -> str { return global.nativeToml.tomlParse(text); }
 // The JSON object as a TOML document, or "" when it does not serialize (for
 // example a top-level value that is not a table).
-global tomlSerialize(str json) -> str { return global.nativeToml.tomlSerialize(json); }
+fn tomlSerialize(str json) -> str { return global.nativeToml.tomlSerialize(json); }
 // True when `text` is valid TOML.
-global tomlValid(str text) -> bool { return global.nativeToml.tomlValid(text) isnt 0; }
+fn tomlValid(str text) -> bool { return global.nativeToml.tomlValid(text) isnt 0; }
 // The value at a dotted `key` (`a.b.c`) as a JSON string, or "".
-global tomlGet(str text, str key) -> str { return global.nativeToml.tomlGet(text, key); }
+fn tomlGet(str text, str key) -> str { return global.nativeToml.tomlGet(text, key); }
 
-global main(){}
+fn main(){}

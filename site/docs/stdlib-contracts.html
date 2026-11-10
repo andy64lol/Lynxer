@@ -161,7 +161,7 @@
 <h2 id="conventions-that-apply-to-every-module">Conventions that apply to every module</h2>
 <h3 id="operation-names">Operation names</h3>
 <ul>
-<li>The backend registers each operation under the name the wrapper calls; new wrappers declare the lowerCamelCase public function with <code>fn</code>. Existing <code>global</code> declarations remain accepted as deprecated syntax.</li>
+<li>The backend registers each operation under the name the wrapper calls; every wrapper declares its lowerCamelCase public function with <code>fn</code>. The language still accepts <code>global</code>/<code>func</code>/<code>local</code> declarations as deprecated syntax, but the standard library no longer uses them.</li>
 <li>The wrapper imports its backend once, in <code>setup()</code>, with <code>importAs(&quot;&lt;name&gt;.so&quot;, &quot;native&lt;Name&gt;&quot;)</code>. Nothing else in the wrapper refers to the backend.</li>
 <li><code>setup()</code> is the only place a module may import. Importing from a program function is not part of the contract.</li>
 </ul>

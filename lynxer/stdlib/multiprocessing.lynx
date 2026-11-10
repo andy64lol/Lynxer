@@ -7,10 +7,10 @@ Commands run in worker threads (one shell subprocess each) and results are kept
 in input order. The Python reference's process-pool variant is an alias here,
 since every command already runs in its own process.
 ////
-global setup(){ importAs("multiprocessing.so", "nativeMp"); }
+fn setup(){ importAs("multiprocessing.so", "nativeMp"); }
 
 // Read a captured-output handle back into a list of strings.
-global _collectOutputs(int handle) -> list {
+fn _collectOutputs(int handle) -> list {
     list out = listRepeat("", 0);
     int count = global.nativeMp.resultCount(handle);
     int index = 0;
@@ -22,7 +22,7 @@ global _collectOutputs(int handle) -> list {
     return out;
 }
 // Read a captured-exit-code handle back into a list of integers.
-global _collectCodes(int handle) -> list {
+fn _collectCodes(int handle) -> list {
     list out = listRepeat(0, 0);
     int count = global.nativeMp.resultCount(handle);
     int index = 0;
@@ -35,40 +35,40 @@ global _collectCodes(int handle) -> list {
 }
 
 // Return the number of CPU cores available, or 1.
-global workerCount() -> int { return global.nativeMp.workerCount(); }
+fn workerCount() -> int { return global.nativeMp.workerCount(); }
 // Run commands in parallel; returns a list of stdout strings in input order.
-global runParallel(list commands) -> list {
+fn runParallel(list commands) -> list {
     return _collectOutputs(global.nativeMp.runParallel(listJsonArray(commands)));
 }
 // Run commands in parallel; returns a list of exit codes.
-global runParallelSilent(list commands) -> list {
+fn runParallelSilent(list commands) -> list {
     return _collectCodes(global.nativeMp.runParallelSilent(listJsonArray(commands)));
 }
 // Run commands in parallel using the process pool (alias of runParallel).
-global runParallelProcess(list commands) -> list {
+fn runParallelProcess(list commands) -> list {
     return _collectOutputs(global.nativeMp.runParallelProcess(listJsonArray(commands)));
 }
 // Low-level result-handle operations for callers that want to retrieve output
 // and exit codes separately. Release every returned handle when finished.
-global runParallelHandle(list commands) -> int {
+fn runParallelHandle(list commands) -> int {
     return global.nativeMp.runParallel(listJsonArray(commands));
 }
-global resultCount(int handle) -> int { return global.nativeMp.resultCount(handle); }
-global resultAt(int handle, int index) -> str {
+fn resultCount(int handle) -> int { return global.nativeMp.resultCount(handle); }
+fn resultAt(int handle, int index) -> str {
     return global.nativeMp.resultAt(handle, index);
 }
-global codeAt(int handle, int index) -> int {
+fn codeAt(int handle, int index) -> int {
     return global.nativeMp.codeAt(handle, index);
 }
-global release(int handle) -> bool { return global.nativeMp.release(handle) isnt 0; }
+fn release(int handle) -> bool { return global.nativeMp.release(handle) isnt 0; }
 // Substitute each item into the "{}" placeholder of a command template and run
 // the commands in parallel; returns a list of stdout strings.
-global mapShell(str template, list items) -> list {
+fn mapShell(str template, list items) -> list {
     return _collectOutputs(global.nativeMp.mapShell(template, listJsonArray(items)));
 }
 // Alias for mapShell.
-global threadMap(str template, list items) -> list {
+fn threadMap(str template, list items) -> list {
     return mapShell(template, items);
 }
 
-global main(){}
+fn main(){}

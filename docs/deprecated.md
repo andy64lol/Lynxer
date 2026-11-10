@@ -42,8 +42,9 @@ unchanged. It appears when a program is **run** and in `--lint` output (where it
 counts toward the warning total), so it also shows up in editor diagnostics.
 Mechanical tooling parses -- `--format`, `--ast`, `--compile` and the embedding
 runtime -- do not emit it, and **imported module sources are exempt**: the
-standard library still uses `global.<builtin>(...)` and
-`global.<namespace>.<op>(...)` internally without producing warnings. A macro
+standard library declares its functions with `fn` but still uses
+`global.<builtin>(...)` and `global.<namespace>.<op>(...)` internally to reach
+native-module forwarders, without producing warnings. A macro
 body that uses `global.` is expanded into its caller, so that use is attributed
 to the importing program and does warn.
 

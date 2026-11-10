@@ -17,53 +17,53 @@ decompress is capped at 64 MiB.
 Requires a Rust toolchain to build (see `rust/compress`). The `zstd` backend
 vendors C sources, so a C compiler is needed as well.
 ////
-global setup(){ importAs("compress.so", "nativeCompress"); }
+fn setup(){ importAs("compress.so", "nativeCompress"); }
 
 // --- gzip ------------------------------------------------------------------
 
 // The gzip stream of `data`.
-global gzipCompress(bytes data) -> bytes { return global.nativeCompress.gzipCompress(data); }
+fn gzipCompress(bytes data) -> bytes { return global.nativeCompress.gzipCompress(data); }
 // The payload of a gzip stream, or empty bytes when it is not one.
-global gzipDecompress(bytes data) -> bytes { return global.nativeCompress.gzipDecompress(data); }
+fn gzipDecompress(bytes data) -> bytes { return global.nativeCompress.gzipDecompress(data); }
 // gzip-compress a file's bytes into another file. "ok" or "ERROR: ...".
-global gzipCompressFile(str input, str output) -> str { return global.nativeCompress.gzipCompressFile(input, output); }
+fn gzipCompressFile(str input, str output) -> str { return global.nativeCompress.gzipCompressFile(input, output); }
 // Decompress a gzip file into another file. "ok" or "ERROR: ...".
-global gzipDecompressFile(str input, str output) -> str { return global.nativeCompress.gzipDecompressFile(input, output); }
+fn gzipDecompressFile(str input, str output) -> str { return global.nativeCompress.gzipDecompressFile(input, output); }
 
 // --- zlib ------------------------------------------------------------------
 
-global zlibCompress(bytes data) -> bytes { return global.nativeCompress.zlibCompress(data); }
-global zlibDecompress(bytes data) -> bytes { return global.nativeCompress.zlibDecompress(data); }
-global zlibCompressFile(str input, str output) -> str { return global.nativeCompress.zlibCompressFile(input, output); }
-global zlibDecompressFile(str input, str output) -> str { return global.nativeCompress.zlibDecompressFile(input, output); }
+fn zlibCompress(bytes data) -> bytes { return global.nativeCompress.zlibCompress(data); }
+fn zlibDecompress(bytes data) -> bytes { return global.nativeCompress.zlibDecompress(data); }
+fn zlibCompressFile(str input, str output) -> str { return global.nativeCompress.zlibCompressFile(input, output); }
+fn zlibDecompressFile(str input, str output) -> str { return global.nativeCompress.zlibDecompressFile(input, output); }
 
 // --- zstd ------------------------------------------------------------------
 
-global zstdCompress(bytes data) -> bytes { return global.nativeCompress.zstdCompress(data); }
-global zstdDecompress(bytes data) -> bytes { return global.nativeCompress.zstdDecompress(data); }
-global zstdCompressFile(str input, str output) -> str { return global.nativeCompress.zstdCompressFile(input, output); }
-global zstdDecompressFile(str input, str output) -> str { return global.nativeCompress.zstdDecompressFile(input, output); }
+fn zstdCompress(bytes data) -> bytes { return global.nativeCompress.zstdCompress(data); }
+fn zstdDecompress(bytes data) -> bytes { return global.nativeCompress.zstdDecompress(data); }
+fn zstdCompressFile(str input, str output) -> str { return global.nativeCompress.zstdCompressFile(input, output); }
+fn zstdDecompressFile(str input, str output) -> str { return global.nativeCompress.zstdDecompressFile(input, output); }
 
 // --- bzip2 -----------------------------------------------------------------
 
-global bzip2Compress(bytes data) -> bytes { return global.nativeCompress.bzip2Compress(data); }
-global bzip2Decompress(bytes data) -> bytes { return global.nativeCompress.bzip2Decompress(data); }
-global bzip2CompressFile(str input, str output) -> str { return global.nativeCompress.bzip2CompressFile(input, output); }
-global bzip2DecompressFile(str input, str output) -> str { return global.nativeCompress.bzip2DecompressFile(input, output); }
+fn bzip2Compress(bytes data) -> bytes { return global.nativeCompress.bzip2Compress(data); }
+fn bzip2Decompress(bytes data) -> bytes { return global.nativeCompress.bzip2Decompress(data); }
+fn bzip2CompressFile(str input, str output) -> str { return global.nativeCompress.bzip2CompressFile(input, output); }
+fn bzip2DecompressFile(str input, str output) -> str { return global.nativeCompress.bzip2DecompressFile(input, output); }
 
 // --- brotli ----------------------------------------------------------------
 
-global brotliCompress(bytes data) -> bytes { return global.nativeCompress.brotliCompress(data); }
-global brotliDecompress(bytes data) -> bytes { return global.nativeCompress.brotliDecompress(data); }
-global brotliCompressFile(str input, str output) -> str { return global.nativeCompress.brotliCompressFile(input, output); }
-global brotliDecompressFile(str input, str output) -> str { return global.nativeCompress.brotliDecompressFile(input, output); }
+fn brotliCompress(bytes data) -> bytes { return global.nativeCompress.brotliCompress(data); }
+fn brotliDecompress(bytes data) -> bytes { return global.nativeCompress.brotliDecompress(data); }
+fn brotliCompressFile(str input, str output) -> str { return global.nativeCompress.brotliCompressFile(input, output); }
+fn brotliDecompressFile(str input, str output) -> str { return global.nativeCompress.brotliDecompressFile(input, output); }
 
 // --- lz4 -------------------------------------------------------------------
 
-global lz4Compress(bytes data) -> bytes { return global.nativeCompress.lz4Compress(data); }
-global lz4Decompress(bytes data) -> bytes { return global.nativeCompress.lz4Decompress(data); }
-global lz4CompressFile(str input, str output) -> str { return global.nativeCompress.lz4CompressFile(input, output); }
-global lz4DecompressFile(str input, str output) -> str { return global.nativeCompress.lz4DecompressFile(input, output); }
+fn lz4Compress(bytes data) -> bytes { return global.nativeCompress.lz4Compress(data); }
+fn lz4Decompress(bytes data) -> bytes { return global.nativeCompress.lz4Decompress(data); }
+fn lz4CompressFile(str input, str output) -> str { return global.nativeCompress.lz4CompressFile(input, output); }
+fn lz4DecompressFile(str input, str output) -> str { return global.nativeCompress.lz4DecompressFile(input, output); }
 
 // --- ZIP archives ----------------------------------------------------------
 
@@ -71,29 +71,29 @@ global lz4DecompressFile(str input, str output) -> str { return global.nativeCom
 // `{"name": "<path in archive>", "path": "<source file>"}` or
 // `{"name": "...", "base64": "<inline data>"}`. Entries may also include an optional
 // `"password": "..."`, which enables AES-128 encryption for that file. "ok" or "ERROR: ...".
-global zipCreate(str path, str manifest) -> str { return global.nativeCompress.zipCreate(path, manifest); }
+fn zipCreate(str path, str manifest) -> str { return global.nativeCompress.zipCreate(path, manifest); }
 // The entry names as a JSON array, or "ERROR: ...".
-global zipList(str path) -> str { return global.nativeCompress.zipList(path); }
+fn zipList(str path) -> str { return global.nativeCompress.zipList(path); }
 // An entry's bytes, or empty bytes when it is absent.
-global zipRead(str path, str entry) -> bytes { return global.nativeCompress.zipRead(path, entry); }
+fn zipRead(str path, str entry) -> bytes { return global.nativeCompress.zipRead(path, entry); }
 // An entry's bytes with the provided password, or empty bytes when absent/incorrect.
-global zipReadWithPassword(str path, str entry, str password) -> bytes { return global.nativeCompress.zipReadWithPassword(path, entry, password); }
+fn zipReadWithPassword(str path, str entry, str password) -> bytes { return global.nativeCompress.zipReadWithPassword(path, entry, password); }
 // Extract into a directory, refusing any entry that escapes it. "ok" or "ERROR: ...".
-global zipExtract(str path, str directory) -> str { return global.nativeCompress.zipExtract(path, directory); }
+fn zipExtract(str path, str directory) -> str { return global.nativeCompress.zipExtract(path, directory); }
 // Extract with a password for any AES-encrypted entries. "ok" or "ERROR: ...".
-global zipExtractWithPassword(str path, str directory, str password) -> str { return global.nativeCompress.zipExtractWithPassword(path, directory, password); }
+fn zipExtractWithPassword(str path, str directory, str password) -> str { return global.nativeCompress.zipExtractWithPassword(path, directory, password); }
 
 // --- TAR archives ----------------------------------------------------------
 
 // Create a TAR archive from the same JSON entry manifest as `zipCreate`.
-global tarCreate(str path, str manifest) -> str { return global.nativeCompress.tarCreate(path, manifest); }
+fn tarCreate(str path, str manifest) -> str { return global.nativeCompress.tarCreate(path, manifest); }
 // The entry names as a JSON array, or "ERROR: ...".
-global tarList(str path) -> str { return global.nativeCompress.tarList(path); }
+fn tarList(str path) -> str { return global.nativeCompress.tarList(path); }
 // Extract into a directory, refusing any entry that escapes it. "ok" or "ERROR: ...".
-global tarExtract(str path, str directory) -> str { return global.nativeCompress.tarExtract(path, directory); }
+fn tarExtract(str path, str directory) -> str { return global.nativeCompress.tarExtract(path, directory); }
 // Create a gzip-compressed TAR archive.
-global tarGzCreate(str path, str manifest) -> str { return global.nativeCompress.tarGzCreate(path, manifest); }
+fn tarGzCreate(str path, str manifest) -> str { return global.nativeCompress.tarGzCreate(path, manifest); }
 // Extract a gzip-compressed TAR archive.
-global tarGzExtract(str path, str directory) -> str { return global.nativeCompress.tarGzExtract(path, directory); }
+fn tarGzExtract(str path, str directory) -> str { return global.nativeCompress.tarGzExtract(path, directory); }
 
-global main(){}
+fn main(){}

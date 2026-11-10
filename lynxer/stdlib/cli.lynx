@@ -7,10 +7,10 @@ style command builders.
 Command builders keep their definitions in native integer handles and use JSON
 strings for structured arguments and results.
 ////
-global setup(){ importAs("cli.so", "nativeCli"); }
+fn setup(){ importAs("cli.so", "nativeCli"); }
 
 // Escape a value as a JSON string literal.
-global cliJsonString(str value) -> str {
+fn cliJsonString(str value) -> str {
     str out = "\"";
     int length = returnLength(value);
     for (int i = 0; i < length; i = i + 1) {
@@ -32,7 +32,7 @@ global cliJsonString(str value) -> str {
     return out + "\"";
 }
 
-global cliJsonBool(bool value) -> str {
+fn cliJsonBool(bool value) -> str {
     if (value) {
         return "true";
     }
@@ -40,82 +40,82 @@ global cliJsonBool(bool value) -> str {
 }
 
 // Return the process command line as a JSON array.
-global argv() -> str { return global.nativeCli.argv(); }
+fn argv() -> str { return global.nativeCli.argv(); }
 // Return the number of command-line entries.
-global argCount() -> int { return global.nativeCli.argCount(); }
+fn argCount() -> int { return global.nativeCli.argCount(); }
 // Return the command-line entry at index, or "".
-global getArg(int index) -> str { return global.nativeCli.getArg(index); }
+fn getArg(int index) -> str { return global.nativeCli.getArg(index); }
 // Return an environment variable's value, or "".
-global envGet(str name) -> str { return global.nativeCli.envGet(name); }
+fn envGet(str name) -> str { return global.nativeCli.envGet(name); }
 // Return true if the environment variable is set.
-global envHas(str name) -> bool { return global.nativeCli.envHas(name) isnt 0; }
+fn envHas(str name) -> bool { return global.nativeCli.envHas(name) isnt 0; }
 // Return all environment variables as a JSON object.
-global envAll() -> str { return global.nativeCli.envAll(); }
+fn envAll() -> str { return global.nativeCli.envAll(); }
 // Return the current working directory.
-global cwd() -> str { return global.nativeCli.cwd(); }
+fn cwd() -> str { return global.nativeCli.cwd(); }
 // Change the working directory.
-global chdir(str path) -> bool { return global.nativeCli.chdir(path) isnt 0; }
+fn chdir(str path) -> bool { return global.nativeCli.chdir(path) isnt 0; }
 // Return true if stdin is a terminal.
-global stdinIsTty() -> bool { return global.nativeCli.stdinIsTty() isnt 0; }
+fn stdinIsTty() -> bool { return global.nativeCli.stdinIsTty() isnt 0; }
 // Return true if stdout is a terminal.
-global stdoutIsTty() -> bool { return global.nativeCli.stdoutIsTty() isnt 0; }
+fn stdoutIsTty() -> bool { return global.nativeCli.stdoutIsTty() isnt 0; }
 // Read all of stdin.
-global readStdin() -> str { return global.nativeCli.readStdin(); }
+fn readStdin() -> str { return global.nativeCli.readStdin(); }
 // Write text to stdout.
-global writeStdout(str text) { global.nativeCli.writeStdout(text); }
+fn writeStdout(str text) { global.nativeCli.writeStdout(text); }
 // Write text to stderr.
-global writeStderr(str text) { global.nativeCli.writeStderr(text); }
+fn writeStderr(str text) { global.nativeCli.writeStderr(text); }
 // Return the terminal size as JSON {"columns": N, "lines": M}.
-global terminalSize() -> str { return global.nativeCli.terminalSize(); }
+fn terminalSize() -> str { return global.nativeCli.terminalSize(); }
 // Exit the process with the given code.
-global exit(int code) { global.nativeCli.exit(code); }
+fn exit(int code) { global.nativeCli.exit(code); }
 // Return true if the path exists.
-global pathExists(str path) -> bool {
+fn pathExists(str path) -> bool {
     return global.nativeCli.pathExists(path) isnt 0;
 }
 // Return true if the path is a regular file.
-global isFile(str path) -> bool { return global.nativeCli.isFile(path) isnt 0; }
+fn isFile(str path) -> bool { return global.nativeCli.isFile(path) isnt 0; }
 // Return true if the path is a directory.
-global isDirectory(str path) -> bool {
+fn isDirectory(str path) -> bool {
     return global.nativeCli.isDirectory(path) isnt 0;
 }
 // Resolve an executable on PATH, or "".
-global which(str executable) -> str { return global.nativeCli.which(executable); }
+fn which(str executable) -> str { return global.nativeCli.which(executable); }
 // Run a command. With capture=true return its stdout; otherwise return the exit
 // code as a string.
-global run(str command, bool capture) -> str {
+fn run(str command, bool capture) -> str {
     if(capture){ return global.nativeCli.run(command, 1); }
     return global.nativeCli.run(command, 0);
 }
 // Run a command silently and return its exit code.
-global runCode(str command) -> int { return global.nativeCli.runCode(command); }
+fn runCode(str command) -> int { return global.nativeCli.runCode(command); }
 
 // --- Click-style builders ---------------------------------------------------
 
 // Reset the builder registry. Call before creating any command or group.
-global clickInit() { global.nativeCli.clickInit(); }
+fn clickInit() { global.nativeCli.clickInit(); }
 
 // Create a command; returns its handle (0 on failure).
-global clickCommandCreate(str name, str help) -> int {
+fn clickCommandCreate(str name, str help) -> int {
     return global.nativeCli.clickCommandCreate(
         "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
 }
 
 // Create a command group; returns its handle (0 on failure).
-global clickGroupCreate(str name, str help) -> int {
+fn clickGroupCreate(str name, str help) -> int {
     return global.nativeCli.clickGroupCreate(
         "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
 }
 
 // Register a command in a group.
-global clickGroupAddCommand(int group, int command, str name) -> int {
+fn clickGroupAddCommand(int group, int command, str name) -> int {
     return global.nativeCli.clickGroupAddCommand(
         "[" + strOf(group) + "," + strOf(command) + "," + cliJsonString(name) +
         "]");
 }
 
 // Add a positional argument. nargs < 0 collects all remaining arguments.
-global clickAddArgument(int command, str name, bool required, int nargs,
+fn clickAddArgument(int command, str name, bool required, int nargs,
                         str help = "") -> int {
     return global.nativeCli.clickAddArgument(
         "[" + strOf(command) + "," + cliJsonString(name) + "," +
@@ -127,7 +127,7 @@ global clickAddArgument(int command, str name, bool required, int nargs,
 // `kind` is one of text, int, float, bool, path. `envvar` supplies a fallback
 // from the environment, and `multiple` collects repeated occurrences into a
 // JSON array.
-global clickAddOption(int command, str declarations, str help,
+fn clickAddOption(int command, str declarations, str help,
                       str defaultValue, bool flag, bool required,
                       str kind, str envvar = "", bool multiple = false) -> int {
     return global.nativeCli.clickAddOption(
@@ -140,7 +140,7 @@ global clickAddOption(int command, str declarations, str help,
 
 // Set a shell template run when the command is invoked. Parsed parameters are
 // substituted as {name}.
-global clickCommandSetShell(int command, str template) -> int {
+fn clickCommandSetShell(int command, str template) -> int {
     return global.nativeCli.clickCommandSetShell(
         "[" + strOf(command) + "," + cliJsonString(template) + "]");
 }
@@ -148,39 +148,39 @@ global clickCommandSetShell(int command, str template) -> int {
 // Invoke a command with a JSON array of arguments; returns JSON
 // {"params": {...}, "output": "...", "exitCode": N}. On a failure it returns
 // {"error": "..."}.
-global clickInvoke(int handle, str argsJson) -> str {
+fn clickInvoke(int handle, str argsJson) -> str {
     return global.nativeCli.clickInvoke(
         "[" + strOf(handle) + "," + cliJsonString(argsJson) + "]");
 }
 
 // Invoke a group: the first argument selects the subcommand.
-global clickGroupInvoke(int handle, str argsJson) -> str {
+fn clickGroupInvoke(int handle, str argsJson) -> str {
     return global.nativeCli.clickGroupInvoke(
         "[" + strOf(handle) + "," + cliJsonString(argsJson) + "]");
 }
 
 // Invoke a command with the process command line (arguments after argv[0]).
-global clickRun(int command) -> str {
+fn clickRun(int command) -> str {
     return global.nativeCli.clickRun("[" + strOf(command) + "]");
 }
 
 // The parameters parsed by the most recent invoke, as JSON.
-global clickLastParams() -> str { return global.nativeCli.clickLastParams(); }
+fn clickLastParams() -> str { return global.nativeCli.clickLastParams(); }
 
 // --- Typer-style builders ---------------------------------------------------
 
 // Reset the builder registry. Call before creating the app.
-global typerInit() { global.nativeCli.clickInit(); }
+fn typerInit() { global.nativeCli.clickInit(); }
 
 // Create a Typer app (a group). Returns its handle (0 on failure).
-global typerAppCreate(str name, str help, bool noArgsHelp) -> int {
+fn typerAppCreate(str name, str help, bool noArgsHelp) -> int {
     return global.nativeCli.clickGroupCreate(
         "[" + cliJsonString(name) + "," + cliJsonString(help) + "," +
         cliJsonBool(noArgsHelp) + "]");
 }
 
 // Register a command in a Typer app; returns the command handle.
-global typerCommandCreate(int app, str name, str help) -> int {
+fn typerCommandCreate(int app, str name, str help) -> int {
     int command = global.nativeCli.clickCommandCreate(
         "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
     if (command > 0) {
@@ -192,7 +192,7 @@ global typerCommandCreate(int app, str name, str help) -> int {
 }
 
 // Add a positional argument. nargs < 0 collects all remaining arguments.
-global typerAddArgument(int command, str name, bool required, int nargs,
+fn typerAddArgument(int command, str name, bool required, int nargs,
                         str help = "") -> int {
     return global.nativeCli.clickAddArgument(
         "[" + strOf(command) + "," + cliJsonString(name) + "," +
@@ -202,7 +202,7 @@ global typerAddArgument(int command, str name, bool required, int nargs,
 
 // Add an option or flag. `envvar` is an environment fallback and `multiple`
 // collects repeated occurrences into a JSON array.
-global typerAddOption(int command, str declarations, str help,
+fn typerAddOption(int command, str declarations, str help,
                       str defaultValue, bool flag, bool required,
                       str kind, str envvar = "", bool multiple = false) -> int {
     return global.nativeCli.clickAddOption(
@@ -214,23 +214,23 @@ global typerAddOption(int command, str declarations, str help,
 }
 
 // Set a shell template run when the command is invoked.
-global typerCommandSetShell(int command, str template) -> int {
+fn typerCommandSetShell(int command, str template) -> int {
     return global.nativeCli.clickCommandSetShell(
         "[" + strOf(command) + "," + cliJsonString(template) + "]");
 }
 
 // Invoke an app with a JSON array of arguments; returns JSON like clickInvoke.
-global typerInvoke(int app, str argsJson) -> str {
+fn typerInvoke(int app, str argsJson) -> str {
     return global.nativeCli.clickInvoke(
         "[" + strOf(app) + "," + cliJsonString(argsJson) + "]");
 }
 
 // Invoke an app with the process command line.
-global typerRun(int app) -> str {
+fn typerRun(int app) -> str {
     return global.nativeCli.clickRun("[" + strOf(app) + "]");
 }
 
 // The parameters parsed by the most recent invoke, as JSON.
-global typerLastParams() -> str { return global.nativeCli.clickLastParams(); }
+fn typerLastParams() -> str { return global.nativeCli.clickLastParams(); }
 
-global main(){}
+fn main(){}

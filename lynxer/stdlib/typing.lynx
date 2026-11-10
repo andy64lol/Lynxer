@@ -7,80 +7,80 @@ and the `charCode`/`charOf` builtins work on **code points**, so a character is
 one Unicode scalar value rather than one byte.
 ////
 
-global setup(){}
+fn setup(){}
 
 //// Local helpers ////
 // The interpreter has no `min`/`max`/`clamp` builtins, so the module carries
 // its own. Keep calls to builtins prefixed with `global.` — the module owns
 // `contains`, `charAt`, `trim`, `upper` and `lower` as well.
-func typingMin(int left, int right) -> int {
+fn typingMin(int left, int right) -> int {
     if (left <= right) { return left; }
     return right;
 }
-func typingMax(int left, int right) -> int {
+fn typingMax(int left, int right) -> int {
     if (left >= right) { return left; }
     return right;
 }
-func typingClampInt(int value, int low, int high) -> int {
+fn typingClampInt(int value, int low, int high) -> int {
     if (value < low) { return low; }
     if (value > high) { return high; }
     return value;
 }
-func typingIsSpace(str value) -> bool {
+fn typingIsSpace(str value) -> bool {
     if (returnLength(value) isnt 1) { return false; }
     return value is " " or value is "\t" or value is "\n" or value is "\r";
 }
 
 //// Type checks ////
-global isNum(any val) -> bool { return returnType(val) is "int" or returnType(val) is "float"; }
-global isInt(any val) -> bool { return returnType(val) is "int"; }
-global isFloat(any val) -> bool { return returnType(val) is "float"; }
-global isStr(any val) -> bool { return returnType(val) is "str"; }
-global isBool(any val) -> bool { return returnType(val) is "bool"; }
-global isList(any val) -> bool { return returnType(val) is "list"; }
-global isTuple(any val) -> bool { return returnType(val) is "tuple"; }
-global isChar(any val) -> bool { return returnType(val) is "char"; }
-global isNone(any val) -> bool { return val is none; }
-global isSequence(any val) -> bool { return isList(val) or isTuple(val); }
+fn isNum(any val) -> bool { return returnType(val) is "int" or returnType(val) is "float"; }
+fn isInt(any val) -> bool { return returnType(val) is "int"; }
+fn isFloat(any val) -> bool { return returnType(val) is "float"; }
+fn isStr(any val) -> bool { return returnType(val) is "str"; }
+fn isBool(any val) -> bool { return returnType(val) is "bool"; }
+fn isList(any val) -> bool { return returnType(val) is "list"; }
+fn isTuple(any val) -> bool { return returnType(val) is "tuple"; }
+fn isChar(any val) -> bool { return returnType(val) is "char"; }
+fn isNone(any val) -> bool { return val is none; }
+fn isSequence(any val) -> bool { return isList(val) or isTuple(val); }
 
 //// Integer and float range checks ////
-global isNumBool(any value) -> bool {
+fn isNumBool(any value) -> bool {
     return returnType(value) is "int" and (value is 0 or value is 1);
 }
-global isBit(any value) -> bool { return isNumBool(value); }
-global isInt8(any value) -> bool {
+fn isBit(any value) -> bool { return isNumBool(value); }
+fn isInt8(any value) -> bool {
     return returnType(value) is "int" and value >= -128 and value <= 127;
 }
-global isInt16(any value) -> bool {
+fn isInt16(any value) -> bool {
     return returnType(value) is "int" and value >= -32768 and value <= 32767;
 }
-global isInt32(any value) -> bool {
+fn isInt32(any value) -> bool {
     return returnType(value) is "int" and value >= -2147483648 and value <= 2147483647;
 }
-global isInt64(any value) -> bool { return returnType(value) is "int"; }
-global isByte(any value) -> bool {
+fn isInt64(any value) -> bool { return returnType(value) is "int"; }
+fn isByte(any value) -> bool {
     return returnType(value) is "int" and value >= 0 and value <= 255;
 }
-global isUInt8(any value) -> bool { return isByte(value); }
-global isUInt16(any value) -> bool {
+fn isUInt8(any value) -> bool { return isByte(value); }
+fn isUInt16(any value) -> bool {
     return returnType(value) is "int" and value >= 0 and value <= 65535;
 }
-global isUInt32(any value) -> bool {
+fn isUInt32(any value) -> bool {
     return returnType(value) is "int" and value >= 0 and value <= 4294967295;
 }
-global isUInt64(any value) -> bool {
+fn isUInt64(any value) -> bool {
     return returnType(value) is "int" and value >= 0;
 }
-global isFloat32(any value) -> bool {
+fn isFloat32(any value) -> bool {
     if (not isNum(value)) { return false; }
     float bound = 340282346638528859811704183484516925440.0;
     float number = global.floatOf(value);
     return number >= -bound and number <= bound;
 }
-global isFloat64(any value) -> bool { return isNum(value); }
+fn isFloat64(any value) -> bool { return isNum(value); }
 
 //// String-content predicates ////
-global isAlpha(str value) -> bool {
+fn isAlpha(str value) -> bool {
     if (returnLength(value) is 0) { return false; }
     int index = 0;
     while (index < returnLength(value)) {
@@ -90,7 +90,7 @@ global isAlpha(str value) -> bool {
     }
     return true;
 }
-global isDigit(str value) -> bool {
+fn isDigit(str value) -> bool {
     if (returnLength(value) is 0) { return false; }
     int index = 0;
     while (index < returnLength(value)) {
@@ -100,7 +100,7 @@ global isDigit(str value) -> bool {
     }
     return true;
 }
-global isAlphaNum(str value) -> bool {
+fn isAlphaNum(str value) -> bool {
     if (returnLength(value) is 0) { return false; }
     int index = 0;
     while (index < returnLength(value)) {
@@ -110,7 +110,7 @@ global isAlphaNum(str value) -> bool {
     }
     return true;
 }
-global isSpace(str value) -> bool {
+fn isSpace(str value) -> bool {
     if (returnLength(value) is 0) { return false; }
     int index = 0;
     while (index < returnLength(value)) {
@@ -121,26 +121,26 @@ global isSpace(str value) -> bool {
 }
 // `isNumeric` keeps its Lynxer meaning — "is an int or a float" — rather than
 // the legacy "string parses as a number". Use isDigit for digit-only strings.
-global isNumeric(any value) -> bool {
+fn isNumeric(any value) -> bool {
     return returnType(value) is "int" or returnType(value) is "float";
 }
 
 //// Type conversions ////
-global typeOf(any value) -> str { return returnType(value); }
-global toStr(any value) -> str { return global.strOf(value); }
-global toInt(any value) -> int { return global.intOf(value); }
-global toFloat(any value) -> float { return global.floatOf(value); }
-global toFloat32(any value) -> float { return global.floatOf(value); }
-global toFloat64(any value) -> float { return global.floatOf(value); }
-global toBool(any value) -> bool { return value isnt 0; }
-global toNumBool(any value) -> numBool {
+fn typeOf(any value) -> str { return returnType(value); }
+fn toStr(any value) -> str { return global.strOf(value); }
+fn toInt(any value) -> int { return global.intOf(value); }
+fn toFloat(any value) -> float { return global.floatOf(value); }
+fn toFloat32(any value) -> float { return global.floatOf(value); }
+fn toFloat64(any value) -> float { return global.floatOf(value); }
+fn toBool(any value) -> bool { return value isnt 0; }
+fn toNumBool(any value) -> numBool {
     if (value isnt 0) { return 1; }
     return 0;
 }
-global toBit(any value) -> bit { return toNumBool(value); }
-global toByte(any value) -> byte { return typingClampInt(global.intOf(value), 0, 255); }
-global toString(any val) -> str { return global.strOf(val); }
-global toNumber(any val) -> float {
+fn toBit(any value) -> bit { return toNumBool(value); }
+fn toByte(any value) -> byte { return typingClampInt(global.intOf(value), 0, 255); }
+fn toString(any val) -> str { return global.strOf(val); }
+fn toNumber(any val) -> float {
     if (isNumeric(val)) { return global.floatOf(val); }
     return 0.0;
 }
@@ -148,22 +148,22 @@ global toNumber(any val) -> float {
 //// Char functions ////
 // A character is a Unicode code point (see the header), so convert through the
 // charCode/charOf builtins rather than comparing a char and a str directly.
-global charCodeOf(any val) -> int {
+fn charCodeOf(any val) -> int {
     if (isChar(val) or isStr(val)) { return global.charCode(val); }
     return -1;
 }
-global charCode(str value) -> int { return global.charCode(value); }
-global charOf(int code) -> char {
+fn charCode(str value) -> int { return global.charCode(value); }
+fn charOf(int code) -> char {
     if (code < 0 or code > 1114111 or (code >= 55296 and code <= 57343)) {
         return global.charOf(0);
     }
     return global.charOf(code);
 }
-global charAt(str value, int index) -> any {
+fn charAt(str value, int index) -> any {
     if (index < 0 or index >= returnLength(value)) { return none; }
     return global.charOf(global.charCode(global.charAt(value, index)));
 }
-global toChar(any val) -> char {
+fn toChar(any val) -> char {
     if (returnType(val) is "str" and returnLength(val) is 1) {
         return global.charOf(global.charCode(val));
     } elif (returnType(val) is "int") {
@@ -175,25 +175,25 @@ global toChar(any val) -> char {
 }
 
 //// String functions ////
-global lenStr(str value) -> int { return returnLength(value); }
-global trim(str value) -> str { return global.trim(value); }
-global stripLeft(str value) -> str {
+fn lenStr(str value) -> int { return returnLength(value); }
+fn trim(str value) -> str { return global.trim(value); }
+fn stripLeft(str value) -> str {
     int index = 0;
     while (index < returnLength(value) and typingIsSpace(global.charAt(value, index))) {
         index = index + 1;
     }
     return global.substring(value, index, returnLength(value));
 }
-global stripRight(str value) -> str {
+fn stripRight(str value) -> str {
     int end = returnLength(value);
     while (end > 0 and typingIsSpace(global.charAt(value, end - 1))) {
         end = end - 1;
     }
     return global.substring(value, 0, end);
 }
-global upper(str value) -> str { return global.upper(value); }
-global lower(str value) -> str { return global.lower(value); }
-global titleCase(str value) -> str {
+fn upper(str value) -> str { return global.upper(value); }
+fn lower(str value) -> str { return global.lower(value); }
+fn titleCase(str value) -> str {
     str result = "";
     bool boundary = true;
     int index = 0;
@@ -212,7 +212,7 @@ global titleCase(str value) -> str {
     }
     return result;
 }
-global swapCase(str value) -> str {
+fn swapCase(str value) -> str {
     str result = "";
     int index = 0;
     while (index < returnLength(value)) {
@@ -228,14 +228,14 @@ global swapCase(str value) -> str {
     }
     return result;
 }
-global repeat(str value, int count) -> str {
+fn repeat(str value, int count) -> str {
     str result = "";
     int index = 0;
     while (index < count) { result = result + value; index = index + 1; }
     return result;
 }
-global repeatStr(str value, int count) -> str { return repeat(value, count); }
-global contains(str value, str needle) -> bool {
+fn repeatStr(str value, int count) -> str { return repeat(value, count); }
+fn contains(str value, str needle) -> bool {
     if (returnLength(needle) is 0) { return true; }
     int index = 0;
     while (index <= returnLength(value) - returnLength(needle)) {
@@ -246,19 +246,19 @@ global contains(str value, str needle) -> bool {
     }
     return false;
 }
-global startsWith(str value, str prefix) -> bool {
+fn startsWith(str value, str prefix) -> bool {
     if (returnLength(prefix) > returnLength(value)) { return false; }
     return global.substring(value, 0, returnLength(prefix)) is prefix;
 }
-global endsWith(str value, str suffix) -> bool {
+fn endsWith(str value, str suffix) -> bool {
     int start = returnLength(value) - returnLength(suffix);
     if (start < 0) { return false; }
     return global.substring(value, start, returnLength(value)) is suffix;
 }
-global replace(str value, str oldValue, str newValue) -> str {
+fn replace(str value, str oldValue, str newValue) -> str {
     return global.replace(value, oldValue, newValue);
 }
-global indexOf(str value, str needle) -> int {
+fn indexOf(str value, str needle) -> int {
     if (returnLength(needle) is 0) { return 0; }
     int index = 0;
     while (index <= returnLength(value) - returnLength(needle)) {
@@ -269,7 +269,7 @@ global indexOf(str value, str needle) -> int {
     }
     return -1;
 }
-global countOccurrences(str value, str needle) -> int {
+fn countOccurrences(str value, str needle) -> int {
     if (returnLength(needle) is 0) { return 0; }
     int total = 0;
     int index = 0;
@@ -283,7 +283,7 @@ global countOccurrences(str value, str needle) -> int {
     }
     return total;
 }
-global substr(str value, int start, int end) -> str {
+fn substr(str value, int start, int end) -> str {
     int length = returnLength(value);
     int from = start;
     int to = end;
@@ -295,25 +295,25 @@ global substr(str value, int start, int end) -> str {
     if (to < from) { to = from; }
     return global.substring(value, from, to);
 }
-global padLeft(str value, int width, str fill) -> str {
+fn padLeft(str value, int width, str fill) -> str {
     int missing = width - returnLength(value);
     if (missing <= 0 or returnLength(fill) is 0) { return value; }
     str padding = repeat(fill, missing /% returnLength(fill) + 1);
     return global.substring(padding, 0, missing) + value;
 }
-global padRight(str value, int width, str fill) -> str {
+fn padRight(str value, int width, str fill) -> str {
     int missing = width - returnLength(value);
     if (missing <= 0 or returnLength(fill) is 0) { return value; }
     str padding = repeat(fill, missing /% returnLength(fill) + 1);
     return value + global.substring(padding, 0, missing);
 }
-global center(str value, int width, str fill) -> str {
+fn center(str value, int width, str fill) -> str {
     int margin = width - returnLength(value);
     if (margin <= 0 or returnLength(fill) is 0) { return value; }
     int left = margin /% 2 + (margin % 2) * (width % 2);
     return padLeft("", left, fill) + value + padLeft("", margin - left, fill);
 }
-global zfill(str value, int width) -> str {
+fn zfill(str value, int width) -> str {
     if (returnLength(value) >= width) { return value; }
     str sign = "";
     str digits = value;
@@ -326,7 +326,7 @@ global zfill(str value, int width) -> str {
     }
     return sign + padLeft(digits, width - returnLength(sign), "0");
 }
-global strReverse(str value) -> str {
+fn strReverse(str value) -> str {
     str result = "";
     int index = returnLength(value) - 1;
     while (index >= 0) {
@@ -335,8 +335,8 @@ global strReverse(str value) -> str {
     }
     return result;
 }
-global spaces(int count) -> str { return repeat(" ", count); }
-global wordWrap(str value, int width) -> str {
+fn spaces(int count) -> str { return repeat(" ", count); }
+fn wordWrap(str value, int width) -> str {
     if (width <= 0) { return value; }
     list words = global.splitStr(value, " ");
     str line = "";
@@ -357,7 +357,7 @@ global wordWrap(str value, int width) -> str {
     if (returnLength(line) > 0) { result = result + line; }
     return result;
 }
-global expandTabs(str value, int tabSize) -> str {
+fn expandTabs(str value, int tabSize) -> str {
     if (tabSize <= 0) { return value; }
     str result = "";
     int column = 0;
@@ -379,48 +379,48 @@ global expandTabs(str value, int tabSize) -> str {
     }
     return result;
 }
-global splitFirst(str value, str separator) -> list {
+fn splitFirst(str value, str separator) -> list {
     if (returnLength(separator) is 0) { return ["", value]; }
     int at = indexOf(value, separator);
     if (at < 0) { return [value, ""]; }
     return [global.substring(value, 0, at),
             global.substring(value, at + returnLength(separator), returnLength(value))];
 }
-global splitToList(str value, str separator) -> list {
+fn splitToList(str value, str separator) -> list {
     return global.splitStr(value, separator);
 }
-global linesOf(str value) -> list {
+fn linesOf(str value) -> list {
     if (returnLength(value) is 0) { return []; }
     return global.splitStr(value, "\n");
 }
 
 //// Number functions ////
-global abs(num value) -> num {
+fn abs(num value) -> num {
     if (value < 0) { return -value; }
     return value;
 }
-global sign(num value) -> int {
+fn sign(num value) -> int {
     if (value > 0) { return 1; }
     if (value < 0) { return -1; }
     return 0;
 }
-global maxOf(num left, num right) -> num {
+fn maxOf(num left, num right) -> num {
     if (left >= right) { return left; }
     return right;
 }
-global minOf(num left, num right) -> num {
+fn minOf(num left, num right) -> num {
     if (left <= right) { return left; }
     return right;
 }
-global clamp(float value, float low, float high) -> float {
+fn clamp(float value, float low, float high) -> float {
     if (value < low) { return low; }
     if (value > high) { return high; }
     return value;
 }
-global between(num value, num low, num high) -> bool {
+fn between(num value, num low, num high) -> bool {
     return value >= low and value <= high;
 }
-global roundTo(float value, int digits) -> float {
+fn roundTo(float value, int digits) -> float {
     int places = digits;
     if (places < 0) { places = 0; }
     float scale = 1.0;
@@ -431,26 +431,26 @@ global roundTo(float value, int digits) -> float {
 }
 
 //// List functions ////
-global lenList(list lst) -> int { return returnLength(lst); }
-global listFirst(list lst) -> any {
+fn lenList(list lst) -> int { return returnLength(lst); }
+fn listFirst(list lst) -> any {
     global.assert(returnLength(lst) > 0, "listFirst: empty list");
     return listGet(lst, 0);
 }
-global listLast(list lst) -> any {
+fn listLast(list lst) -> any {
     global.assert(returnLength(lst) > 0, "listLast: empty list");
     return listGet(lst, returnLength(lst) - 1);
 }
-global listHead(list lst, int count) -> list {
+fn listHead(list lst, int count) -> list {
     if (count <= 0) { return []; }
     return listSlice(lst, 0, typingMin(count, returnLength(lst)));
 }
-global listTail(list lst, int count) -> list {
+fn listTail(list lst, int count) -> list {
     if (count <= 0) { return []; }
     int length = returnLength(lst);
     if (length is 0) { return []; }
     return listSlice(lst, typingMax(0, length - count), length);
 }
-global listSum(list lst) -> float {
+fn listSum(list lst) -> float {
     float total = 0.0;
     int index = 0;
     while (index < returnLength(lst)) {
@@ -460,11 +460,11 @@ global listSum(list lst) -> float {
     }
     return total;
 }
-global listAvg(list lst) -> float {
+fn listAvg(list lst) -> float {
     if (returnLength(lst) is 0) { return 0.0; }
     return listSum(lst) / returnLength(lst);
 }
-global listCount(list lst, any value) -> int {
+fn listCount(list lst, any value) -> int {
     int total = 0;
     int index = 0;
     while (index < returnLength(lst)) {
@@ -473,7 +473,7 @@ global listCount(list lst, any value) -> int {
     }
     return total;
 }
-global listRepeat(any value, int count) -> list {
+fn listRepeat(any value, int count) -> list {
     list result = [];
     int index = 0;
     while (index < count) {
@@ -482,7 +482,7 @@ global listRepeat(any value, int count) -> list {
     }
     return result;
 }
-global listZip(list first, list second) -> list {
+fn listZip(list first, list second) -> list {
     list result = [];
     int length = typingMin(returnLength(first), returnLength(second));
     int index = 0;
@@ -494,7 +494,7 @@ global listZip(list first, list second) -> list {
     }
     return result;
 }
-global flatten(list lst) -> list {
+fn flatten(list lst) -> list {
     list result = [];
     int index = 0;
     while (index < returnLength(lst)) {
@@ -508,7 +508,7 @@ global flatten(list lst) -> list {
     }
     return result;
 }
-global unique(list lst) -> list {
+fn unique(list lst) -> list {
     list result = [];
     int index = 0;
     while (index < returnLength(lst)) {
@@ -518,7 +518,7 @@ global unique(list lst) -> list {
     }
     return result;
 }
-global listChunk(list lst, int size) -> list {
+fn listChunk(list lst, int size) -> list {
     if (size <= 0) { return []; }
     list result = [];
     int length = returnLength(lst);
@@ -532,31 +532,31 @@ global listChunk(list lst, int size) -> list {
 }
 
 //// Tuple functions ////
-global tupleReverse(any value) -> tuple {
+fn tupleReverse(any value) -> tuple {
     if (not isTuple(value)) { return (); }
     return listToTuple(reverseList(tupleToList(value)));
 }
-global tupleSort(any value) -> tuple {
+fn tupleSort(any value) -> tuple {
     if (not isTuple(value)) { return (); }
     return listToTuple(sortList(tupleToList(value)));
 }
-global tupleSortDesc(any value) -> tuple {
+fn tupleSortDesc(any value) -> tuple {
     if (not isTuple(value)) { return (); }
     return listToTuple(sortList(tupleToList(value), true));
 }
-global tupleMin(any value) -> any {
+fn tupleMin(any value) -> any {
     if (not isTuple(value) or returnLength(value) is 0) { return none; }
     return listMin(tupleToList(value));
 }
-global tupleMax(any value) -> any {
+fn tupleMax(any value) -> any {
     if (not isTuple(value) or returnLength(value) is 0) { return none; }
     return listMax(tupleToList(value));
 }
-global tupleSum(any value) -> float {
+fn tupleSum(any value) -> float {
     if (not isTuple(value)) { return 0.0; }
     return listSum(tupleToList(value));
 }
-global tupleAny(any value) -> bool {
+fn tupleAny(any value) -> bool {
     if (not isTuple(value)) { return false; }
     list items = tupleToList(value);
     int index = 0;
@@ -567,7 +567,7 @@ global tupleAny(any value) -> bool {
     }
     return false;
 }
-global tupleAll(any value) -> bool {
+fn tupleAll(any value) -> bool {
     if (not isTuple(value)) { return true; }
     list items = tupleToList(value);
     int index = 0;
@@ -578,15 +578,15 @@ global tupleAll(any value) -> bool {
     }
     return true;
 }
-global tupleUnique(any value) -> tuple {
+fn tupleUnique(any value) -> tuple {
     if (not isTuple(value)) { return (); }
     return listToTuple(unique(tupleToList(value)));
 }
-global tupleMean(any value) -> float {
+fn tupleMean(any value) -> float {
     if (not isTuple(value) or returnLength(value) is 0) { return 0.0; }
     return tupleSum(value) / returnLength(value);
 }
-global tupleFlatten(any value) -> tuple {
+fn tupleFlatten(any value) -> tuple {
     if (not isTuple(value)) { return (); }
     list result = [];
     int index = 0;
@@ -601,7 +601,7 @@ global tupleFlatten(any value) -> tuple {
     }
     return listToTuple(result);
 }
-global tupleZip(any first, any second) -> list {
+fn tupleZip(any first, any second) -> list {
     if (not isTuple(first) or not isTuple(second)) { return []; }
     list result = [];
     int length = typingMin(returnLength(first), returnLength(second));
@@ -614,7 +614,7 @@ global tupleZip(any first, any second) -> list {
     }
     return result;
 }
-global tupleJoin(any value, str separator) -> str {
+fn tupleJoin(any value, str separator) -> str {
     if (not isTuple(value)) { return ""; }
     list items = tupleToList(value);
     str result = "";
@@ -628,19 +628,19 @@ global tupleJoin(any value, str separator) -> str {
 }
 
 //// Sequence conversion ////
-global toList(any val) -> list {
+fn toList(any val) -> list {
     if (isTuple(val)) { return tupleToList(val); }
     if (isList(val)) { return val; }
     return [];
 }
-global toTuple(any val) -> tuple {
+fn toTuple(any val) -> tuple {
     if (isList(val)) { return listToTuple(val); }
     if (isTuple(val)) { return val; }
     return ();
 }
-global lenSequence(any val) -> int {
+fn lenSequence(any val) -> int {
     if (isSequence(val)) { return returnLength(val); }
     return 0;
 }
 
-global main(){}
+fn main(){}

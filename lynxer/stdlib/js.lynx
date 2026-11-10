@@ -6,17 +6,17 @@ which runs Node.js as a subprocess. Requires `node` on PATH.
 Functions return the subprocess stdout; missing Node is reported as
 "Error: node not found on PATH". A timeout is not applied.
 ////
-global setup(){ importAs("js.so", "nativeJs"); }
+fn setup(){ importAs("js.so", "nativeJs"); }
 
 // Run a JavaScript source string. Returns stdout.
-global runJS(str code) -> str { return global.nativeJs.runJS(code); }
+fn runJS(str code) -> str { return global.nativeJs.runJS(code); }
 // Run a .js file. Returns stdout.
-global runJSFile(str path) -> str { return global.nativeJs.runJSFile(path); }
+fn runJSFile(str path) -> str { return global.nativeJs.runJSFile(path); }
 // Evaluate a JS expression (wrapped in console.log) and return its result.
-global evalJS(str expr) -> str { return global.nativeJs.evalJS(expr); }
+fn evalJS(str expr) -> str { return global.nativeJs.evalJS(expr); }
 // Return the Node.js version string (e.g. "v20.11.0"), or "".
-global nodeVersion() -> str { return global.nativeJs.nodeVersion(); }
+fn nodeVersion() -> str { return global.nativeJs.nodeVersion(); }
 // Return 1 if Node.js is available on PATH, else 0.
-global nodeExists() -> int { return global.nativeJs.nodeExists(); }
+fn nodeExists() -> int { return global.nativeJs.nodeExists(); }
 
-global main(){}
+fn main(){}

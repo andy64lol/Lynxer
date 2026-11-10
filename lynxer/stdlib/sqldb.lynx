@@ -4,10 +4,10 @@ SQLite database module backed by Rust (`rusqlite`), exposed through the native m
 Requires a Rust toolchain to build (see `rust/sqldb`); the module is skipped when `cargo` is unavailable.
 ////
 
-global setup(){ importAs("sqldb.so", "nativeSqlDb"); }
+fn setup(){ importAs("sqldb.so", "nativeSqlDb"); }
 
 // Convert the backend's error result into a catchable Lynxer runtime error.
-global checkedResult(str result) -> str {
+fn checkedResult(str result) -> str {
     if(returnLength(result) >= 7){
         if(substring(result, 0, 7) is "ERROR: "){
             global.raise(substring(result, 7, returnLength(result)));
@@ -17,57 +17,57 @@ global checkedResult(str result) -> str {
 }
 
 // Execute one SQL statement and commit. Raises on database errors.
-global execute(str path, str sql) -> str {
+fn execute(str path, str sql) -> str {
     return checkedResult(global.nativeSqlDb.execute(path, sql));
 }
 
 // Execute one parameterized SQL statement. paramsJson must be a JSON array.
-global executeArgs(str path, str sql, str paramsJson) -> str {
+fn executeArgs(str path, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.executeArgs(path, sql, paramsJson));
 }
 
 // Execute multiple SQL statements and commit them as one transaction.
 // Returns "ok" or "ERROR: <message>".
-global script(str path, str sqlScript) -> str {
+fn script(str path, str sqlScript) -> str {
     return checkedResult(global.nativeSqlDb.script(path, sqlScript));
 }
 
 // Query rows and return a JSON array of objects. SQLite BLOB columns are
 // represented as {"$bytes":"<base64>"} objects so they remain distinguishable
 // from ordinary text and can be supplied back through parameterized calls.
-global query(str path, str sql) -> str {
+fn query(str path, str sql) -> str {
     return checkedResult(global.nativeSqlDb.query(path, sql));
 }
 
 // Parameterized form of query().
-global queryArgs(str path, str sql, str paramsJson) -> str {
+fn queryArgs(str path, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.queryArgs(path, sql, paramsJson));
 }
 
 // Return the first column of the first row as a string, or "" when absent.
 // BLOB values use "bytes:<base64>"; NULL remains the empty string.
-global scalar(str path, str sql) -> str {
+fn scalar(str path, str sql) -> str {
     return checkedResult(global.nativeSqlDb.scalar(path, sql));
 }
 
 // Parameterized form of scalar().
-global scalarArgs(str path, str sql, str paramsJson) -> str {
+fn scalarArgs(str path, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.scalarArgs(path, sql, paramsJson));
 }
 
 // Execute an insert/update and return SQLite's lastrowid as an integer.
 // Returns -1 on error or when SQLite does not provide a row id.
-global lastInsertId(str path, str sql, str paramsJson) -> int {
+fn lastInsertId(str path, str sql, str paramsJson) -> int {
     return global.nativeSqlDb.lastInsertId(path, sql, paramsJson);
 }
 
 // Return whether a table exists in the database.
-global tableExists(str path, str tableName) -> bool {
+fn tableExists(str path, str tableName) -> bool {
     return global.nativeSqlDb.tableExists(path, tableName) isnt 0;
 }
 
 // Return table names as a JSON array.
-global tables(str path) -> str {
+fn tables(str path) -> str {
     return checkedResult(global.nativeSqlDb.tables(path));
 }
 
@@ -79,57 +79,57 @@ global tables(str path) -> str {
 
 // Open a database and keep the connection open. Returns the handle, or -1 when
 // the database cannot be opened.
-global open(str path) -> int { return global.nativeSqlDb.open(path); }
+fn open(str path) -> int { return global.nativeSqlDb.open(path); }
 
 // Close a handle from open(). Returns 1 when the handle was live, else 0.
-global close(int handle) -> int { return global.nativeSqlDb.close(handle); }
+fn close(int handle) -> int { return global.nativeSqlDb.close(handle); }
 
 // execute() against an open connection.
-global executeOn(int handle, str sql) -> str {
+fn executeOn(int handle, str sql) -> str {
     return checkedResult(global.nativeSqlDb.executeOn(handle, sql));
 }
 
 // executeArgs() against an open connection.
-global executeArgsOn(int handle, str sql, str paramsJson) -> str {
+fn executeArgsOn(int handle, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.executeArgsOn(handle, sql, paramsJson));
 }
 
 // script() against an open connection.
-global scriptOn(int handle, str sqlScript) -> str {
+fn scriptOn(int handle, str sqlScript) -> str {
     return checkedResult(global.nativeSqlDb.scriptOn(handle, sqlScript));
 }
 
 // query() against an open connection.
-global queryOn(int handle, str sql) -> str {
+fn queryOn(int handle, str sql) -> str {
     return checkedResult(global.nativeSqlDb.queryOn(handle, sql));
 }
 
 // queryArgs() against an open connection.
-global queryArgsOn(int handle, str sql, str paramsJson) -> str {
+fn queryArgsOn(int handle, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.queryArgsOn(handle, sql, paramsJson));
 }
 
 // scalar() against an open connection.
-global scalarOn(int handle, str sql) -> str {
+fn scalarOn(int handle, str sql) -> str {
     return checkedResult(global.nativeSqlDb.scalarOn(handle, sql));
 }
 
 // scalarArgs() against an open connection.
-global scalarArgsOn(int handle, str sql, str paramsJson) -> str {
+fn scalarArgsOn(int handle, str sql, str paramsJson) -> str {
     return checkedResult(global.nativeSqlDb.scalarArgsOn(handle, sql, paramsJson));
 }
 
 // lastInsertId() against an open connection.
-global lastInsertIdOn(int handle, str sql, str paramsJson) -> int {
+fn lastInsertIdOn(int handle, str sql, str paramsJson) -> int {
     return global.nativeSqlDb.lastInsertIdOn(handle, sql, paramsJson);
 }
 
 // tableExists() against an open connection.
-global tableExistsOn(int handle, str tableName) -> bool {
+fn tableExistsOn(int handle, str tableName) -> bool {
     return global.nativeSqlDb.tableExistsOn(handle, tableName) isnt 0;
 }
 
 // tables() against an open connection.
-global tablesOn(int handle) -> str {
+fn tablesOn(int handle) -> str {
     return checkedResult(global.nativeSqlDb.tablesOn(handle));
 }

@@ -12,15 +12,15 @@ failure is the scalar sentinel: `""` for a document operation and `false` for
 
 Requires a Rust toolchain to build (see `rust/yaml`).
 ////
-global setup(){ importAs("yaml.so", "nativeYaml"); }
+fn setup(){ importAs("yaml.so", "nativeYaml"); }
 
 // The YAML document as a JSON string, or "" when it does not parse.
-global yamlParse(str text) -> str { return global.nativeYaml.yamlParse(text); }
+fn yamlParse(str text) -> str { return global.nativeYaml.yamlParse(text); }
 // The JSON value as a YAML document, or "".
-global yamlSerialize(str json) -> str { return global.nativeYaml.yamlSerialize(json); }
+fn yamlSerialize(str json) -> str { return global.nativeYaml.yamlSerialize(json); }
 // True when `text` is valid YAML (and within the input cap).
-global yamlValid(str text) -> bool { return global.nativeYaml.yamlValid(text) isnt 0; }
+fn yamlValid(str text) -> bool { return global.nativeYaml.yamlValid(text) isnt 0; }
 // The value at a dotted `key` (`a.b`) as a JSON string, or "".
-global yamlGet(str text, str key) -> str { return global.nativeYaml.yamlGet(text, key); }
+fn yamlGet(str text, str key) -> str { return global.nativeYaml.yamlGet(text, key); }
 
-global main(){}
+fn main(){}
