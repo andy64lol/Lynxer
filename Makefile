@@ -1337,7 +1337,7 @@ testLynxerGuiIde: $(LYNXER_TARGET)
 	args="$(CLYX_TMP)_ide_args"; \
 	help="$(CLYX_TMP)_ide_help.out"; \
 	err="$(CLYX_TMP)_ide_err.out"; \
-	cleanup() { rm -f "$$stub" "$$args" "$$help" "$$err"; }; \
+	cleanup() { rm -f "$$stub" "$$stub.cpp" "$$stub.exe" "$$args" "$$help" "$$err"; }; \
 	ver="$$($(CLYX) --ver)"; \
 	if [ "$$ver" != "$$($(CLYX) --version)" ]; then \
 		echo "--ver did not match --version: $$ver"; cleanup; exit 1; fi; \
@@ -1346,13 +1346,28 @@ testLynxerGuiIde: $(LYNXER_TARGET)
 		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
 	if ! grep -q -- '--cli-ide' "$$help"; then \
 		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
-	printf '#!/bin/sh\nprintf "%%s\\n" "$$@" > "%s"\nexit 0\n' "$$args" > "$$stub"; \
-	chmod +x "$$stub"; \
-	if ! LYNXER_IDE="$$stub" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
+	ide="$$stub"; \
+	if [ "$(LYNXER_ON_WINDOWS)" = "1" ]; then \
+		printf '%s\n' \
+			'#include <cstdio>' \
+			'#include <cstdlib>' \
+			'int main(int argc, char** argv) { const char* p = std::getenv("LYNXER_IDE_ARGS_FILE"); if (!p) return 2; FILE* f = std::fopen(p, "wb"); if (!f) return 3; for (int i = 1; i < argc; ++i) { std::fputs(argv[i], f); std::fputc(10, f); } std::fclose(f); return 0; }' \
+			> "$$stub.cpp"; \
+		$(LYNXER_CXX) -std=c++17 -O2 "$$stub.cpp" -o "$$stub.exe" 2> "$$err" || { \
+			echo "could not build the Windows IDE stub"; cat "$$err"; cleanup; exit 1; }; \
+		ide="$$stub.exe"; \
+	else \
+		printf '#!/bin/sh\nprintf "%%s\\n" "$$@" > "%s"\nexit 0\n' "$$args" > "$$stub"; \
+		chmod +x "$$stub"; \
+	fi; \
+	if ! LYNXER_IDE="$$ide" LYNXER_IDE_ARGS_FILE="$$args" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
 		echo "--gui-ide failed to launch the IDE"; cat "$$err"; cleanup; exit 1; fi; \
 	if [ "$$(sed -n '1p' "$$args")" != "--lynxer" ]; then \
 		echo "--gui-ide did not pass --lynxer to the IDE"; cat "$$args"; cleanup; exit 1; fi; \
 	interpreter="$$(sed -n '2p' "$$args")"; \
+	if [ "$(LYNXER_ON_WINDOWS)" = "1" ]; then \
+		interpreter="$$(cygpath -u "$$interpreter" 2>/dev/null || printf '%s' "$$interpreter")"; \
+	fi; \
 	if [ ! -f "$$interpreter" ]; then \
 		echo "--gui-ide did not pass a usable interpreter path: $$interpreter"; cat "$$args"; cleanup; exit 1; fi; \
 	case "$$interpreter" in *lynxer*) ;; *) \
