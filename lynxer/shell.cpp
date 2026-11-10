@@ -3195,7 +3195,7 @@ int buildProject(bool run) {
     std::string outputPath = "build/" + name;
     const std::string extension = platform::executableExtension();
     if (!extension.empty()) {
-        outputPath += extension;
+        outputPath += "." + extension;
     }
 
     const int compileStatus =
