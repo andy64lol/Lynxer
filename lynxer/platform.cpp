@@ -625,6 +625,12 @@ KeyEvent readKey() {
     KeyEvent event;
 #if defined(_WIN32)
     const int first = ::_getch();
+    // Ctrl+Alt+C arrives as ETX on the console: processed input is disabled in
+    // raw mode, so Ctrl+C is delivered as byte 3 instead of raising SIGINT.
+    if (first == 3) {
+        event.code = KEY_COMMAND;
+        return event;
+    }
     if (first == 0 || first == 224) {
         if (!keyAvailable(50)) {
             return event;
@@ -640,6 +646,13 @@ KeyEvent readKey() {
             case 73: event.code = KEY_PAGE_UP; break;
             case 81: event.code = KEY_PAGE_DOWN; break;
             case 83: event.code = KEY_DELETE; break;
+            // Alt+C exposes the same command menu as Ctrl+Alt+C.
+            case 46: event.code = KEY_COMMAND; break;
+            // Alt+1 .. Alt+9 select an open buffer (scan codes 120..128).
+            case 120: case 121: case 122: case 123: case 124:
+            case 125: case 126: case 127: case 128:
+                event.code = KEY_ALT_1 + (second - 120);
+                break;
             case 115: event.code = KEY_CTRL_LEFT; break;
             case 116: event.code = KEY_CTRL_RIGHT; break;
             case 141: event.code = KEY_CTRL_UP; break;
@@ -702,6 +715,21 @@ KeyEvent readKey() {
                     }
                 }
             }
+            return event;
+        }
+        // Ctrl+Alt+C: terminals send Alt as a leading Escape followed by the
+        // (possibly control-modified) character. Accept both ETX and plain c/C
+        // so the combo works across terminal emulators.
+        if (second == 3 || second == 'c' || second == 'C') {
+            event.bytes.clear();
+            event.code = KEY_COMMAND;
+            return event;
+        }
+        // Alt+1 .. Alt+9 select an open buffer without consuming a digit that
+        // would otherwise be typed into the editor.
+        if (second >= '1' && second <= '9') {
+            event.bytes.clear();
+            event.code = KEY_ALT_1 + (second - '1');
             return event;
         }
         // Unknown escape: report the lone Escape.

@@ -100,6 +100,20 @@ enum : int {
     KEY_F10,
     KEY_F11,
     KEY_F12,
+    // Ctrl+Alt+C (also accepted as Esc+3 / Esc+c). Opens the CLI IDE's
+    // command menu; no F-key is required.
+    KEY_COMMAND,
+    // Alt+1 .. Alt+9 select an open buffer in the CLI IDE. Contiguous so the
+    // IDE can map them with a single range check.
+    KEY_ALT_1,
+    KEY_ALT_2,
+    KEY_ALT_3,
+    KEY_ALT_4,
+    KEY_ALT_5,
+    KEY_ALT_6,
+    KEY_ALT_7,
+    KEY_ALT_8,
+    KEY_ALT_9,
 };
 
 // One key press. `code` is a KEY_* value for special keys; otherwise `bytes`

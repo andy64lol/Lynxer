@@ -3,7 +3,10 @@
 
 The terminal IDE needs a TTY on stdin and stdout, so a plain pipe cannot
 exercise it. This script allocates a pty, opens a scratch .lynx file, types a
-character, saves, lints and quits, then checks the screen and the file.
+character, saves, lints and quits, then checks the screen and the file. It
+also covers tree navigation, the open-files list, 1-9 buffer switching, focus
+combos, save-all prompts when closing files or folders, and non-text file
+rejection in separate pty sessions.
 
 Usage: cli_ide_pty_test.py <lynxer-binary> <scratch-file>
 """
@@ -31,6 +34,280 @@ def drain(master, seconds, chunks):
         if not data:
             return
         chunks.append(data)
+
+
+def check_tree_navigation(interpreter):
+    """Arrows browse files/folders and Enter opens a file or expands a folder."""
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-tree-")
+    master = slave = None
+    process = None
+    try:
+        os.mkdir(os.path.join(root, "sub"))
+        with open(os.path.join(root, "sub", "inner.lynx"), "w") as handle:
+            handle.write("fn main(){ println(\"inner\"); }\n")
+        with open(os.path.join(root, "top.lynx"), "w") as handle:
+            handle.write("fn main(){ println(\"top\"); }\n")
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 100, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", root],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+        def step(data, expect=None, label=""):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, 0.5, chunks)
+            text = b"".join(chunks).decode("utf-8", "replace")
+            if expect is not None and expect not in text:
+                print(f"{label}: missing {expect!r}", file=sys.stderr)
+                return False
+            return True
+
+        drain(master, 1.2, chunks)
+        screen = b"".join(chunks).decode("utf-8", "replace")
+        if "sub" not in screen or "top.lynx" not in screen:
+            print("tree did not list the folder and file", file=sys.stderr)
+            return 1
+        if "inner.lynx" in screen:
+            print("collapsed folder already showed its children", file=sys.stderr)
+            return 1
+
+        # Enter on a folder expands it (and steps inside).
+        if not step(b"\r", "inner.lynx", "Enter opens folder"):
+            return 1
+        # Left jumps back to the parent, then collapses it.
+        if not step(b"\x1b[D", "Folder: sub", "Left to parent"):
+            return 1
+        chunks.clear()
+        os.write(master, b"\x1b[D")
+        drain(master, 0.5, chunks)
+        collapsed = b"".join(chunks).decode("utf-8", "replace")
+        if "inner.lynx" in collapsed:
+            print("Left did not collapse the folder", file=sys.stderr)
+            return 1
+        # Right expands and steps into the folder; Down/Up walk the rows.
+        if not step(b"\x1b[C", "inner.lynx", "Right arrow"):
+            return 1
+        if not step(b"\x1b[B", "top.lynx", "Down arrow"):
+            return 1
+        if not step(b"\x1b[A", None, "Up arrow"):
+            return 1
+        # Enter on the selected file opens it in the editor.
+        chunks.clear()
+        os.write(master, b"\r")
+        drain(master, 0.5, chunks)
+        opened = b"".join(chunks).decode("utf-8", "replace")
+        if "inner.lynx" not in opened or "Opened" not in opened:
+            print("Enter did not open the selected file", file=sys.stderr)
+            return 1
+
+        # Collapsing an expanded folder while a buffer is dirty asks to save
+        # all changes first; N discards and then the folder closes.
+        if not step(b"x", None, "type to make dirty"):
+            return 1
+        if not step(b"\x10\x1b[D", "Folder: sub", "^P/Left selects parent"):
+            return 1
+        if not step(b"\r", "Save all changes?", "folder collapse prompts"):
+            return 1
+        if not step(b"n\r", "Closed folder: sub", "N collapses folder"):
+            return 1
+        collapsed_screen = b"".join(chunks).decode("utf-8", "replace")
+        # The chunks contain the frame drawn while the prompt was still open,
+        # followed by the frame after the collapse; only inspect the latter.
+        last_frame = collapsed_screen[collapsed_screen.rfind("\x1b[1;1H"):]
+        if "[+] sub" not in last_frame or "[-] sub" in last_frame:
+            print("folder did not collapse after discarding changes",
+                  file=sys.stderr)
+            return 1
+        if not step(b"\x13", "Saved", "save dirty buffer"):
+            return 1
+
+        os.write(master, b"\x18")
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("tree IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"tree IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def check_buffers_and_files(interpreter):
+    """FILES list, 1-9 switching, focus combos, toggle-close, save-all, cap."""
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-buffers-")
+    master = slave = None
+    process = None
+    try:
+        names = ["alpha.lynx", "beta.lynx", "gamma.lynx", "delta.lynx",
+                 "epsilon.lynx", "zeta.lynx", "eta.lynx", "theta.lynx",
+                 "iota.lynx", "kappa.lynx"]
+        for name in names:
+            with open(os.path.join(root, name), "w") as handle:
+                handle.write('fn main(){ println("ok"); }\n')
+        with open(os.path.join(root, "image.png"), "wb") as handle:
+            handle.write(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64)
+        with open(os.path.join(root, "blob"), "wb") as handle:
+            handle.write(b"\x00\x01\x02binary\x00")
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 26, 110, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", root],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+        def step(data, expect=None, label="", absent=None):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, 0.45, chunks)
+            text = b"".join(chunks).decode("utf-8", "replace")
+            if expect is not None and expect not in text:
+                print(f"{label}: missing {expect!r}", file=sys.stderr)
+                return False
+            if absent is not None and absent in text:
+                print(f"{label}: unexpectedly found {absent!r}", file=sys.stderr)
+                return False
+            return True
+
+        def open_prompt(path, label):
+            chunks.clear()
+            os.write(master, b"\x0f")
+            drain(master, 0.25, chunks)
+            os.write(master, path.encode())
+            drain(master, 0.25, chunks)
+            os.write(master, b"\r")
+            drain(master, 0.45, chunks)
+            text = b"".join(chunks).decode("utf-8", "replace")
+            if "Opened" not in text:
+                print(f"{label}: did not open {path}", file=sys.stderr)
+                return False
+            return True
+
+        drain(master, 1.2, chunks)
+        screen = b"".join(chunks).decode("utf-8", "replace")
+        if "FILES" not in screen or "alpha.lynx" not in screen:
+            print("open-files list or tree missing", file=sys.stderr)
+            return 1
+        if "(none" not in screen:
+            print("FILES list should start empty", file=sys.stderr)
+            return 1
+
+        # Non-text files are marked B and refused. Tree order: files sorted,
+        # so alpha, beta, ..., then blob and image.png; 10 text files first.
+        # Use ^O with explicit paths to be independent of tree order.
+        if not step(b"\x0f" + os.path.join(root, "image.png").encode() + b"\r",
+                    "Cannot open non-text file", "reject .png", absent="Opened"):
+            return 1
+        if not step(b"\x0f" + os.path.join(root, "blob").encode() + b"\r",
+                    "Cannot open non-text file", "reject extensionless binary",
+                    absent="Opened"):
+            return 1
+        if not step(b"\x05", "Editor focused", "^E focuses editor"):
+            return 1
+
+        # Two files in the FILES list, numbered 1 and 2.
+        if not open_prompt(os.path.join(root, "alpha.lynx"), "open alpha"):
+            return 1
+        if not open_prompt(os.path.join(root, "beta.lynx"), "open beta"):
+            return 1
+        if not step(b"\x1b1", "File 1: alpha.lynx", "Alt+1 switches buffer"):
+            return 1
+        if not step(b"\x10", "1-9 File", "^P focuses sidebar"):
+            return 1
+        if not step(b"2", "File 2: beta.lynx", "plain 2 switches in sidebar"):
+            return 1
+        if not step(b"\x05", "Editor focused", "^E returns to editor"):
+            return 1
+        if "1 alpha.lynx" not in b"".join(chunks).decode("utf-8", "replace"):
+            print("FILES list does not show the numbered buffers", file=sys.stderr)
+            return 1
+
+        # With three buffers and the middle one active, closing the first from
+        # the tree must keep the same file active instead of jumping to the
+        # last one. Toggle-close is clean here, so it happens immediately.
+        if not open_prompt(os.path.join(root, "gamma.lynx"), "open gamma"):
+            return 1
+        if not step(b"\x1b2", "File 2: beta.lynx", "Alt+2 selects beta"):
+            return 1
+        if not step(b"\x10\x1b[H\r", "Closed alpha.lynx", "toggle-close first"):
+            return 1
+        if not step(b"\x05", "Editor focused", "^E after close"):
+            return 1
+        after_close = b"".join(chunks).decode("utf-8", "replace")
+        if "[1/2]" not in after_close or "beta.lynx" not in after_close:
+            print("closing a background buffer changed the active file",
+                  file=sys.stderr)
+            return 1
+
+        # Dirty buffer -> ^W raises the save-all prompt; N discards.
+        if not step(b"\x05z", None, "type to make dirty"):
+            return 1
+        if not step(b"\x17", "Save all changes?", "^W save-all prompt"):
+            return 1
+        if not step(b"n\r", "Closed beta.lynx", "N closes without saving"):
+            return 1
+
+        # Cap at nine simultaneous files.
+        for name in names[:9]:
+            if not open_prompt(os.path.join(root, name), f"open {name}"):
+                return 1
+        if not step(b"\x0f" + os.path.join(root, "kappa.lynx").encode() + b"\r",
+                    "Only 9 files can be open", "10th file refused",
+                    absent="Opened kappa"):
+            return 1
+
+        os.write(master, b"\x18")
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("buffer IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"buffer IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def main():
@@ -75,13 +352,30 @@ def main():
             print("terminal IDE did not open the requested file", file=sys.stderr)
             return 1
 
-        # F1 opens the help overlay; Esc closes it.
-        os.write(master, b"\x1b[11~")
+        # ^G opens the combo-only help overlay; Esc closes it.
+        os.write(master, b"\x07")
         drain(master, 0.4, chunks)
         if "KEY BINDINGS" not in b"".join(chunks).decode("utf-8", "replace"):
-            print("F1 did not open the help overlay", file=sys.stderr)
+            print("^G did not open the help overlay", file=sys.stderr)
             return 1
         os.write(master, b"\x1b")
+        drain(master, 0.4, chunks)
+
+        # Ctrl+Alt+C opens the command menu. Down arrows navigate it and Enter
+        # runs the selected command (the second entry is "Open file").
+        os.write(master, b"\x1b\x03")
+        drain(master, 0.4, chunks)
+        if "COMMANDS" not in b"".join(chunks).decode("utf-8", "replace"):
+            print("Ctrl+Alt+C did not open the command menu", file=sys.stderr)
+            return 1
+        os.write(master, b"\x1b[B")  # Down
+        drain(master, 0.4, chunks)
+        os.write(master, b"\r")      # Enter
+        drain(master, 0.4, chunks)
+        if "Open file" not in b"".join(chunks).decode("utf-8", "replace"):
+            print("arrow keys / Enter did not run a menu command", file=sys.stderr)
+            return 1
+        os.write(master, b"\x1b")    # cancel the prompt
         drain(master, 0.4, chunks)
 
         # Ctrl+O opens a prompt; Esc cancels it.
@@ -96,11 +390,11 @@ def main():
         # Type a character, save it, lint, then quit.
         os.write(master, b"x")
         drain(master, 0.4, chunks)
-        os.write(master, b"\x13")  # Ctrl+S
+        os.write(master, b"\x13")  # Ctrl+S save
         drain(master, 0.4, chunks)
-        os.write(master, b"\x1b[17~")  # F6 lint
+        os.write(master, b"\x0c")  # Ctrl+L lint
         drain(master, 1.5, chunks)
-        os.write(master, b"\x11")  # Ctrl+Q
+        os.write(master, b"\x18")  # Ctrl+X exit
         drain(master, 0.6, chunks)
 
         try:
@@ -108,7 +402,7 @@ def main():
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait()
-            print("terminal IDE did not exit after Ctrl+Q", file=sys.stderr)
+            print("terminal IDE did not exit after Ctrl+X", file=sys.stderr)
             return 1
 
         if code != 0:
@@ -127,13 +421,21 @@ def main():
 
         full = b"".join(chunks).decode("utf-8", "replace")
         if "Lint finished" not in full:
-            print("F6 did not run the linter", file=sys.stderr)
+            print("^L did not run the linter", file=sys.stderr)
             return 1
 
     finally:
         if slave is not None:
             os.close(slave)
         os.close(master)
+
+    tree_result = check_tree_navigation(interpreter)
+    if tree_result != 0:
+        return tree_result
+
+    buffers_result = check_buffers_and_files(interpreter)
+    if buffers_result != 0:
+        return buffers_result
 
     print("terminal IDE pty smoke test passed")
     return 0

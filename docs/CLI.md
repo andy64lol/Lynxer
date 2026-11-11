@@ -93,27 +93,58 @@ accepts one optional argument: a `.lynx` file to open, or a folder to browse.
 It refuses to start when stdin or stdout is redirected, and restores the
 terminal on exit (alternate screen, cursor and raw-input mode).
 
+The layout follows nano: a reverse-video title bar with the version, file name
+and `Modified` marker, a plain editor body, a message line, and two rows of
+`^X`-style shortcut hints. No function keys are used — every action is a
+`Ctrl` combo. `Ctrl+Alt+C` (also `^A` / `^C`) opens a **command menu** that
+lists every command with its shortcut; navigate it with the arrow keys and run
+the highlighted entry with Enter, or press its shortcut directly. Esc closes
+any overlay or prompt.
+
+When no file is open the IDE starts in the file tree: Up/Down move through
+files and folders, Right expands a folder and steps into it, Left collapses a
+folder or jumps back to its parent, and Enter opens a file in the editor or
+expands a folder. Selecting an already-open file or an expanded folder **closes**
+it instead; when any buffer has unsaved edits a `Save all changes? (Y/n/c)`
+prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels).
+`^P` focuses the sidebar and `^E` the editor.
+
+A `FILES` row under the editor and output panel lists every open buffer with
+its `1`-`9` number — the active file is highlighted and unsaved files carry a
+`*`. Press the number to switch to that file (plain digits in the sidebar,
+`Alt+1`-`Alt+9` from anywhere, including while editing), then `^W` closes it.
+Up to nine files can be open at once. Non-text files (`.pdf`, `.png`, `.docx`,
+images, archives, executables, and any file whose content looks binary) are
+never opened; they are marked `B` in the tree and produce a status message.
+
 Features: an expandable file tree, a tabbed editor with line numbers and Lynxer
 syntax highlighting (`.lynx` only), multi-key editing, search and go-to-line,
-an output/problems panel with parsed `lynxer --lint` warnings and errors, and
-Run / Lint / Format / Build / Run-project commands whose output is captured
-into the panel instead of overwriting the screen.
+an output/problems panel with parsed `lynxer --lint` warnings and errors (shown
+only once a command produces output), and Run / Lint / Format / Build /
+Run-project commands whose output is captured into the panel instead of
+overwriting the screen.
 
-Key bindings:
+Key bindings (`^` means Ctrl, `M-^C` means Ctrl+Alt+C):
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+O` / `Ctrl+N` / `Ctrl+S` / `Ctrl+W` / `Ctrl+Q` | open / new / save / close tab / quit |
-| `Ctrl+B` | change folder |
-| `Ctrl+E` | switch focus between explorer and editor |
-| `Ctrl+P` / `Ctrl+K` | toggle output panel / clear output |
-| `Ctrl+G` / `Ctrl+F` / `F3` | go to line / find / next match |
+| `^G` / `Esc` | help / close an overlay or prompt |
+| `^O` / `^N` / `^S` / `^W` | open / new / save / close tab |
+| `^X` / `^Q` | exit (`^Q` is an alias) |
+| `^B` | change folder |
+| `^P` / `^E` | focus sidebar / focus editor |
+| `^Z` / `^K` | toggle output panel / clear output |
+| `^F` / `^_` / `^D` | find / go to line / next match |
+| `^R` / `^L` / `^T` | run file / lint file / format file |
+| `^Y` / `^U` | build project / run project |
+| `^V` | next problem |
+| `Ctrl+Alt+C` / `^A` / `^C` | command menu (all commands) |
+| `1`-`9` / `Alt+1`-`Alt+9` | switch to the numbered open file (max 9) |
 | `Ctrl+Left` / `Ctrl+Right` | previous / next tab |
-| `F1` / `Esc` | help / focus explorer |
-| `F4` / `F5` / `F6` / `F7` | next problem / run file / lint file / format file |
-| `F9` / `F10` | build project / run project |
-| Explorer: Up/Down, Enter, Right, Left | select, open, expand, collapse |
+| Explorer: Up/Down, Right, Left | select files/folders, step into folder, collapse / parent |
+| Explorer: Enter | open file / expand folder, or close an already-open one |
 | Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter | move and edit |
+| Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc | select / run / close |
 
 ## Exit codes
 

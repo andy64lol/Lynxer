@@ -1909,12 +1909,14 @@ struct IdeTreeRow {
     bool isDir = false;
     int depth = 0;
     bool expanded = false;
+    bool nonText = false;
 };
 
 struct IdeEntry {
     std::string name;
     std::string path;
     bool isDir = false;
+    bool nonText = false;
 };
 
 struct IdeDiagnostic {
@@ -1926,7 +1928,7 @@ struct IdeDiagnostic {
     std::string message;
 };
 
-enum class IdePrompt { None, Open, New, Folder, Goto, Find, Quit };
+enum class IdePrompt { None, Open, New, Folder, Goto, Find, SaveAll };
 
 struct IdeState {
     std::string root;
@@ -1943,14 +1945,92 @@ struct IdeState {
     std::size_t diagnosticIndex = 0;
     std::string status;
     std::string findQuery;
-    bool showOutput = true;
+    bool showOutput = false;  // nano-like: no empty panel until a command runs
     bool showHelp = false;
+    std::size_t helpTop = 0;
+    bool showCommands = false;
+    std::size_t commandIndex = 0;
+    std::size_t commandTop = 0;
     IdePrompt prompt = IdePrompt::None;
     std::string promptLabel;
     std::string promptValue;
+    // Set when the save-all prompt was raised by a toggle-close, a folder
+    // collapse or by quit.
+    std::string pendingClosePath;
+    std::string pendingCollapsePath;
+    bool pendingQuit = false;
     int columns = 80;
     int rows = 24;
 };
+
+// At most nine buffers so the 1-9 keys can reach every one.
+constexpr std::size_t kIdeMaxBuffers = 9;
+
+// The command menu (Ctrl+Alt+C) lists every action with its combo. The same
+// table drives the nano-style shortcut bar, the help overlay and key dispatch,
+// so a binding is defined in exactly one place.
+enum class IdeCommandId {
+    Help, Open, Save, Exit, CloseTab, New, Find, Run, Lint, Format, Output,
+    Goto, NextMatch, NextProblem, Build, RunProject, Folder, Sidebar, Editor,
+    Clear,
+};
+
+struct IdeCommand {
+    IdeCommandId id;
+    const char* label;   // full label, shown in help and the command menu
+    const char* bar;     // compact label for the nano-style shortcut bar
+    const char* combo;
+    int control;  // control byte, or 0 when only reachable from the menu
+};
+
+const IdeCommand* ideCommandById(IdeCommandId id);
+
+const std::vector<IdeCommand>& ideCommands() {
+    static const std::vector<IdeCommand> commands = {
+        {IdeCommandId::Help,        "Help / key bindings", "Help",   "^G",  7},
+        {IdeCommandId::Open,        "Open file",           "Open",   "^O", 15},
+        {IdeCommandId::Save,        "Save",                "Save",   "^S", 19},
+        {IdeCommandId::Exit,        "Exit",                "Exit",   "^X", 24},
+        {IdeCommandId::CloseTab,    "Close tab",           "Close",  "^W", 23},
+        {IdeCommandId::New,         "New file",            "New",    "^N", 14},
+        {IdeCommandId::Find,        "Find",                "Find",   "^F",  6},
+        {IdeCommandId::Run,         "Run file",            "Run",    "^R", 18},
+        {IdeCommandId::Lint,        "Lint file",           "Lint",   "^L", 12},
+        {IdeCommandId::Format,      "Format file",         "Format", "^T", 20},
+        {IdeCommandId::Output,      "Toggle output pane",  "Output", "^Z", 26},
+        {IdeCommandId::Goto,        "Go to line",          "Goto",   "^_", 31},
+        {IdeCommandId::NextMatch,   "Next match",          "Next",   "^D",  4},
+        {IdeCommandId::NextProblem, "Next problem",        "Problem","^V", 22},
+        {IdeCommandId::Build,       "Build project",       "Build",  "^Y", 25},
+        {IdeCommandId::RunProject,  "Run project",         "RunProj","^U", 21},
+        {IdeCommandId::Folder,      "Change folder",       "Folder", "^B",  2},
+        {IdeCommandId::Sidebar,     "Focus sidebar",       "Side",  "^P", 16},
+        {IdeCommandId::Editor,      "Focus editor",        "Edit",  "^E",  5},
+        {IdeCommandId::Clear,       "Clear output",        "Clear",  "^K", 11},
+    };
+    return commands;
+}
+
+// Shortcuts shown in the two-row nano-style bar at the bottom of the screen.
+const std::vector<IdeCommandId>& ideBarShortcuts() {
+    static const std::vector<IdeCommandId> ids = {
+        IdeCommandId::Help, IdeCommandId::Open, IdeCommandId::Save,
+        IdeCommandId::Exit, IdeCommandId::CloseTab, IdeCommandId::New,
+        IdeCommandId::Find, IdeCommandId::Run, IdeCommandId::Lint,
+        IdeCommandId::Format, IdeCommandId::Sidebar, IdeCommandId::Editor,
+    };
+    return ids;
+}
+
+int ideOutputHeight(const IdeState& state) {
+    return state.showOutput ? std::min(8, state.rows / 3) : 0;
+}
+
+int ideEditorHeight(const IdeState& state) {
+    // Rows 0-1 are bars, the last four rows are the open-files list, message
+    // line and two shortcut rows.
+    return std::max(1, state.rows - 6 - ideOutputHeight(state));
+}
 
 std::vector<std::string> ideSplitLines(const std::string& text) {
     std::vector<std::string> lines;
@@ -2019,16 +2099,69 @@ bool ideWriteText(const std::string& path, const std::string& text,
     return true;
 }
 
-bool ideIsLynx(const std::string& path) {
+std::string ideExtension(const std::string& path) {
     const std::size_t dot = path.find_last_of('.');
     const std::size_t slash = path.find_last_of("/\\");
     if (dot == std::string::npos ||
         (slash != std::string::npos && dot < slash)) {
-        return false;
+        return std::string();
     }
     std::string extension = path.substr(dot + 1);
     for (char& c : extension) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return extension == "lynx";
+    return extension;
+}
+
+bool ideIsLynx(const std::string& path) {
+    return ideExtension(path) == "lynx";
+}
+
+// Formats that are never UTF-8 text. Anything with one of these suffixes is
+// refused before it is read, so a PDF, PNG, DOCX or archive can never corrupt
+// an editor buffer or dump binary into the tree.
+const std::unordered_set<std::string>& ideBinaryExtensions() {
+    static const std::unordered_set<std::string> extensions = {
+        // documents / office
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods",
+        "odp", "rtf", "pages", "epub", "mobi",
+        // images
+        "png", "jpg", "jpeg", "gif", "bmp", "ico", "webp", "tif", "tiff",
+        "svg", "psd", "ai", "eps", "heic", "heif", "avif", "raw", "cr2",
+        "nef", "arw", "dng",
+        // audio / video
+        "mp3", "wav", "flac", "ogg", "oga", "m4a", "aac", "wma", "opus",
+        "mp4", "mkv", "avi", "mov", "wmv", "webm", "flv", "m4v", "mpg",
+        "mpeg", "3gp",
+        // archives / packages
+        "zip", "tar", "gz", "tgz", "bz2", "tbz2", "xz", "txz", "zst", "lz4",
+        "7z", "rar", "iso", "dmg", "deb", "rpm", "apk", "jar", "war", "whl",
+        "msi", "exe", "appimage",
+        // compiled / binary artifacts
+        "so", "dll", "dylib", "a", "lib", "o", "obj", "class", "pyc", "pyo",
+        "wasm", "bin", "dat", "db", "sqlite", "sqlite3", "mdb", "pak",
+        "ttf", "otf", "woff", "woff2", "eot", "fon",
+        // misc binaries
+        "pdb", "dSYM", "elf", "lnk", "tmp", "swp", "swo",
+    };
+    return extensions;
+}
+
+bool ideIsNonTextFile(const std::string& path) {
+    if (ideBinaryExtensions().count(ideExtension(path)) != 0) return true;
+    // Sniff the first block: NUL bytes or a high ratio of control bytes mean
+    // binary content even when the suffix looks harmless (or is missing, as in
+    // Makefile, LICENSE, README, ...).
+    std::ifstream input(path, std::ios::binary);
+    if (!input) return false;
+    char buffer[4096];
+    input.read(buffer, sizeof(buffer));
+    const std::streamsize count = input.gcount();
+    std::streamsize control = 0;
+    for (std::streamsize i = 0; i < count; ++i) {
+        const unsigned char c = static_cast<unsigned char>(buffer[i]);
+        if (c == 0) return true;
+        if (c < 0x09 || (c > 0x0d && c < 0x20)) ++control;
+    }
+    return count > 0 && control * 10 > count;
 }
 
 std::vector<IdeEntry> ideListDir(const std::string& path) {
@@ -2044,7 +2177,8 @@ std::vector<IdeEntry> ideListDir(const std::string& path) {
         if (!name.empty() && name[0] == '.' && name != ".gitignore") continue;
         if (ignored.count(name) != 0) continue;
         bool isDir = item.is_directory(error);
-        entries.push_back(IdeEntry{name, item.path().string(), isDir});
+        const bool nonText = !isDir && ideIsNonTextFile(item.path().string());
+        entries.push_back(IdeEntry{name, item.path().string(), isDir, nonText});
     }
     std::sort(entries.begin(), entries.end(),
               [](const IdeEntry& a, const IdeEntry& b) {
@@ -2063,7 +2197,7 @@ void ideAppendTree(IdeState& state, const std::string& directory, int depth,
     for (const IdeEntry& entry : ideListDir(directory)) {
         const std::size_t index = state.tree.size();
         state.tree.push_back(IdeTreeRow{entry.name, entry.path, entry.isDir,
-                                        depth, false});
+                                        depth, false, entry.nonText});
         if (entry.isDir && depth < 32 && expanded.count(entry.path) != 0) {
             state.tree[index].expanded = true;
             ideAppendTree(state, entry.path, depth + 1, expanded);
@@ -2096,11 +2230,115 @@ void ideToggleDir(IdeState& state, std::size_t index) {
         std::vector<IdeTreeRow> children;
         for (const IdeEntry& entry : ideListDir(row.path)) {
             children.push_back(IdeTreeRow{entry.name, entry.path, entry.isDir,
-                                          row.depth + 1, false});
+                                          row.depth + 1, false, entry.nonText});
         }
         state.tree[index].expanded = true;
         state.tree.insert(state.tree.begin() + static_cast<std::ptrdiff_t>(index + 1),
                           children.begin(), children.end());
+    }
+}
+
+bool ideOpenFile(IdeState& state, const std::string& path);
+void ideClosePath(IdeState& state, const std::string& path);
+void ideCollapsePath(IdeState& state, const std::string& path);
+bool ideAnyDirty(const IdeState& state);
+
+bool ideBufferIsOpen(const IdeState& state, const std::string& path) {
+    for (const IdeBuffer& buffer : state.buffers) {
+        if (buffer.path == path) return true;
+    }
+    return false;
+}
+
+// Perform the action deferred by the save-all prompt (close a file, collapse a
+// folder, quit).
+void ideApplyPendingAction(IdeState& state, bool& quit) {
+    if (!state.pendingClosePath.empty()) {
+        ideClosePath(state, state.pendingClosePath);
+    }
+    if (!state.pendingCollapsePath.empty()) {
+        ideCollapsePath(state, state.pendingCollapsePath);
+    }
+    if (state.pendingQuit) quit = true;
+    state.pendingClosePath.clear();
+    state.pendingCollapsePath.clear();
+    state.pendingQuit = false;
+}
+
+// Close a file, collapse a folder or quit. When any buffer has unsaved edits,
+// ask once to save all of them first; with a clean workspace the action happens
+// immediately.
+void ideRequestSaveAll(IdeState& state, const std::string& closePath,
+                       const std::string& collapsePath, bool quitAfter,
+                       bool& quit) {
+    if (!ideAnyDirty(state)) {
+        if (!closePath.empty()) ideClosePath(state, closePath);
+        if (!collapsePath.empty()) ideCollapsePath(state, collapsePath);
+        if (quitAfter) quit = true;
+        state.status = closePath.empty() && collapsePath.empty()
+                           ? "Exiting"
+                           : state.status;
+        return;
+    }
+    state.pendingClosePath = closePath;
+    state.pendingCollapsePath = collapsePath;
+    state.pendingQuit = quitAfter;
+    state.prompt = IdePrompt::SaveAll;
+    state.promptLabel = "Save all changes? (Y/n/c to cancel)";
+    state.promptValue.clear();
+}
+
+// Open or toggle-close the selected tree row. A folder expands (and the
+// selection steps into its first child); selecting an already-expanded folder
+// collapses it. A file opens in the editor; selecting an already-open file
+// closes it. `openFiles` is false for the Right arrow, used only to walk into
+// folders.
+void ideActivateTreeSelection(IdeState& state, bool openFiles) {
+    if (state.treeSelection >= state.tree.size()) return;
+    const IdeTreeRow row = state.tree[state.treeSelection];
+    if (!row.isDir) {
+        if (!openFiles) return;
+        if (row.nonText) {
+            state.status = "Cannot open non-text file: " + row.name;
+            return;
+        }
+        if (ideBufferIsOpen(state, row.path)) {
+            bool ignored = false;
+            ideRequestSaveAll(state, row.path, std::string(), false, ignored);
+        } else if (ideOpenFile(state, row.path)) {
+            state.explorerFocus = false;
+        }
+        return;
+    }
+    if (row.expanded) {
+        bool ignored = false;
+        ideRequestSaveAll(state, std::string(), row.path, false, ignored);
+        return;
+    }
+    const int depth = row.depth;
+    ideToggleDir(state, state.treeSelection);
+    if (state.treeSelection + 1 < state.tree.size() &&
+        state.tree[state.treeSelection + 1].depth > depth) {
+        ++state.treeSelection;
+    }
+    state.status = "Folder: " + row.name;
+}
+
+// Collapse the selected folder, or jump to its parent row with Left.
+void ideCollapseOrParent(IdeState& state) {
+    if (state.treeSelection >= state.tree.size()) return;
+    const IdeTreeRow row = state.tree[state.treeSelection];
+    if (row.expanded) {
+        ideToggleDir(state, state.treeSelection);
+        return;
+    }
+    if (row.depth == 0) return;
+    for (std::size_t i = state.treeSelection; i > 0; --i) {
+        if (state.tree[i - 1].depth < row.depth) {
+            state.treeSelection = i - 1;
+            state.status = "Folder: " + state.tree[i - 1].name;
+            return;
+        }
     }
 }
 
@@ -2119,6 +2357,15 @@ bool ideOpenFile(IdeState& state, const std::string& path) {
             return true;
         }
     }
+    if (ideIsNonTextFile(path)) {
+        state.status = "Cannot open non-text file: " + ideBaseName(path);
+        return false;
+    }
+    if (state.buffers.size() >= kIdeMaxBuffers) {
+        state.status = "Only " + std::to_string(kIdeMaxBuffers) +
+                       " files can be open; close one first";
+        return false;
+    }
     std::string text, error;
     if (!ideReadText(path, text, error)) {
         state.status = "Error: " + error;
@@ -2134,6 +2381,49 @@ bool ideOpenFile(IdeState& state, const std::string& path) {
     return true;
 }
 
+// Close a buffer by path, used when toggling an already-open file in the tree.
+void ideClosePath(IdeState& state, const std::string& path) {
+    for (std::size_t i = 0; i < state.buffers.size(); ++i) {
+        if (state.buffers[i].path != path) continue;
+        state.buffers.erase(state.buffers.begin() +
+                            static_cast<std::ptrdiff_t>(i));
+        // Closing a buffer before the active one shifts it down; closing the
+        // active last buffer falls back to the new last one.
+        if (i < state.active) --state.active;
+        if (state.active >= state.buffers.size()) {
+            state.active = state.buffers.empty() ? 0 : state.buffers.size() - 1;
+        }
+        if (state.buffers.empty()) state.explorerFocus = true;
+        state.status = "Closed " + ideBaseName(path);
+        return;
+    }
+}
+
+// Collapse an expanded folder by path, used when toggling it in the tree.
+void ideCollapsePath(IdeState& state, const std::string& path) {
+    for (std::size_t i = 0; i < state.tree.size(); ++i) {
+        if (state.tree[i].path != path || !state.tree[i].isDir) continue;
+        if (state.tree[i].expanded) ideToggleDir(state, i);
+        state.status = "Closed folder: " + state.tree[i].name;
+        return;
+    }
+}
+
+void ideSaveAll(IdeState& state) {
+    int saved = 0;
+    for (IdeBuffer& buffer : state.buffers) {
+        if (ideJoinLines(buffer.lines) == buffer.saved) continue;
+        std::string error;
+        if (!ideWriteText(buffer.path, ideJoinLines(buffer.lines), error)) {
+            state.status = "Error: " + error;
+            return;
+        }
+        buffer.saved = ideJoinLines(buffer.lines);
+        ++saved;
+    }
+    state.status = "Saved " + std::to_string(saved) + " file(s)";
+}
+
 void ideSaveActive(IdeState& state) {
     if (!ideHasBuffer(state)) return;
     IdeBuffer& buffer = ideActive(state);
@@ -2144,13 +2434,6 @@ void ideSaveActive(IdeState& state) {
     }
     buffer.saved = ideJoinLines(buffer.lines);
     state.status = "Saved " + buffer.path;
-}
-
-void ideCloseTab(IdeState& state) {
-    if (!ideHasBuffer(state)) return;
-    state.buffers.erase(state.buffers.begin() +
-                        static_cast<std::ptrdiff_t>(state.active));
-    if (state.active > 0 && state.active >= state.buffers.size()) --state.active;
 }
 
 void ideEnsureVisible(IdeState& state, int editorHeight) {
@@ -2258,81 +2541,127 @@ void ideRender(IdeState& state) {
         return;
     }
 
-    const int statusRow = rows - 2;
-    const int hintRow = rows - 1;
-    const int outputHeight = state.showOutput ? std::min(8, rows / 3) : 0;
-    const int outputStart = rows - 2 - outputHeight;
+    // nano-style frame: a reverse-video title bar, the editor body, a message
+    // line, then two rows of caret shortcuts. No boxes or panels.
+    const int messageRow = rows - 3;
+    const int hintStart = rows - 2;
+    const int filesRow = rows - 4;
+    const int outputHeight = ideOutputHeight(state);
+    const int outputStart = filesRow - outputHeight;
     const int mainStart = 2;
-    const int mainEnd = outputHeight > 0 ? outputStart - 1 : statusRow - 1;
+    const int mainEnd = outputHeight > 0 ? outputStart - 1 : filesRow - 1;
     const int mainHeight = mainEnd - mainStart + 1;
     const int explorerWidth = std::min(32, std::max(22, columns / 4));
 
-    // ------------------------------------------------------------- header
-    std::string header = std::string(kIdeBold) + ideFg(IC_ACCENT) + " LYNXER " +
-                         kIdeReset + ideFg(IC_MUTED) + "IDE" + kIdeReset + "  ";
+    // ---------------------------------------------------------- title bar
+    std::ostringstream title;
+    title << "  LYNXER IDE " << state.version;
     if (ideHasBuffer(state)) {
         const IdeBuffer& buffer = ideActive(state);
-        header += ideFg(IC_TEXT) + ideBaseName(buffer.path) +
-                  (ideJoinLines(buffer.lines) != buffer.saved
-                       ? ideFg(IC_WARN) + " *"
-                       : std::string());
-        header += kIdeReset + "   " + ideFg(IC_MUTED) + buffer.path + kIdeReset;
+        title << "        File: " << buffer.path;
+        if (ideJoinLines(buffer.lines) != buffer.saved) title << "   Modified";
+        if (state.buffers.size() > 1) {
+            title << "   [" << (state.active + 1) << "/" << state.buffers.size() << "]";
+        }
     } else {
-        header += ideFg(IC_MUTED) + "No file open" + kIdeReset;
+        title << "        New Buffer";
     }
-    header += "   " + ideFg(IC_MUTED) + state.version + kIdeReset;
-    ideSetRow(frame, 0, header, columns, IC_SURFACE);
+    frame[0] = std::string(kIdeReverse) + kIdeBold +
+               idePad(ideClamp(title.str(), static_cast<std::size_t>(columns)),
+                      static_cast<std::size_t>(columns)) +
+               kIdeReset;
 
-    // ------------------------------------------------------------- tab bar
-    std::string tabs;
+    // ------------------------------------------------------------ tab line
+    std::string tabs = ideFg(IC_MUTED) + "  ";
     if (state.buffers.empty()) {
-        tabs = ideFg(IC_MUTED) + "  (no tabs)  Ctrl+O open a file" + kIdeReset;
+        tabs += "No file open    ^O Open    M-^C Commands";
     } else {
         for (std::size_t i = 0; i < state.buffers.size(); ++i) {
             const bool active = i == state.active;
-            tabs += (active ? ideBg(IC_EDITOR) + ideFg(IC_ACCENT)
-                            : ideFg(IC_MUTED));
-            tabs += " " + ideBaseName(state.buffers[i].path) + " ";
-            tabs += kIdeReset + " ";
+            tabs += (active ? ideFg(IC_ACCENT) : ideFg(IC_MUTED)) +
+                    (active ? "[" + ideBaseName(state.buffers[i].path) + "]"
+                            : ideBaseName(state.buffers[i].path)) +
+                    kIdeReset + "  ";
         }
     }
-    ideSetRow(frame, 1, tabs, columns, IC_SURFACE);
+    ideSetRow(frame, 1, tabs + kIdeReset, columns, IC_SURFACE);
 
     // --------------------------------------------------------------- body
-    const std::vector<std::string> helpLines = {
-        "  LYNXER TERMINAL IDE - KEY BINDINGS",
-        "",
-        "  Ctrl+O  open file      Ctrl+N  new file     Ctrl+S  save",
-        "  Ctrl+W  close tab      Ctrl+Q  quit         Ctrl+B  change folder",
-        "  Ctrl+E  focus pane     Ctrl+P  output pane   Ctrl+K  clear output",
-        "  Ctrl+G  go to line     Ctrl+F  find          F3     next match",
-        "  Ctrl+Left / Ctrl+Right    previous / next tab",
-        "",
-        "  F1  this help      F4  next problem    F5  run file",
-        "  F6  lint file      F7  format file    F9  build project",
-        "  F10 run project",
-        "",
-        "  Explorer: Up/Down select, Enter open, Right expand, Left collapse",
-        "  Editor:   arrows move, type to edit, Enter newline, Tab indent",
-        "            Backspace/Delete remove, Home/End line bounds",
-        "",
-        "  Highlighting is enabled for .lynx files only.",
-        "  Press F1 or Esc to close this help.",
-    };
+    std::vector<std::string> helpLines;
+    helpLines.push_back("  LYNXER IDE - KEY BINDINGS");
+    helpLines.push_back("");
+    helpLines.push_back("  Shortcuts (^ = Ctrl, M-^C = Ctrl+Alt+C):");
+    for (const IdeCommand& command : ideCommands()) {
+        std::ostringstream line;
+        line << "    " << std::left << std::setw(6) << command.combo
+             << command.label;
+        helpLines.push_back(line.str());
+    }
+    helpLines.push_back("");
+    helpLines.push_back("  M-^C / ^A   Command menu: every command, arrow keys + Enter");
+    helpLines.push_back("  ^Q          Exit (alias for ^X)");
+    helpLines.push_back("  Ctrl+Left / Ctrl+Right   previous / next tab");
+    helpLines.push_back("  1-9 / Alt+1-9   switch open file (1-9 in sidebar)");
+    helpLines.push_back("");
+    helpLines.push_back("  Explorer: Up/Down select files and folders, Enter opens a file");
+    helpLines.push_back("            or expands a folder; selecting an open file/folder");
+    helpLines.push_back("            closes it (save-all prompt if edits are unsaved)");
+    helpLines.push_back("            Right steps into a folder, Left collapses / parent");
+    helpLines.push_back("  Editor:   arrow keys move, Home/End, PgUp/PgDn, type to edit");
+    helpLines.push_back("            Enter newline, Tab indent, Backspace/Delete remove");
+    helpLines.push_back("");
+    helpLines.push_back("  Up to 9 files open at once; the bottom FILES list shows them.");
+    helpLines.push_back("  Non-text files (.pdf, .png, .docx, ...) are never opened.");
+    helpLines.push_back("  Syntax highlighting is enabled for .lynx files only.");
+    helpLines.push_back("  Up/Down scroll; ^G, Esc or q closes this help.");
+    const std::size_t maxHelpTop =
+        helpLines.size() > static_cast<std::size_t>(mainHeight)
+            ? helpLines.size() - static_cast<std::size_t>(mainHeight)
+            : 0;
+    state.helpTop = std::min(state.helpTop, maxHelpTop);
+
+    const int visibleCommands = std::max(1, mainHeight - 2);
+    std::size_t commandTop = 0;
+    if (state.commandIndex + 1 > static_cast<std::size_t>(visibleCommands)) {
+        commandTop = state.commandIndex + 1 - static_cast<std::size_t>(visibleCommands);
+    }
+    state.commandTop = commandTop;
 
     for (int r = 0; r < mainHeight; ++r) {
         const int row = mainStart + r;
         std::string left;
         std::string right;
-        if (state.showHelp) {
-            left = std::string(columns, ' ');
-            const std::size_t index = static_cast<std::size_t>(r);
-            if (index < helpLines.size() && r < mainHeight) {
-                const std::string text = helpLines[index];
-                left = ideBg(IC_PANEL) + ideFg(index == 0 ? IC_ACCENT : IC_TEXT) +
-                       idePad(text, static_cast<std::size_t>(columns)) + kIdeReset;
+
+        if (state.showHelp || state.showCommands) {
+            std::string text;
+            int color = IC_TEXT;
+            bool standout = false;
+            if (state.showHelp) {
+                const std::size_t index = state.helpTop + static_cast<std::size_t>(r);
+                if (index < helpLines.size()) {
+                    text = helpLines[index];
+                    if (index == 0) color = IC_ACCENT;
+                }
+            } else if (r == 0) {
+                text = "  COMMANDS - Up/Down select, Enter run, Esc close";
+                color = IC_ACCENT;
+            } else if (r > 1) {
+                const std::size_t index = commandTop + static_cast<std::size_t>(r - 2);
+                if (index < ideCommands().size()) {
+                    const IdeCommand& command = ideCommands()[index];
+                    std::ostringstream line;
+                    line << (index == state.commandIndex ? "  > " : "    ")
+                         << std::left << std::setw(6) << command.combo
+                         << command.label;
+                    text = line.str();
+                    standout = index == state.commandIndex;
+                }
             }
-            frame[static_cast<std::size_t>(row)] = ideClamp(left, static_cast<std::size_t>(columns));
+            left = (standout ? std::string(kIdeReverse) : std::string()) +
+                   ideFg(color) +
+                   idePad(text, static_cast<std::size_t>(columns)) + kIdeReset;
+            frame[static_cast<std::size_t>(row)] =
+                ideClamp(left, static_cast<std::size_t>(columns));
             continue;
         }
 
@@ -2343,16 +2672,18 @@ void ideRender(IdeState& state) {
             const std::string indent(static_cast<std::size_t>(item.depth) * 2, ' ');
             const std::string marker = item.isDir
                                            ? (item.expanded ? "[-] " : "[+] ")
-                                           : (ideIsLynx(item.path) ? " L  " : " .  ");
+                                           : (item.nonText ? " B  "
+                                                           : (ideIsLynx(item.path) ? " L  " : " .  "));
             const bool selected = treeIndex == state.treeSelection && state.explorerFocus;
-            left = (selected ? ideBg(IC_EDITOR) : std::string()) +
+            left = (selected ? std::string(kIdeReverse) : std::string()) +
                    (item.isDir ? ideFg(IC_ACCENT) :
-                                 (ideIsLynx(item.path) ? ideFg(IC_OK) : ideFg(IC_MUTED))) +
+                                 (item.nonText ? ideFg(IC_ERROR) :
+                                  (ideIsLynx(item.path) ? ideFg(IC_OK) : ideFg(IC_MUTED)))) +
                    indent + marker + item.name + kIdeReset;
         }
         left = idePad(ideClamp(left, static_cast<std::size_t>(explorerWidth - 1)),
                       static_cast<std::size_t>(explorerWidth - 1));
-        left += ideFg(IC_MUTED) + "\xe2\x94\x82" + kIdeReset;
+        left += ideFg(IC_MUTED) + "|" + kIdeReset;
 
         // Editor column.
         const int editorWidth = columns - explorerWidth;
@@ -2361,34 +2692,27 @@ void ideRender(IdeState& state) {
             const std::size_t lineIndex = buffer.topLine + static_cast<std::size_t>(r);
             if (lineIndex < buffer.lines.size()) {
                 std::ostringstream gutter;
-                gutter << std::setw(4) << (lineIndex + 1) << " \xe2\x94\x82 ";
+                gutter << std::setw(4) << (lineIndex + 1) << " | ";
                 const bool current = lineIndex == buffer.cursorLine;
-                right = ideBg(IC_EDITOR) + ideFg(IC_GUTTER) + gutter.str() +
-                        kIdeReset + ideBg(IC_EDITOR) +
+                right = ideFg(IC_GUTTER) + gutter.str() + kIdeReset +
                         ideRenderLine(buffer.lines[lineIndex],
                                       ideIsLynx(buffer.path),
                                       buffer.cursorColumn, current) +
                         kIdeReset;
             } else {
-                right = ideBg(IC_EDITOR) + ideFg(IC_GUTTER) + "     \xe2\x94\x82 ~" +
-                        kIdeReset;
+                right = ideFg(IC_GUTTER) + "     | ~" + kIdeReset;
             }
-        } else {
-            if (r == mainHeight / 2) {
-                right = ideBg(IC_EDITOR) + ideFg(IC_MUTED) +
-                        "  Open a file with Ctrl+O, or pick one in the explorer" +
-                        kIdeReset;
-            } else {
-                right = ideBg(IC_EDITOR);
-            }
+        } else if (r == mainHeight / 2) {
+            right = ideFg(IC_MUTED) +
+                    "  ^O Open a file, or pick one in the explorer" + kIdeReset;
         }
-        frame[static_cast<std::size_t>(row)] = ideBg(IC_PANEL) +
+        frame[static_cast<std::size_t>(row)] =
             ideClamp(left, static_cast<std::size_t>(explorerWidth)) +
             ideClamp(right, static_cast<std::size_t>(editorWidth));
     }
 
     // ------------------------------------------------------- output panel
-    if (outputHeight > 0 && !state.showHelp) {
+    if (outputHeight > 0 && !state.showHelp && !state.showCommands) {
         int errors = 0, warnings = 0;
         ideCounts(state, errors, warnings);
         std::ostringstream panelHeader;
@@ -2397,7 +2721,7 @@ void ideRender(IdeState& state) {
                     << kIdeReset << "  "
                     << ideFg(warnings > 0 ? IC_WARN : IC_MUTED) << "W " << warnings
                     << kIdeReset << ideFg(IC_MUTED)
-                    << "    F5 run  F6 lint  F7 format  F9 build  F10 run-project"
+                    << "    ^R run  ^L lint  ^T format  ^Y build  ^U run-project"
                     << kIdeReset;
         ideSetRow(frame, outputStart, panelHeader.str(), columns, IC_PANEL);
         const std::vector<std::string> outputLines = ideSplitLines(state.output);
@@ -2417,45 +2741,111 @@ void ideRender(IdeState& state) {
                      text.find("Warning") != std::string::npos) color = IC_WARN;
             else if (!text.empty() && text[0] == '[') color = IC_INFO;
             ideSetRow(frame, outputStart + 1 + i,
-                      ideFg(color) + " " + text + kIdeReset, columns, IC_EDITOR);
+                      ideFg(color) + " " + text + kIdeReset, columns, IC_SURFACE);
         }
     }
 
-    // --------------------------------------------------------- status bar
-    std::ostringstream status;
-    if (ideHasBuffer(state)) {
-        const IdeBuffer& buffer = ideActive(state);
-        status << " Ln " << (buffer.cursorLine + 1) << ", Col "
-               << (buffer.cursorColumn + 1) << "   "
-               << (ideIsLynx(buffer.path) ? "Lynxer" : "Plain text") << "   UTF-8";
-        if (ideJoinLines(buffer.lines) != buffer.saved) {
-            status << "   " << ideFg(IC_WARN) << "modified" << kIdeReset;
+    // ---------------------------------------------------- open-files list
+    // One row under everything, listing every open buffer with its 1-9 key.
+    // The active buffer is highlighted; a trailing * marks unsaved edits.
+    {
+        std::ostringstream list;
+        list << " " << kIdeBold << ideFg(IC_ACCENT) << "FILES " << kIdeReset;
+        if (state.buffers.empty()) {
+            list << ideFg(IC_MUTED) << "(none - ^O to open)" << kIdeReset;
+        } else {
+            for (std::size_t i = 0; i < state.buffers.size(); ++i) {
+                const IdeBuffer& buffer = state.buffers[i];
+                const bool activeBuffer = i == state.active;
+                std::string entry = " " + std::to_string(i + 1) + " " +
+                                    ideBaseName(buffer.path);
+                if (ideJoinLines(buffer.lines) != buffer.saved) entry += "*";
+                entry += " ";
+                if (activeBuffer) {
+                    list << kIdeReverse << ideFg(IC_TEXT) << entry << kIdeReset;
+                } else {
+                    list << ideFg(IC_MUTED) << entry << kIdeReset;
+                }
+            }
+            list << ideFg(IC_MUTED) << "  ^W close  1-9 / Alt+1-9 switch"
+                 << kIdeReset;
         }
-    } else {
-        status << " No file";
+        ideSetRow(frame, filesRow, list.str(), columns, IC_SURFACE);
     }
-    int errors = 0, warnings = 0;
-    ideCounts(state, errors, warnings);
-    status << "   " << ideFg(errors > 0 ? IC_ERROR : IC_MUTED) << errors
-           << " errors" << kIdeReset << "  "
-           << ideFg(warnings > 0 ? IC_WARN : IC_MUTED) << warnings
-           << " warnings" << kIdeReset;
-    status << "   " << ideFg(IC_MUTED) << state.status << kIdeReset;
-    ideSetRow(frame, statusRow, status.str(), columns, IC_STATUS);
 
-    // ------------------------------------------------------------ hint row
-    std::string hint;
+    // ------------------------------------------------------- message line
+    // nano shows prompts and status messages on one reverse-video line just
+    // above the shortcut bar.
+    std::string message;
     if (state.prompt != IdePrompt::None) {
-        hint = ideFg(IC_ACCENT) + " " + state.promptLabel + ": " + kIdeReset +
-               ideFg(IC_TEXT) + state.promptValue + kIdeReverse + " " +
-               "\x1b[27m" + ideFg(IC_MUTED) + "  (Enter confirm, Esc cancel)" +
-               kIdeReset;
+        message = " " + state.promptLabel + ": " + state.promptValue +
+                  std::string(kIdeReverse) + " " + "\x1b[27m";
     } else {
-        hint = ideFg(IC_MUTED) +
-               " ^O open  ^N new  ^S save  ^Q quit  F1 help  F5 run  F6 lint  F7 format  F9 build  F10 run-project" +
-               kIdeReset;
+        std::ostringstream status;
+        if (ideHasBuffer(state)) {
+            const IdeBuffer& buffer = ideActive(state);
+            status << " Ln " << (buffer.cursorLine + 1) << ", Col "
+                   << (buffer.cursorColumn + 1) << "   "
+                   << (ideIsLynx(buffer.path) ? "Lynxer" : "Plain text") << "   UTF-8";
+            if (ideJoinLines(buffer.lines) != buffer.saved) status << "   modified";
+        } else {
+            status << " No file";
+        }
+        int errors = 0, warnings = 0;
+        ideCounts(state, errors, warnings);
+        status << "   " << errors << " errors  " << warnings << " warnings";
+        if (!state.status.empty()) status << "   " << state.status;
+        message = status.str();
     }
-    ideSetRow(frame, hintRow, hint, columns, IC_SURFACE);
+    frame[static_cast<std::size_t>(messageRow)] = std::string(kIdeReverse) +
+        idePad(ideClamp(message, static_cast<std::size_t>(columns)),
+               static_cast<std::size_t>(columns)) + kIdeReset;
+
+    // ------------------------------------------------------- shortcut bar
+    // Two rows of nano-style `^X Label` pairs. Overlays and prompts replace
+    // them with context-specific keys.
+    for (int line = 0; line < 2; ++line) {
+        std::string hint;
+        if (state.showHelp) {
+            hint = line == 0
+                       ? " ^G Help   Esc Close   Up/Down Scroll   q Close"
+                       : " All actions use Ctrl combos - no function keys";
+        } else if (state.showCommands) {
+            hint = line == 0
+                       ? " Up/Down Select   Enter Run   Esc Close   M-^C Toggle"
+                       : " ^G Help   ^X Exit   ^O Open   ^S Save   ^R Run";
+        } else if (state.prompt == IdePrompt::SaveAll) {
+            hint = line == 0 ? " Y save all   N discard   C cancel   Esc cancel"
+                             : " ^S Save   ^W Close   ^X Exit   M-^C Commands";
+        } else if (state.prompt != IdePrompt::None) {
+            hint = line == 0 ? " Enter Confirm   Esc Cancel   ^G Help"
+                             : " ^O Open   ^S Save   ^X Exit   M-^C Commands";
+        } else if (state.explorerFocus || !ideHasBuffer(state)) {
+            hint = line == 0
+                       ? " Up/Down Select   Enter Open/Close   Right In   Left Back"
+                       : " 1-9 File   ^P Side   ^E Editor   ^W Close   M-^C More";
+        } else {
+            const std::vector<IdeCommandId>& ids = ideBarShortcuts();
+            const std::size_t half = (ids.size() + 1) / 2;
+            const std::size_t begin = static_cast<std::size_t>(line) * half;
+            const std::size_t end = std::min(begin + half, ids.size());
+            hint = " ";
+            for (std::size_t i = begin; i < end; ++i) {
+                const IdeCommand* command = ideCommandById(ids[i]);
+                if (command == nullptr) continue;
+                hint += std::string(kIdeBold) + ideFg(IC_ACCENT) +
+                        command->combo + kIdeReset + " " + command->bar + "   ";
+            }
+            if (line == 1) {
+                hint += std::string(kIdeBold) + ideFg(IC_ACCENT) + "M-^C" +
+                        kIdeReset + " More";
+            }
+        }
+        frame[static_cast<std::size_t>(hintStart + line)] =
+            idePad(ideClamp(ideFg(IC_MUTED) + hint + kIdeReset,
+                            static_cast<std::size_t>(columns)),
+                   static_cast<std::size_t>(columns));
+    }
 
     std::string output;
     for (int i = 0; i < rows; ++i) {
@@ -2476,6 +2866,7 @@ void ideRunCommand(IdeState& state, const std::vector<std::string>& arguments,
     std::string error;
     if (!platform::captureProcess(command, captured, error)) {
         state.output = "error: " + error + "\n";
+        state.showOutput = true;
         state.status = label + " failed";
         return;
     }
@@ -2484,6 +2875,7 @@ void ideRunCommand(IdeState& state, const std::vector<std::string>& arguments,
     out << captured.output;
     state.output = out.str();
     if (state.output.empty() || state.output.back() != '\n') state.output += '\n';
+    state.showOutput = true;
     state.status = label + " finished [exit " +
                    std::to_string(captured.exitCode) + "]";
     if (lint) {
@@ -2694,9 +3086,21 @@ void ideConfirmPrompt(IdeState& state, bool& quit) {
             state.findQuery = value;
             ideFindNext(state);
             break;
-        case IdePrompt::Quit:
-            if (value == "y" || value == "Y" || value == "yes") quit = true;
+        case IdePrompt::SaveAll: {
+            const bool cancel = value == "c" || value == "C" ||
+                                value == "cancel" || value == "Cancel";
+            if (cancel) {
+                state.status = "Close cancelled";
+                state.pendingClosePath.clear();
+                state.pendingCollapsePath.clear();
+                state.pendingQuit = false;
+                break;
+            }
+            const bool no = value == "n" || value == "N" || value == "no";
+            if (!no) ideSaveAll(state);  // default (Y / Enter) saves all
+            ideApplyPendingAction(state, quit);
             break;
+        }
         case IdePrompt::None:
             break;
     }
@@ -2711,6 +3115,102 @@ bool ideAnyDirty(const IdeState& state) {
     return false;
 }
 
+// Runs one command from either a key combo or the Ctrl+Alt+C menu. Returns
+// true when the IDE should exit.
+bool ideExecuteCommand(IdeState& state, IdeCommandId id) {
+    switch (id) {
+        case IdeCommandId::Help:
+            state.showHelp = true;
+            state.helpTop = 0;
+            return false;
+        case IdeCommandId::Open:
+            state.prompt = IdePrompt::Open;
+            state.promptLabel = "Open file";
+            state.promptValue.clear();
+            return false;
+        case IdeCommandId::New:
+            state.prompt = IdePrompt::New;
+            state.promptLabel = "New file";
+            state.promptValue.clear();
+            return false;
+        case IdeCommandId::Save:
+            ideSaveActive(state);
+            return false;
+        case IdeCommandId::Exit: {
+            bool quit = false;
+            ideRequestSaveAll(state, std::string(), std::string(), true, quit);
+            return quit;
+        }
+        case IdeCommandId::CloseTab:
+            if (ideHasBuffer(state)) {
+                bool ignored = false;
+                ideRequestSaveAll(state, ideActive(state).path, std::string(),
+                                  false, ignored);
+            }
+            return false;
+        case IdeCommandId::Find:
+            state.prompt = IdePrompt::Find;
+            state.promptLabel = "Find";
+            state.promptValue = state.findQuery;
+            return false;
+        case IdeCommandId::Run:
+            ideCommandForFile(state, "", "Run", false, false);
+            return false;
+        case IdeCommandId::Lint:
+            ideCommandForFile(state, "--lint", "Lint", true, false);
+            return false;
+        case IdeCommandId::Format:
+            ideCommandForFile(state, "--format", "Format", false, true);
+            return false;
+        case IdeCommandId::Output:
+            state.showOutput = !state.showOutput;
+            return false;
+        case IdeCommandId::Goto:
+            state.prompt = IdePrompt::Goto;
+            state.promptLabel = "Go to line";
+            state.promptValue.clear();
+            return false;
+        case IdeCommandId::NextMatch:
+            ideFindNext(state);
+            return false;
+        case IdeCommandId::NextProblem:
+            ideNextDiagnostic(state);
+            return false;
+        case IdeCommandId::Build:
+            ideRunCommand(state, {"--build"}, "Build project", false, false);
+            return false;
+        case IdeCommandId::RunProject:
+            ideRunCommand(state, {"--run"}, "Run project", false, false);
+            return false;
+        case IdeCommandId::Folder:
+            state.prompt = IdePrompt::Folder;
+            state.promptLabel = "Open folder";
+            state.promptValue = state.root;
+            return false;
+        case IdeCommandId::Sidebar:
+            state.explorerFocus = true;
+            state.status = "Sidebar focused";
+            return false;
+        case IdeCommandId::Editor:
+            state.explorerFocus = false;
+            state.status = "Editor focused";
+            return false;
+        case IdeCommandId::Clear:
+            state.output.clear();
+            state.diagnostics.clear();
+            state.status = "Output cleared";
+            return false;
+    }
+    return false;
+}
+
+const IdeCommand* ideCommandById(IdeCommandId id) {
+    for (const IdeCommand& command : ideCommands()) {
+        if (command.id == id) return &command;
+    }
+    return nullptr;
+}
+
 bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
     bool quit = false;
 
@@ -2721,6 +3221,9 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
             if (c == 27) {
                 state.prompt = IdePrompt::None;
                 state.promptValue.clear();
+                state.pendingClosePath.clear();
+                state.pendingCollapsePath.clear();
+                state.pendingQuit = false;
                 state.status = "Cancelled";
             } else if (c == '\r' || c == '\n') {
                 ideConfirmPrompt(state, quit);
@@ -2733,98 +3236,137 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
         return quit;
     }
 
-    // ------------------------------------------------------------- help pane
-    if (state.showHelp) {
-        if (event.code == platform::KEY_F1 ||
-            (event.code == 0 && !event.bytes.empty() &&
-             (event.bytes[0] == 27 || event.bytes[0] == 'q'))) {
-            state.showHelp = false;
-        }
-        return false;
-    }
-
     const int key = event.code;
     int control = 0;
     if (key == 0 && event.bytes.size() == 1) {
         const unsigned char c = static_cast<unsigned char>(event.bytes[0]);
         if (c < 32) control = static_cast<int>(c);
     }
+    const bool escape =
+        key == 0 && event.bytes.size() == 1 && event.bytes[0] == 27;
+    const bool commandKey = key == platform::KEY_COMMAND || control == 1 ||
+                            control == 3;  // ^A / ^C aliases
+    // With no file open there is no editor to move a caret in, so the arrow
+    // keys browse the tree regardless of the focus flag.
+    const bool inExplorer = state.explorerFocus || !ideHasBuffer(state);
+
+    // 1-9 switch open buffers. Plain digits are only shortcuts while the
+    // sidebar is focused (typing a digit in the editor must insert it);
+    // Alt+1-9 works from anywhere, including during editing.
+    int bufferIndex = -1;
+    bool focusEditor = false;
+    if (key >= platform::KEY_ALT_1 && key <= platform::KEY_ALT_9) {
+        bufferIndex = static_cast<int>(key - platform::KEY_ALT_1);
+        focusEditor = true;
+    } else if (inExplorer && key == 0 && event.bytes.size() == 1 &&
+               event.bytes[0] >= '1' && event.bytes[0] <= '9') {
+        bufferIndex = static_cast<int>(event.bytes[0] - '1');
+    }
+    if (bufferIndex >= 0) {
+        if (static_cast<std::size_t>(bufferIndex) < state.buffers.size()) {
+            state.active = static_cast<std::size_t>(bufferIndex);
+            if (focusEditor) state.explorerFocus = false;
+            state.status = "File " + std::to_string(bufferIndex + 1) + ": " +
+                           ideBaseName(ideActive(state).path);
+        } else {
+            state.status = "No file " + std::to_string(bufferIndex + 1);
+        }
+        return false;
+    }
+
+    // ------------------------------------------- command menu (Ctrl+Alt+C)
+    if (state.showCommands) {
+        const std::size_t count = ideCommands().size();
+        switch (key) {
+            case platform::KEY_UP:
+            case platform::KEY_CTRL_UP:
+                if (state.commandIndex > 0) --state.commandIndex;
+                break;
+            case platform::KEY_DOWN:
+            case platform::KEY_CTRL_DOWN:
+                if (state.commandIndex + 1 < count) ++state.commandIndex;
+                break;
+            case platform::KEY_HOME: state.commandIndex = 0; break;
+            case platform::KEY_END: state.commandIndex = count - 1; break;
+            case platform::KEY_PAGE_UP:
+                state.commandIndex = state.commandIndex > 5 ? state.commandIndex - 5 : 0;
+                break;
+            case platform::KEY_PAGE_DOWN:
+                state.commandIndex = std::min(state.commandIndex + 5, count - 1);
+                break;
+            default: break;
+        }
+        if (control == 13 || control == 10) {  // Enter runs the selection
+            const IdeCommandId id = ideCommands()[state.commandIndex].id;
+            state.showCommands = false;
+            return ideExecuteCommand(state, id);
+        }
+        if (escape || commandKey || control == 7 ||
+            (key == 0 && event.bytes.size() == 1 && event.bytes[0] == 'q')) {
+            state.showCommands = false;
+            return false;
+        }
+        // Combos stay live while the menu is open, so ^R runs immediately.
+        if (control != 0) {
+            for (const IdeCommand& command : ideCommands()) {
+                if (command.control != 0 && command.control == control) {
+                    state.showCommands = false;
+                    return ideExecuteCommand(state, command.id);
+                }
+            }
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------- help pane
+    if (state.showHelp) {
+        if (key == platform::KEY_UP &&
+            state.helpTop > 0) --state.helpTop;
+        else if (key == platform::KEY_DOWN) ++state.helpTop;
+        else if (key == platform::KEY_PAGE_UP)
+            state.helpTop = state.helpTop > 5 ? state.helpTop - 5 : 0;
+        else if (key == platform::KEY_PAGE_DOWN) state.helpTop += 5;
+        else if (key == platform::KEY_HOME) state.helpTop = 0;
+        else if (key == platform::KEY_END) state.helpTop = 100;
+        else if (control == 7 || escape || commandKey ||
+                 (key == 0 && event.bytes.size() == 1 && event.bytes[0] == 'q'))
+            state.showHelp = false;
+        return false;
+    }
+
+    // ------------------------------------ Ctrl+Alt+C opens the command menu
+    if (commandKey) {
+        state.showCommands = true;
+        state.commandIndex = 0;
+        state.commandTop = 0;
+        return false;
+    }
 
     // ---------------------------------------------------------- global keys
+    if (control == 17) {  // ^Q is a nano-familiar alias for ^X exit
+        return ideExecuteCommand(state, IdeCommandId::Exit);
+    }
+    for (const IdeCommand& command : ideCommands()) {
+        if (command.control != 0 && command.control == control) {
+            return ideExecuteCommand(state, command.id);
+        }
+    }
     switch (control) {
-        case 17:  // Ctrl+Q
-            if (ideAnyDirty(state)) {
-                state.prompt = IdePrompt::Quit;
-                state.promptLabel = "Unsaved changes; quit anyway? (y/N)";
-            } else {
-                quit = true;
-            }
-            return quit;
-        case 19:  // Ctrl+S
-            ideSaveActive(state);
-            return false;
-        case 15:  // Ctrl+O
-            state.prompt = IdePrompt::Open;
-            state.promptLabel = "Open file";
-            state.promptValue.clear();
-            return false;
-        case 14:  // Ctrl+N
-            state.prompt = IdePrompt::New;
-            state.promptLabel = "New file";
-            state.promptValue.clear();
-            return false;
-        case 2:  // Ctrl+B
-            state.prompt = IdePrompt::Folder;
-            state.promptLabel = "Open folder";
-            state.promptValue = state.root;
-            return false;
-        case 23:  // Ctrl+W
-            ideCloseTab(state);
-            return false;
-        case 5:  // Ctrl+E
-            state.explorerFocus = !state.explorerFocus;
-            return false;
-        case 16:  // Ctrl+P
-            state.showOutput = !state.showOutput;
-            return false;
-        case 7:  // Ctrl+G
-            state.prompt = IdePrompt::Goto;
-            state.promptLabel = "Go to line";
-            state.promptValue.clear();
-            return false;
-        case 6:  // Ctrl+F
-            state.prompt = IdePrompt::Find;
-            state.promptLabel = "Find";
-            state.promptValue = state.findQuery;
-            return false;
-        case 11:  // Ctrl+K
-            state.output.clear();
-            state.diagnostics.clear();
-            state.status = "Output cleared";
-            return false;
         case 9:  // Tab
-            if (state.explorerFocus) {
+            if (inExplorer) {
                 state.explorerFocus = false;
-            } else if (ideHasBuffer(state)) {
+            } else {
                 ideInsertText(state, "    ");
             }
             return false;
         case 8:   // Backspace
         case 127:
-            if (state.explorerFocus) return false;
-            if (ideHasBuffer(state)) ideBackspace(state);
+            if (!inExplorer) ideBackspace(state);
             return false;
-        case 13:  // Enter
-            if (state.explorerFocus) {
-                if (state.treeSelection < state.tree.size()) {
-                    const IdeTreeRow row = state.tree[state.treeSelection];
-                    if (row.isDir) {
-                        ideToggleDir(state, state.treeSelection);
-                    } else if (ideOpenFile(state, row.path)) {
-                        state.explorerFocus = false;
-                    }
-                }
-            } else if (ideHasBuffer(state)) {
+        case 13:  // Enter: open the selected file or folder, else newline
+            if (inExplorer) {
+                ideActivateTreeSelection(state, true);
+            } else {
                 ideNewline(state);
             }
             return false;
@@ -2832,38 +3374,6 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
             break;
     }
 
-    if (key == platform::KEY_F1) {
-        state.showHelp = true;
-        return false;
-    }
-    if (key == platform::KEY_F3) {
-        ideFindNext(state);
-        return false;
-    }
-    if (key == platform::KEY_F4) {
-        ideNextDiagnostic(state);
-        return false;
-    }
-    if (key == platform::KEY_F5) {
-        ideCommandForFile(state, "", "Run", false, false);
-        return false;
-    }
-    if (key == platform::KEY_F6) {
-        ideCommandForFile(state, "--lint", "Lint", true, false);
-        return false;
-    }
-    if (key == platform::KEY_F7) {
-        ideCommandForFile(state, "--format", "Format", false, true);
-        return false;
-    }
-    if (key == platform::KEY_F9) {
-        ideRunCommand(state, {"--build"}, "Build project", false, false);
-        return false;
-    }
-    if (key == platform::KEY_F10) {
-        ideRunCommand(state, {"--run"}, "Run project", false, false);
-        return false;
-    }
     if (key == platform::KEY_CTRL_LEFT) {
         if (ideHasBuffer(state)) state.active = state.active > 0 ? state.active - 1 : state.buffers.size() - 1;
         return false;
@@ -2873,7 +3383,14 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
         return false;
     }
 
-    if (state.explorerFocus) {
+    // A lone Escape moves focus to the explorer, so the arrow keys can be
+    // used to navigate the file tree as well as the editor.
+    if (escape) {
+        state.explorerFocus = true;
+        return false;
+    }
+
+    if (inExplorer) {
         switch (key) {
             case platform::KEY_UP:
                 if (state.treeSelection > 0) --state.treeSelection;
@@ -2882,23 +3399,12 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
                 if (state.treeSelection + 1 < state.tree.size()) ++state.treeSelection;
                 break;
             case platform::KEY_RIGHT:
-                ideToggleDir(state, state.treeSelection);
+                // Expand a folder and step into it; files are opened by Enter.
+                ideActivateTreeSelection(state, false);
                 break;
-            case platform::KEY_LEFT: {
-                if (state.treeSelection >= state.tree.size()) break;
-                const IdeTreeRow row = state.tree[state.treeSelection];
-                if (row.expanded) {
-                    ideToggleDir(state, state.treeSelection);
-                } else if (row.depth > 0) {
-                    for (std::size_t i = state.treeSelection; i > 0; --i) {
-                        if (state.tree[i - 1].depth < row.depth) {
-                            state.treeSelection = i - 1;
-                            break;
-                        }
-                    }
-                }
+            case platform::KEY_LEFT:
+                ideCollapseOrParent(state);
                 break;
-            }
             case platform::KEY_HOME:
                 state.treeSelection = 0;
                 break;
@@ -2916,8 +3422,7 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
                 break;
         }
         // Keep the selection inside the visible explorer pane.
-        const int paneHeight = std::max(1, state.rows - 2 -
-            (state.showOutput ? std::min(8, state.rows / 3) : 0) - 3);
+        const int paneHeight = ideEditorHeight(state);
         if (state.treeSelection < state.treeTop) {
             state.treeTop = state.treeSelection;
         } else if (state.treeSelection >=
@@ -2929,13 +3434,6 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
     }
 
     // ---------------------------------------------------------- editor keys
-    if (!ideHasBuffer(state)) {
-        if (key == 0 && control == 0 && !event.bytes.empty() &&
-            static_cast<unsigned char>(event.bytes[0]) == 27) {
-            state.explorerFocus = true;
-        }
-        return false;
-    }
     switch (key) {
         case platform::KEY_UP: ideMoveCursor(state, -1, 0); break;
         case platform::KEY_DOWN: ideMoveCursor(state, 1, 0); break;
@@ -2960,18 +3458,13 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
         default:
             break;
     }
-    if (key == 0 && control == 0 && !event.bytes.empty()) {
-        const unsigned char first = static_cast<unsigned char>(event.bytes[0]);
-        if (first == 27) {
-            state.explorerFocus = true;
-        } else if (first >= 32 && first != 127) {
-            ideInsertText(state, event.bytes);
-        }
+    if (key == 0 && control == 0 && !event.bytes.empty() &&
+        static_cast<unsigned char>(event.bytes[0]) >= 32 &&
+        static_cast<unsigned char>(event.bytes[0]) != 127) {
+        ideInsertText(state, event.bytes);
     }
 
-    const int editorHeight = std::max(1, state.rows - 2 -
-        (state.showOutput ? std::min(8, state.rows / 3) : 0) - 3);
-    ideEnsureVisible(state, editorHeight);
+    ideEnsureVisible(state, ideEditorHeight(state));
     return false;
 }
 
@@ -3017,7 +3510,10 @@ int launchCliIde(const char* argv0,
         }
     }
     ideRefreshTree(state);
-    state.status = "Ready";
+    // No file open: start in the explorer so the arrow keys browse files and
+    // folders immediately. When a file was passed, focus the editor.
+    state.explorerFocus = !ideHasBuffer(state);
+    state.status = state.explorerFocus ? "Browse: Up/Down, Enter opens" : "Ready";
 
     std::string error;
     if (!platform::enableRawInput(error)) {

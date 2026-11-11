@@ -188,21 +188,30 @@ lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its
 <p><code>--gui-ide</code> resolves <code>lynxer-ide</code> next to the interpreter, in the installed <code>&lt;prefix&gt;/lib/lynxer</code> layout, or in <code>lynxer/ide/target/{release,debug}</code>. Set <code>LYNXER_IDE</code> to an explicit executable (or a directory containing it) to override. The launcher passes its own absolute path as <code>--lynxer &lt;path&gt;</code>, so Run / Lint / Format work even when <code>lynxer</code> is not on <code>PATH</code>. It takes no arguments and returns the IDE's exit code.</p>
 <h3 id="terminal-ide">Terminal IDE</h3>
 <p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
-<p>Features: an expandable file tree, a tabbed editor with line numbers and Lynxer syntax highlighting (<code>.lynx</code> only), multi-key editing, search and go-to-line, an output/problems panel with parsed <code>lynxer --lint</code> warnings and errors, and Run / Lint / Format / Build / Run-project commands whose output is captured into the panel instead of overwriting the screen.</p>
-<p>Key bindings:</p>
+<p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
+<p>When no file is open the IDE starts in the file tree: Up/Down move through files and folders, Right expands a folder and steps into it, Left collapses a folder or jumps back to its parent, and Enter opens a file in the editor or expands a folder. Selecting an already-open file or an expanded folder <strong>closes</strong> it instead; when any buffer has unsaved edits a <code>Save all changes? (Y/n/c)</code> prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels). <code>^P</code> focuses the sidebar and <code>^E</code> the editor.</p>
+<p>A <code>FILES</code> row under the editor and output panel lists every open buffer with its <code>1</code>-<code>9</code> number — the active file is highlighted and unsaved files carry a <code>*</code>. Press the number to switch to that file (plain digits in the sidebar, <code>Alt+1</code>-<code>Alt+9</code> from anywhere, including while editing), then <code>^W</code> closes it. Up to nine files can be open at once. Non-text files (<code>.pdf</code>, <code>.png</code>, <code>.docx</code>, images, archives, executables, and any file whose content looks binary) are never opened; they are marked <code>B</code> in the tree and produce a status message.</p>
+<p>Features: an expandable file tree, a tabbed editor with line numbers and Lynxer syntax highlighting (<code>.lynx</code> only), multi-key editing, search and go-to-line, an output/problems panel with parsed <code>lynxer --lint</code> warnings and errors (shown only once a command produces output), and Run / Lint / Format / Build / Run-project commands whose output is captured into the panel instead of overwriting the screen.</p>
+<p>Key bindings (<code>^</code> means Ctrl, <code>M-^C</code> means Ctrl+Alt+C):</p>
 <table>
 <tr><th>Key</th><th>Action</th></tr>
-<tr><td><code>Ctrl+O</code> / <code>Ctrl+N</code> / <code>Ctrl+S</code> / <code>Ctrl+W</code> / <code>Ctrl+Q</code></td><td>open / new / save / close tab / quit</td></tr>
-<tr><td><code>Ctrl+B</code></td><td>change folder</td></tr>
-<tr><td><code>Ctrl+E</code></td><td>switch focus between explorer and editor</td></tr>
-<tr><td><code>Ctrl+P</code> / <code>Ctrl+K</code></td><td>toggle output panel / clear output</td></tr>
-<tr><td><code>Ctrl+G</code> / <code>Ctrl+F</code> / <code>F3</code></td><td>go to line / find / next match</td></tr>
+<tr><td><code>^G</code> / <code>Esc</code></td><td>help / close an overlay or prompt</td></tr>
+<tr><td><code>^O</code> / <code>^N</code> / <code>^S</code> / <code>^W</code></td><td>open / new / save / close tab</td></tr>
+<tr><td><code>^X</code> / <code>^Q</code></td><td>exit (<code>^Q</code> is an alias)</td></tr>
+<tr><td><code>^B</code></td><td>change folder</td></tr>
+<tr><td><code>^P</code> / <code>^E</code></td><td>focus sidebar / focus editor</td></tr>
+<tr><td><code>^Z</code> / <code>^K</code></td><td>toggle output panel / clear output</td></tr>
+<tr><td><code>^F</code> / <code>^_</code> / <code>^D</code></td><td>find / go to line / next match</td></tr>
+<tr><td><code>^R</code> / <code>^L</code> / <code>^T</code></td><td>run file / lint file / format file</td></tr>
+<tr><td><code>^Y</code> / <code>^U</code></td><td>build project / run project</td></tr>
+<tr><td><code>^V</code></td><td>next problem</td></tr>
+<tr><td><code>Ctrl+Alt+C</code> / <code>^A</code> / <code>^C</code></td><td>command menu (all commands)</td></tr>
+<tr><td><code>1</code>-<code>9</code> / <code>Alt+1</code>-<code>Alt+9</code></td><td>switch to the numbered open file (max 9)</td></tr>
 <tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>previous / next tab</td></tr>
-<tr><td><code>F1</code> / <code>Esc</code></td><td>help / focus explorer</td></tr>
-<tr><td><code>F4</code> / <code>F5</code> / <code>F6</code> / <code>F7</code></td><td>next problem / run file / lint file / format file</td></tr>
-<tr><td><code>F9</code> / <code>F10</code></td><td>build project / run project</td></tr>
-<tr><td>Explorer: Up/Down, Enter, Right, Left</td><td>select, open, expand, collapse</td></tr>
+<tr><td>Explorer: Up/Down, Right, Left</td><td>select files/folders, step into folder, collapse / parent</td></tr>
+<tr><td>Explorer: Enter</td><td>open file / expand folder, or close an already-open one</td></tr>
 <tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
+<tr><td>Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc</td><td>select / run / close</td></tr>
 </table>
 <h2 id="exit-codes">Exit codes</h2>
 <table>
