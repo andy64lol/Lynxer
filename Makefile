@@ -403,7 +403,7 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
 .PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde testLynxerCliIde where
 
 test: testLynxer
@@ -1531,7 +1531,18 @@ cleanLynxer:
 	@rm -rf $(LYNXER_DIR)/ide/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
-cleanAll: clean cleanLynxer
+# Arch packaging artifacts: the staged payload and packages produced by
+# buildLynxerArch/packageArch (dist/), stale Arch packaging files from older
+# flows, and makepkg's src/pkg trees plus package/tarball outputs under
+# packaging/aur. Tracked files (PKGBUILD, .SRCINFO) are never touched.
+cleanArch:
+	@rm -rf $(DIST_DIR)/packages $(DIST_DIR)/payload $(DIST_DIR)/pkg $(DIST_DIR)/src
+	@rm -f $(DIST_DIR)/PKGBUILD $(DIST_DIR)/lynxer-*.pkg.tar.*
+	@find packaging/aur -mindepth 2 -maxdepth 2 -type d \( -name src -o -name pkg \) -exec rm -rf {} + 2>/dev/null || true
+	@find packaging/aur -mindepth 2 -maxdepth 2 -type f \( -name '*.pkg.tar.*' -o -name '*.tar.gz' -o -name '*.tar.zst' -o -name '*.tar.xz' -o -name '*.zip' \) -delete 2>/dev/null || true
+	@echo "✓ Cleaned Arch packaging artifacts."
+
+cleanAll: clean cleanLynxer cleanArch
 	@echo "✓ Cleaned all generated build artifacts."
 
 # Print the absolute path of every produced artifact.
@@ -1541,6 +1552,8 @@ where:
 	@echo "  ARM64 interpreter      : $(abspath $(LYNXER_TARGET)-arm64)"
 	@echo "  Embedding SDK          : $(abspath $(LYNXER_SDK_DIR))"
 	@echo "  Runtime bundle         : $(abspath $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz)"
+	@echo "  Arch package payload   : $(abspath $(DIST_DIR)/payload)/<arch>"
+	@echo "  Arch packages          : $(abspath $(DIST_DIR)/packages)/<arch>"
 	@echo "  Stdlib modules         : $(abspath $(LYNXER_DIR)/stdlib)"
 
 help:
@@ -1571,7 +1584,10 @@ help:
 	@echo "  make benchLynxer                       Performance report"
 	@echo ""
 	@echo "Clean:"
-	@echo "  make clean / cleanLynxer / cleanAll    Remove transient / Lynxer / all artifacts"
+	@echo "  make clean                             Remove transient files"
+	@echo "  make cleanLynxer                       Remove Lynxer build artifacts"
+	@echo "  make cleanArch                         Remove Arch packaging artifacts"
+	@echo "  make cleanAll                          Remove all generated artifacts"
 	@echo ""
 	@echo "Information:"
 	@echo "  make where                             Print the absolute path of every output"
