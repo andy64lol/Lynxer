@@ -5,14 +5,16 @@ The terminal IDE needs a TTY on stdin and stdout, so a plain pipe cannot
 exercise it. This script allocates a pty, opens a scratch .lynx file, types a
 character, saves, lints and quits, then checks the screen and the file. It
 also covers tree navigation, the open-files list, 1-9 buffer switching, focus
-combos, save-all prompts when closing files or folders, and non-text file
-rejection in separate pty sessions.
+combos, save-all prompts when closing files or folders, non-text file
+rejection and the editing keys at the line boundaries (Backspace, Delete and
+the arrow keys) in separate pty sessions.
 
 Usage: cli_ide_pty_test.py <lynxer-binary> <scratch-file>
 """
 
 import fcntl
 import os
+import re
 import select
 import struct
 import subprocess
@@ -34,6 +36,11 @@ def drain(master, seconds, chunks):
         if not data:
             return
         chunks.append(data)
+
+
+def strip_ansi(text):
+    """Drop the colour and cursor escapes so the text can be matched."""
+    return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text)
 
 
 def check_tree_navigation(interpreter):
@@ -310,6 +317,144 @@ def check_buffers_and_files(interpreter):
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_editing_keys(interpreter):
+    """Backspace, Delete and the arrow keys edit at the line boundaries."""
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-edit-")
+    master = slave = None
+    process = None
+    try:
+        path = os.path.join(root, "edit.lynx")
+        with open(path, "w") as handle:
+            handle.write('fn main(){\n  alpha();\n}\n')
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", path],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+
+        def step(data, label):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, 0.45, chunks)
+            frame = strip_ansi(b"".join(chunks).decode("utf-8", "replace"))
+            if not frame:
+                print(f"{label}: the IDE stopped drawing", file=sys.stderr)
+                return None
+            return frame
+
+        def expect(frame, needle, label):
+            if needle not in frame:
+                print(f"{label}: missing {needle!r}", file=sys.stderr)
+                return False
+            return True
+
+        drain(master, 1.2, chunks)
+        screen = strip_ansi(b"".join(chunks).decode("utf-8", "replace"))
+        if "fn main(){" not in screen:
+            print("edit IDE did not open the file", file=sys.stderr)
+            return 1
+
+        # Backspace reaches the terminal as DEL (127) on most terminals and as
+        # BS (8) on others; both must erase the character before the caret.
+        frame = step(b"Z", "type")
+        if frame is None or not expect(frame, "Zfn main(){", "typing"):
+            return 1
+        frame = step(b"\x7f", "backspace")
+        if frame is None:
+            return 1
+        if "Zfn main(){" in frame:
+            print("Backspace did not erase the character before the caret",
+                  file=sys.stderr)
+            return 1
+        if not expect(frame, "fn main(){", "backspace"):
+            return 1
+        frame = step(b"\x08", "backspace")
+        if frame is None:
+            return 1
+        if not expect(frame, "fn main(){", "backspace BS"):
+            return 1
+
+        # Backspace at the start of a line joins it with the line above.
+        frame = step(b"\x1b[B\x1b[H", "down and home")
+        if frame is None or not expect(frame, "Ln 2, Col 1", "Down/Home"):
+            return 1
+        frame = step(b"\x7f", "backspace at line start")
+        if frame is None:
+            return 1
+        if not expect(frame, "fn main(){  alpha();", "backspace did not join"):
+            return 1
+        if not expect(frame, "Ln 1, Col 11", "join caret"):
+            return 1
+
+        # Left at the start of a line jumps to the end of the line above.
+        frame = step(b"\x1b[B", "down")
+        if frame is None or not expect(frame, "Ln 2, Col 2", "Down"):
+            return 1
+        frame = step(b"\x1b[H", "home")
+        if frame is None or not expect(frame, "Ln 2, Col 1", "Home"):
+            return 1
+        frame = step(b"\x1b[D", "left at line start")
+        if frame is None:
+            return 1
+        if not expect(frame, "Ln 1, Col 21", "Left did not cross the line"):
+            return 1
+
+        # Delete removes the character under the caret...
+        frame = step(b"\x1b[H", "home")
+        if frame is None or not expect(frame, "Ln 1, Col 1", "Home"):
+            return 1
+        frame = step(b"\x1b[3~", "delete")
+        if frame is None:
+            return 1
+        if not expect(frame, "n main(){  alpha();", "Delete did not erase"):
+            return 1
+        # ...and joins the next line at the end of a line.
+        frame = step(b"\x1b[F", "end")
+        if frame is None or not expect(frame, "Ln 1, Col 20", "End"):
+            return 1
+        frame = step(b"\x1b[3~", "delete at line end")
+        if frame is None:
+            return 1
+        if not expect(frame, "n main(){  alpha();}", "Delete did not join"):
+            return 1
+
+        # The buffer is dirty, so Ctrl+X asks to save first; N discards.
+        os.write(master, b"\x18")
+        drain(master, 0.4, chunks)
+        os.write(master, b"n\r")
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("edit IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"edit IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     if len(sys.argv) != 3:
         print("usage: cli_ide_pty_test.py <lynxer> <scratch-file>", file=sys.stderr)
@@ -436,6 +581,10 @@ def main():
     buffers_result = check_buffers_and_files(interpreter)
     if buffers_result != 0:
         return buffers_result
+
+    editing_result = check_editing_keys(interpreter)
+    if editing_result != 0:
+        return editing_result
 
     print("terminal IDE pty smoke test passed")
     return 0

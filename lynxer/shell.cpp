@@ -2609,6 +2609,7 @@ void ideRender(IdeState& state) {
     helpLines.push_back("            Right steps into a folder, Left collapses / parent");
     helpLines.push_back("  Editor:   arrow keys move, Home/End, PgUp/PgDn, type to edit");
     helpLines.push_back("            Enter newline, Tab indent, Backspace/Delete remove");
+    helpLines.push_back("            Left/Right cross line boundaries");
     helpLines.push_back("");
     helpLines.push_back("  Up to 9 files open at once; the bottom FILES list shows them.");
     helpLines.push_back("  Non-text files (.pdf, .png, .docx, ...) are never opened.");
@@ -2995,6 +2996,32 @@ void ideMoveCursor(IdeState& state, int deltaLine, int deltaColumn) {
     buffer.cursorColumn = std::min(buffer.cursorColumn, buffer.lines[buffer.cursorLine].size());
 }
 
+// Left and Right cross line boundaries: Left at the start of a line jumps to
+// the end of the line above, Right at the end of a line jumps to the start of
+// the line below. Without this the caret gets stuck at the first and last
+// column of a line.
+void ideMoveLeft(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    if (buffer.cursorColumn > 0) {
+        ideMoveCursor(state, 0, -1);
+        return;
+    }
+    if (buffer.cursorLine == 0) return;
+    --buffer.cursorLine;
+    buffer.cursorColumn = buffer.lines[buffer.cursorLine].size();
+}
+
+void ideMoveRight(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    if (buffer.cursorColumn < buffer.lines[buffer.cursorLine].size()) {
+        ideMoveCursor(state, 0, 1);
+        return;
+    }
+    if (buffer.cursorLine + 1 >= buffer.lines.size()) return;
+    ++buffer.cursorLine;
+    buffer.cursorColumn = 0;
+}
+
 void ideFindNext(IdeState& state) {
     if (!ideHasBuffer(state) || state.findQuery.empty()) {
         state.status = "Nothing to find (use Ctrl+F)";
@@ -3244,6 +3271,13 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
     }
     const bool escape =
         key == 0 && event.bytes.size() == 1 && event.bytes[0] == 27;
+    // Backspace reaches the terminal as BS (8) or as DEL (127) depending on
+    // the terminal and the keyboard layout, so both bytes must reach the
+    // editor. DEL is not a control character, so it never shows up in
+    // `control`.
+    const bool backspaceKey =
+        key == 0 && event.bytes.size() == 1 &&
+        (event.bytes[0] == 8 || event.bytes[0] == 127);
     const bool commandKey = key == platform::KEY_COMMAND || control == 1 ||
                             control == 3;  // ^A / ^C aliases
     // With no file open there is no editor to move a caret in, so the arrow
@@ -3359,8 +3393,7 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
                 ideInsertText(state, "    ");
             }
             return false;
-        case 8:   // Backspace
-        case 127:
+        case 8:   // Backspace (BS)
             if (!inExplorer) ideBackspace(state);
             return false;
         case 13:  // Enter: open the selected file or folder, else newline
@@ -3372,6 +3405,11 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
             return false;
         default:
             break;
+    }
+    // Backspace as DEL (127), the byte most terminals send.
+    if (backspaceKey) {
+        if (!inExplorer) ideBackspace(state);
+        return false;
     }
 
     if (key == platform::KEY_CTRL_LEFT) {
@@ -3437,8 +3475,8 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
     switch (key) {
         case platform::KEY_UP: ideMoveCursor(state, -1, 0); break;
         case platform::KEY_DOWN: ideMoveCursor(state, 1, 0); break;
-        case platform::KEY_LEFT: ideMoveCursor(state, 0, -1); break;
-        case platform::KEY_RIGHT: ideMoveCursor(state, 0, 1); break;
+        case platform::KEY_LEFT: ideMoveLeft(state); break;
+        case platform::KEY_RIGHT: ideMoveRight(state); break;
         case platform::KEY_HOME:
             ideActive(state).cursorColumn = 0;
             break;

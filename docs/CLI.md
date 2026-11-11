@@ -146,6 +146,13 @@ Key bindings (`^` means Ctrl, `M-^C` means Ctrl+Alt+C):
 | Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter | move and edit |
 | Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc | select / run / close |
 
+In the editor the caret crosses line boundaries: Left at the start of a line
+jumps to the end of the line above, Right at the end of a line jumps to the
+start of the line below. Backspace at the start of a line joins it with the
+line above, and Delete at the end of a line joins it with the line below.
+Backspace is accepted as `BS` (8) and as `DEL` (127), the byte most terminals
+send, so the key works on every layout.
+
 ## Exit codes
 
 | Code | Meaning |

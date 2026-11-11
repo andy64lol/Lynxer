@@ -213,6 +213,7 @@ lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its
 <tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
 <tr><td>Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc</td><td>select / run / close</td></tr>
 </table>
+<p>In the editor the caret crosses line boundaries: Left at the start of a line jumps to the end of the line above, Right at the end of a line jumps to the start of the line below. Backspace at the start of a line joins it with the line above, and Delete at the end of a line joins it with the line below. Backspace is accepted as <code>BS</code> (8) and as <code>DEL</code> (127), the byte most terminals send, so the key works on every layout.</p>
 <h2 id="exit-codes">Exit codes</h2>
 <table>
 <tr><th>Code</th><th>Meaning</th></tr>

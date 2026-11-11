@@ -497,6 +497,19 @@ int decodeCsi(const std::string& sequence) {
     if (sequence == "21~") return KEY_F10;
     if (sequence == "23~") return KEY_F11;
     if (sequence == "24~") return KEY_F12;
+    // Terminals report modifiers as extra parameters: Delete arrives as
+    // "3~", but Ctrl+Delete as "3;5~" and Shift+Delete as "3;2~". The
+    // modifier is ignored, the key itself is the same.
+    const std::size_t semicolon = sequence.find(';');
+    if (semicolon != std::string::npos && !sequence.empty() &&
+        sequence.back() == '~') {
+        const std::string base = sequence.substr(0, semicolon) + "~";
+        if (base == "1~" || base == "7~") return KEY_HOME;
+        if (base == "4~" || base == "8~") return KEY_END;
+        if (base == "3~") return KEY_DELETE;
+        if (base == "5~") return KEY_PAGE_UP;
+        if (base == "6~") return KEY_PAGE_DOWN;
+    }
     return 0;
 }
 #endif
