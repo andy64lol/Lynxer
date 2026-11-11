@@ -29,7 +29,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install ARM64 toolchain
-        timeout-minutes: 12
+        timeout-minutes: 15
         run: |
           bash .github/scripts/apt-install.sh \
             build-essential clang cmake libclang-dev libasound2-dev libffi-dev libgl1-mesa-dev pkg-config \
