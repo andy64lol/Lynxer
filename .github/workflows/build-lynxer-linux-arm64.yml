@@ -29,16 +29,16 @@ jobs:
           python-version: "3.14"
 
       - name: Install ARM64 toolchain
+        timeout-minutes: 12
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          bash .github/scripts/apt-install.sh \
             build-essential clang cmake libclang-dev libasound2-dev libffi-dev libgl1-mesa-dev pkg-config \
             libx11-dev libxext-dev libxrandr-dev libxi-dev \
             libxinerama-dev libxcursor-dev libxxf86vm-dev \
             curl libarchive-tools
 
       - name: Build Lynxer for ARM64
-        run: make buildLynxer
+        run: make -j"$(nproc)" buildLynxer
 
       - name: Test Lynxer ARM64 binary
         run: make testLynxer LYNXER_SKIP_DISPLAY=1

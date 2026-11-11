@@ -9,7 +9,10 @@ on:
 jobs:
   build:
     name: Build and Test Lynxer on Linux AMD64
-    runs-on: ubuntu-latest
+    # Stay on 24.04: ubuntu-latest now points at 26.04, whose packages are
+    # built for x86-64-v3 and whose mirrors are slower to reach from runners.
+    # The baseline ISA guard below assumes 24.04's x86-64-v2 userland.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -28,9 +31,9 @@ jobs:
           python-version: "3.14"
 
       - name: Install build dependencies
+        timeout-minutes: 12
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          bash .github/scripts/apt-install.sh \
             build-essential clang cmake libclang-dev pkg-config libasound2-dev libffi-dev libgl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev \
             libxinerama-dev libxcursor-dev libxxf86vm-dev \
@@ -43,7 +46,7 @@ jobs:
           # RUSTFLAGS, so pin the C side to the baseline ISA too.
           CFLAGS: -O2 -march=x86-64
           CXXFLAGS: -O2 -march=x86-64
-        run: make buildLynxer LYNXER_BASELINE_ISA=1
+        run: make -j"$(nproc)" buildLynxer LYNXER_BASELINE_ISA=1
 
       - name: Enforce x86-64-v2 / no-AVX2 compatibility
         run: |
