@@ -77,6 +77,10 @@ listed by `--help`:
 | `lynxer --gui-ide` | Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels | A graphical display and the `lynxer-ide` executable |
 | `lynxer --cli-ide [file.lynx]` | Built-in terminal IDE: a full-screen ANSI TUI with no separate binary | An interactive TTY on stdin **and** stdout |
 
+Both are documented in [ide.md](ide.md): the terminal IDE's layout, file
+tree, editor, output panel and key bindings, and the GUI IDE's features and
+build.
+
 ### GUI IDE
 
 `--gui-ide` resolves `lynxer-ide` next to the interpreter, in the installed
@@ -101,64 +105,13 @@ lists every command with its shortcut; navigate it with the arrow keys and run
 the highlighted entry with Enter, or press its shortcut directly. Esc closes
 any overlay or prompt.
 
-When no file is open the IDE starts in the file tree: Up/Down move through
-files and folders, Right expands a folder and steps into it, Left collapses a
-folder or jumps back to its parent, and Enter opens a file in the editor or
-expands a folder. Selecting an already-open file or an expanded folder **closes**
-it instead; when any buffer has unsaved edits a `Save all changes? (Y/n/c)`
-prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels).
-`^P` focuses the sidebar and `^E` the editor.
+Up to nine files can be open at once, the file tree marks non-text files with
+`B` and refuses to open them, and long lines are soft-wrapped like a
+paragraph: the text continues on the next row and every row repeats the line
+number in the gutter.
 
-A `FILES` row under the editor and output panel lists every open buffer with
-its `1`-`9` number — the active file is highlighted and unsaved files carry a
-`*`. Press the number to switch to that file (plain digits in the sidebar,
-`Alt+1`-`Alt+9` from anywhere, including while editing), then `^W` closes it.
-Up to nine files can be open at once. Non-text files (`.pdf`, `.png`, `.docx`,
-images, archives, executables, and any file whose content looks binary) are
-never opened; they are marked `B` in the tree and produce a status message.
-
-Features: an expandable file tree, a tabbed editor with line numbers and Lynxer
-syntax highlighting (`.lynx` only), multi-key editing, search and go-to-line,
-an output/problems panel with parsed `lynxer --lint` warnings and errors (shown
-only once a command produces output), and Run / Lint / Format / Build /
-Run-project commands whose output is captured into the panel instead of
-overwriting the screen.
-
-Key bindings (`^` means Ctrl, `M-^C` means Ctrl+Alt+C):
-
-| Key | Action |
-|-----|--------|
-| `^G` / `Esc` | help / close an overlay or prompt |
-| `^O` / `^N` / `^S` / `^W` | open / new / save / close tab |
-| `^X` / `^Q` | exit (`^Q` is an alias) |
-| `^B` | change folder |
-| `^P` / `^E` | focus sidebar / focus editor |
-| `^Z` / `^K` | toggle output panel / clear output |
-| `^F` / `^_` / `^D` | find / go to line / next match |
-| `^R` / `^L` / `^T` | run file / lint file / format file |
-| `^Y` / `^U` | build project / run project |
-| `^V` | next problem |
-| `Ctrl+Alt+C` / `^A` / `^C` | command menu (all commands) |
-| `1`-`9` / `Alt+1`-`Alt+9` | switch to the numbered open file (max 9) |
-| `Ctrl+Left` / `Ctrl+Right` | previous / next tab |
-| Explorer: Up/Down, Right, Left | select files/folders, step into folder, collapse / parent |
-| Explorer: Enter | open file / expand folder, or close an already-open one |
-| Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter | move and edit |
-| Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc | select / run / close |
-
-In the editor the caret crosses line boundaries: Left at the start of a line
-jumps to the end of the line above, Right at the end of a line jumps to the
-start of the line below. Backspace at the start of a line joins it with the
-line above, and Delete at the end of a line joins it with the line below.
-Backspace is accepted as `BS` (8) and as `DEL` (127), the byte most terminals
-send, so the key works on every layout.
-
-Long lines are soft-wrapped like a paragraph: the text continues on the next
-row and every row repeats the line number in the gutter, so a wrapped line
-still reads as one line. Up and Down walk the wrapped rows one by one and
-keep the column inside the row; Home and End move to the start and the end of
-the row the caret is in. The column in the status bar is the column on
-screen, not the offset inside the whole line.
+See [ide.md](ide.md) for the file tree, the editor, the output panel and the
+full key bindings.
 
 ## Exit codes
 

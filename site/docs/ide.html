@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>IDEs - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <div class="wrap header-inner">
+        <img class="logo" src="../assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="../index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+<li><a href="ide.html" class="active">ide</a></li>
+<li><a href="errorlist.html">errorlist</a></li>
+<li><a href="language-server.html">language-server</a></li>
+<li><a href="benchmarks.html">benchmarks</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="language.html">language</a></li>
+<li><a href="functions.html">functions</a></li>
+<li><a href="deprecated.html">deprecated</a></li>
+<li><a href="macros.html">macros</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="structs.html">structs</a></li>
+<li><a href="templates.html">templates</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="syscalls/linux-amd64.html">linux-amd64</a></li>
+<li><a href="syscalls/linux-arm64.html">linux-arm64</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+<li><a href="embedding.html">embedding</a></li>
+<li><a href="windows.html">windows</a></li>
+<li><a href="windows-api.html">windows-api</a></li>
+<li><a href="winapi/windows-amd64.html">windows-amd64</a></li>
+<li><a href="winapi/windows-arm64.html">windows-arm64</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/numutils.html">numutils</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/linux-amd64.html">linux-amd64</a></li>
+<li><a href="stdlib/linux-arm64.html">linux-arm64</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/winAPI-amd64.html">winAPI-amd64</a></li>
+<li><a href="stdlib/winAPI-arm64.html">winAPI-arm64</a></li>
+<li><a href="stdlib/winpipe.html">winpipe</a></li>
+<li><a href="stdlib/winreg.html">winreg</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
+            <span>IDEs</span>
+        </div>
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="ides">IDEs</h1>
+<p>Lynxer ships two IDEs, both launched from the interpreter itself and both listed by <code>--help</code>:</p>
+<table>
+<tr><th>Command</th><th>IDE</th><th>Needs</th></tr>
+<tr><td><code>lynxer --cli-ide [file.lynx]</code></td><td>Built-in terminal IDE: a full-screen ANSI TUI inside the interpreter, no separate binary</td><td>An interactive TTY on stdin <strong>and</strong> stdout</td></tr>
+<tr><td><code>lynxer --gui-ide</code></td><td>Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels</td><td>A graphical display and the <code>lynxer-ide</code> executable</td></tr>
+</table>
+<p>Both IDEs are clients of the interpreter: Run, Lint and Format shell out to <code>lynxer</code> and show its output in a panel.</p>
+<h2 id="terminal-ide">Terminal IDE</h2>
+<p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
+<pre><code>lynxer --cli-ide              # browse the current directory
+lynxer --cli-ide program.lynx # open a file
+lynxer --cli-ide src/         # browse a folder</code></pre>
+<h3 id="layout">Layout</h3>
+<p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
+<pre><code>  LYNXER IDE Lynxer 0.1.9b2        File: program.lynx   Modified
+  [program.lynx]
+   1 | fn main(){
+   2 |   println(&quot;Hello, Lynxer!&quot;);
+   3 | }
+ Ln 2, Col 3   Lynxer   UTF-8   modified   0 errors  0 warnings   Ready
+ ^G Help   ^O Open   ^S Save   ^X Exit   ^W Close   ^N New
+ ^F Find   ^R Run   ^L Lint   ^T Format   ^P Side   ^E Edit   M-^C More</code></pre>
+<h3 id="file-tree">File tree</h3>
+<p>When no file is open the IDE starts in the file tree: Up/Down move through files and folders, Right expands a folder and steps into it, Left collapses a folder or jumps back to its parent, and Enter opens a file in the editor or expands a folder. Selecting an already-open file or an expanded folder <strong>closes</strong> it instead; when any buffer has unsaved edits a <code>Save all changes? (Y/n/c)</code> prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels). <code>^P</code> focuses the sidebar and <code>^E</code> the editor.</p>
+<p>A <code>FILES</code> row under the editor and output panel lists every open buffer with its <code>1</code>-<code>9</code> number — the active file is highlighted and unsaved files carry a <code>*</code>. Press the number to switch to that file (plain digits in the sidebar, <code>Alt+1</code>-<code>Alt+9</code> from anywhere, including while editing), then <code>^W</code> closes it. Up to nine files can be open at once. Non-text files (<code>.pdf</code>, <code>.png</code>, <code>.docx</code>, images, archives, executables, and any file whose content looks binary) are never opened; they are marked <code>B</code> in the tree and produce a status message.</p>
+<h3 id="editor">Editor</h3>
+<p>The editor has line numbers and Lynxer syntax highlighting (<code>.lynx</code> files only; every other file is plain text), Tab inserts four spaces, and Enter splits the line.</p>
+<p><strong>Long lines are soft-wrapped like a paragraph.</strong> The text continues on the next row and every row repeats the line number in the gutter, so a wrapped line still reads as one line:</p>
+<pre><code>   1 | fn main(){ println(&quot;a very long line that does not fit in the editor
+   1 | column and continues here&quot;); }</code></pre>
+<p>The caret follows the wrapped rows: Up and Down walk them one at a time and keep the column inside the row, Home and End move to the start and the end of the row, and the view scrolls in visual rows, so a wrapped line scrolls as one block. The column in the status bar is the column on screen, not the offset inside the whole line.</p>
+<p>The caret also crosses line boundaries: Left at the start of a line jumps to the end of the line above, Right at the end of a line jumps to the start of the line below. Backspace at the start of a line joins it with the line above, and Delete at the end of a line joins it with the line below. Backspace is accepted as <code>BS</code> (8) and as <code>DEL</code> (127), the byte most terminals send, so the key works on every layout.</p>
+<h3 id="output-and-problems">Output and problems</h3>
+<p>The output panel shows the output of the last command: <code>Run</code>, <code>Lint</code>, <code>Format</code>, <code>Build</code> and <code>Run project</code> all shell out to this interpreter, and the result is captured into the panel instead of overwriting the screen. <code>^L</code> parses the <code>lynxer --lint</code> output into warnings and errors with their file, line and column; <code>^V</code> jumps to the next problem, and clicking is not needed — the message line names the file and position.</p>
+<p>The panel stays hidden until a command produces output (<code>^Z</code> toggles it, <code>^K</code> clears it).</p>
+<h3 id="key-bindings">Key bindings</h3>
+<p><code>^</code> means Ctrl, <code>M-^C</code> means Ctrl+Alt+C.</p>
+<table>
+<tr><th>Key</th><th>Action</th></tr>
+<tr><td><code>^G</code> / <code>Esc</code></td><td>help / close an overlay or prompt</td></tr>
+<tr><td><code>^O</code> / <code>^N</code> / <code>^S</code> / <code>^W</code></td><td>open / new / save / close tab</td></tr>
+<tr><td><code>^X</code> / <code>^Q</code></td><td>exit (<code>^Q</code> is an alias)</td></tr>
+<tr><td><code>^B</code></td><td>change folder</td></tr>
+<tr><td><code>^P</code> / <code>^E</code></td><td>focus sidebar / focus editor</td></tr>
+<tr><td><code>^Z</code> / <code>^K</code></td><td>toggle output panel / clear output</td></tr>
+<tr><td><code>^F</code> / <code>^_</code> / <code>^D</code></td><td>find / go to line / next match</td></tr>
+<tr><td><code>^R</code> / <code>^L</code> / <code>^T</code></td><td>run file / lint file / format file</td></tr>
+<tr><td><code>^Y</code> / <code>^U</code></td><td>build project / run project</td></tr>
+<tr><td><code>^V</code></td><td>next problem</td></tr>
+<tr><td><code>Ctrl+Alt+C</code> / <code>^A</code> / <code>^C</code></td><td>command menu (all commands)</td></tr>
+<tr><td><code>1</code>-<code>9</code> / <code>Alt+1</code>-<code>Alt+9</code></td><td>switch to the numbered open file (max 9)</td></tr>
+<tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>previous / next tab</td></tr>
+<tr><td>Explorer: Up/Down, Right, Left</td><td>select files/folders, step into folder, collapse / parent</td></tr>
+<tr><td>Explorer: Enter</td><td>open file / expand folder, or close an already-open one</td></tr>
+<tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
+<tr><td>Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc</td><td>select / run / close</td></tr>
+</table>
+<h2 id="gui-ide">GUI IDE</h2>
+<p><code>--gui-ide</code> launches the native IDE, a Rust program built with <a href="https://iced.rs">iced</a>: no webview, no React, no Monaco. The launcher resolves <code>lynxer-ide</code> next to the interpreter, in the installed <code>&lt;prefix&gt;/lib/lynxer</code> layout, or in <code>lynxer/ide/target/{release,debug}</code>. Set <code>LYNXER_IDE</code> to an explicit executable (or a directory containing it) to override. The launcher passes its own absolute path as <code>--lynxer &lt;path&gt;</code>, so Run / Lint / Format work even when <code>lynxer</code> is not on <code>PATH</code>. It takes no arguments and returns the IDE's exit code.</p>
+<pre><code>lynxer --gui-ide
+LYNXER_IDE=/path/to/lynxer-ide lynxer --gui-ide</code></pre>
+<p>The GUI IDE has a dark layout with a command bar, an activity rail, a collapsible file explorer, styled tabs, a breadcrumb bar, a bottom panel with <strong>Problems</strong> and <strong>Output</strong> tabs, and a status bar with the error and warning counts, <code>Ln/Col</code>, encoding, language and interpreter version. It offers autocomplete for keywords, types, the builtin registry and the words of the current document, Rich Lynxer syntax highlighting, a configurable interpreter path (<strong>Set Lynxer</strong>), and runs the interpreter off the UI thread with a 30 second timeout.</p>
+<p>The IDE is a client of the interpreter: it needs <code>lynxer</code> on <code>PATH</code>, next to the executable, or selected with <strong>Set Lynxer</strong>. Building it is a separate step:</p>
+<pre><code>cd lynxer/ide
+make build       # debug build
+make release     # optimized build</code></pre>
+<p>See <code>lynxer/ide/README.md</code> for the full feature list and the build dependencies.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="CLI.html">CLI</a> — every flag of the <code>lynxer</code> executable</li>
+<li><a href="install.html">install</a> — build commands and artifacts</li>
+<li><a href="language-server.html">language-server</a> — the stdio language server, for editors that are not the bundled IDEs</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../search.js" defer></script>
+</body>
+</html>

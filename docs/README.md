@@ -16,6 +16,7 @@ standard-library improvements.
 | --- | --- |
 | [install.md](install.md) | Requirements, build commands, artifacts, environment variables |
 | [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `lynxer` executable |
+| [ide.md](ide.md) | The terminal IDE (`--cli-ide`) and the native GUI IDE (`--gui-ide`) |
 | [errorlist.md](errorlist.md) | Lexer, parser, lint, runtime, CLI, and standard-library errors and warnings |
 | [language-server.md](language-server.md) | stdio LSP setup, diagnostics, completion, hover and navigation |
 | [benchmarks.md](benchmarks.md) | Interpreter, optimizer and compiled startup measurements |

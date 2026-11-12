@@ -27,6 +27,7 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html" class="active">CLI</a></li>
+<li><a href="ide.html">ide</a></li>
 <li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
@@ -184,37 +185,14 @@ lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its
 <tr><td><code>lynxer --gui-ide</code></td><td>Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels</td><td>A graphical display and the <code>lynxer-ide</code> executable</td></tr>
 <tr><td><code>lynxer --cli-ide [file.lynx]</code></td><td>Built-in terminal IDE: a full-screen ANSI TUI with no separate binary</td><td>An interactive TTY on stdin <strong>and</strong> stdout</td></tr>
 </table>
+<p>Both are documented in <a href="ide.html">ide</a>: the terminal IDE's layout, file tree, editor, output panel and key bindings, and the GUI IDE's features and build.</p>
 <h3 id="gui-ide">GUI IDE</h3>
 <p><code>--gui-ide</code> resolves <code>lynxer-ide</code> next to the interpreter, in the installed <code>&lt;prefix&gt;/lib/lynxer</code> layout, or in <code>lynxer/ide/target/{release,debug}</code>. Set <code>LYNXER_IDE</code> to an explicit executable (or a directory containing it) to override. The launcher passes its own absolute path as <code>--lynxer &lt;path&gt;</code>, so Run / Lint / Format work even when <code>lynxer</code> is not on <code>PATH</code>. It takes no arguments and returns the IDE's exit code.</p>
 <h3 id="terminal-ide">Terminal IDE</h3>
 <p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
 <p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
-<p>When no file is open the IDE starts in the file tree: Up/Down move through files and folders, Right expands a folder and steps into it, Left collapses a folder or jumps back to its parent, and Enter opens a file in the editor or expands a folder. Selecting an already-open file or an expanded folder <strong>closes</strong> it instead; when any buffer has unsaved edits a <code>Save all changes? (Y/n/c)</code> prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels). <code>^P</code> focuses the sidebar and <code>^E</code> the editor.</p>
-<p>A <code>FILES</code> row under the editor and output panel lists every open buffer with its <code>1</code>-<code>9</code> number — the active file is highlighted and unsaved files carry a <code>*</code>. Press the number to switch to that file (plain digits in the sidebar, <code>Alt+1</code>-<code>Alt+9</code> from anywhere, including while editing), then <code>^W</code> closes it. Up to nine files can be open at once. Non-text files (<code>.pdf</code>, <code>.png</code>, <code>.docx</code>, images, archives, executables, and any file whose content looks binary) are never opened; they are marked <code>B</code> in the tree and produce a status message.</p>
-<p>Features: an expandable file tree, a tabbed editor with line numbers and Lynxer syntax highlighting (<code>.lynx</code> only), multi-key editing, search and go-to-line, an output/problems panel with parsed <code>lynxer --lint</code> warnings and errors (shown only once a command produces output), and Run / Lint / Format / Build / Run-project commands whose output is captured into the panel instead of overwriting the screen.</p>
-<p>Key bindings (<code>^</code> means Ctrl, <code>M-^C</code> means Ctrl+Alt+C):</p>
-<table>
-<tr><th>Key</th><th>Action</th></tr>
-<tr><td><code>^G</code> / <code>Esc</code></td><td>help / close an overlay or prompt</td></tr>
-<tr><td><code>^O</code> / <code>^N</code> / <code>^S</code> / <code>^W</code></td><td>open / new / save / close tab</td></tr>
-<tr><td><code>^X</code> / <code>^Q</code></td><td>exit (<code>^Q</code> is an alias)</td></tr>
-<tr><td><code>^B</code></td><td>change folder</td></tr>
-<tr><td><code>^P</code> / <code>^E</code></td><td>focus sidebar / focus editor</td></tr>
-<tr><td><code>^Z</code> / <code>^K</code></td><td>toggle output panel / clear output</td></tr>
-<tr><td><code>^F</code> / <code>^_</code> / <code>^D</code></td><td>find / go to line / next match</td></tr>
-<tr><td><code>^R</code> / <code>^L</code> / <code>^T</code></td><td>run file / lint file / format file</td></tr>
-<tr><td><code>^Y</code> / <code>^U</code></td><td>build project / run project</td></tr>
-<tr><td><code>^V</code></td><td>next problem</td></tr>
-<tr><td><code>Ctrl+Alt+C</code> / <code>^A</code> / <code>^C</code></td><td>command menu (all commands)</td></tr>
-<tr><td><code>1</code>-<code>9</code> / <code>Alt+1</code>-<code>Alt+9</code></td><td>switch to the numbered open file (max 9)</td></tr>
-<tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>previous / next tab</td></tr>
-<tr><td>Explorer: Up/Down, Right, Left</td><td>select files/folders, step into folder, collapse / parent</td></tr>
-<tr><td>Explorer: Enter</td><td>open file / expand folder, or close an already-open one</td></tr>
-<tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
-<tr><td>Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc</td><td>select / run / close</td></tr>
-</table>
-<p>In the editor the caret crosses line boundaries: Left at the start of a line jumps to the end of the line above, Right at the end of a line jumps to the start of the line below. Backspace at the start of a line joins it with the line above, and Delete at the end of a line joins it with the line below. Backspace is accepted as <code>BS</code> (8) and as <code>DEL</code> (127), the byte most terminals send, so the key works on every layout.</p>
-<p>Long lines are soft-wrapped like a paragraph: the text continues on the next row and every row repeats the line number in the gutter, so a wrapped line still reads as one line. Up and Down walk the wrapped rows one by one and keep the column inside the row; Home and End move to the start and the end of the row the caret is in. The column in the status bar is the column on screen, not the offset inside the whole line.</p>
+<p>Up to nine files can be open at once, the file tree marks non-text files with <code>B</code> and refuses to open them, and long lines are soft-wrapped like a paragraph: the text continues on the next row and every row repeats the line number in the gutter.</p>
+<p>See <a href="ide.html">ide</a> for the file tree, the editor, the output panel and the full key bindings.</p>
 <h2 id="exit-codes">Exit codes</h2>
 <table>
 <tr><th>Code</th><th>Meaning</th></tr>

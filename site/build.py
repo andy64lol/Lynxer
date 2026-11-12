@@ -30,7 +30,7 @@ OUT = SITE / "docs"
 GROUPS: list[tuple[str, list[str]]] = [
     ("Overview", ["README.md"]),
     ("Getting started",
-     ["install.md", "CLI.md", "errorlist.md", "language-server.md", "benchmarks.md"]),
+     ["install.md", "CLI.md", "ide.md", "errorlist.md", "language-server.md", "benchmarks.md"]),
     ("Language", ["language.md", "functions.md", "deprecated.md", "macros.md", "operators.md", "conditionals.md", "loops.md", "try-catch.md", "types.md", "lists.md", "tuples.md", "codeblocks.md", "modules.md", "importAs.md"]),
     ("Records", ["structs.md", "templates.md", "classes.md", "enums.md", "vargroups.md"]),
     ("Built-ins and modules",

@@ -123,6 +123,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 |------|----------|
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
+| [IDEs](docs/ide.md) | The terminal IDE (`--cli-ide`) and the native GUI IDE (`--gui-ide`) |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
 | [Functions](docs/functions.md) | `fn` declarations, deprecated function keywords, nested and module functions, inferred generic parameters, and caller-supplied codeblocks |
 | [Deprecated syntax](docs/deprecated.md) | Migration reference for every deprecated language spelling |
