@@ -152,6 +152,13 @@
 <p><strong>Backend:</strong> native — <code>stdlib/winpipe.so</code>, built from <code>stdlib/winpipe.cpp</code>. Windows-only; the module is not built or available on Linux or macOS.</p>
 <p><strong>Import:</strong> <code>import(&quot;winpipe&quot;)</code> → <code>winpipe.*</code></p>
 <p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is accepted too. The server creates a handle with <code>create</code> and blocks in <code>connect</code> until a client arrives. The client calls <code>open</code>, which retries for five seconds while the server is still creating the pipe. Reads and writes are blocking. Every handle must be released with <code>close</code>.</p>
+<h2 id="tearing-the-pipe-down">Tearing the pipe down</h2>
+<p><code>disconnect</code> ends the connection and <strong>discards the data still in the pipe</strong>, so a server that replies and then disconnects right away can lose the reply: the client is left with a broken pipe and <code>read</code> returns <code>&quot;&quot;</code> instead of the answer. Wait for the client to close its end before disconnecting — a blocking <code>read</code> returns as soon as the client closes the pipe.</p>
+<pre><code>winpipe.write(server, &quot;pong&quot;);
+// Wait for the client to close; the read returns on the broken pipe.
+winpipe.read(server, 16);
+winpipe.disconnect(server);</code></pre>
+<p>The same rule applies to <code>close</code>: a client that reads after the server closed the pipe gets <code>&quot;&quot;</code>.</p>
 <h2 id="functions">Functions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
@@ -174,6 +181,8 @@ fn main(){
     winpipe.connect(server);
     println(winpipe.read(server, 64));
     winpipe.write(server, &quot;pong&quot;);
+    // Wait for the client to close before the pipe goes away.
+    winpipe.read(server, 16);
     winpipe.disconnect(server);
     winpipe.close(server);
 }</code></pre>

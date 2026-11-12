@@ -7,7 +7,9 @@ Names are relative to `\\.\pipe\`; a full `\\.\pipe\name` path is also
 accepted. `create` returns a server handle, `connect` blocks until a client
 connects, and `open` returns a client handle (retrying for five seconds while
 the server is still creating the pipe). Reads and writes are blocking; release
-every handle with `close`. This module exists only in Windows builds.
+every handle with `close`. `disconnect` discards the data still in the pipe,
+so a server waits for the client to close before it disconnects. This module
+exists only in Windows builds.
 ////
 fn setup(){ importAs("winpipe.so", "nativeWinpipe"); }
 

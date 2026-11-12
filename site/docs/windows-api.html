@@ -296,6 +296,7 @@ fn main() {
 <tr><td><code>windowsApi.peekNamedPipe(handle)</code></td><td>bytes available, or <code>-1</code></td></tr>
 </table>
 <p>Names are relative to <code>\\.\pipe\</code>; a full <code>\\.\pipe\name</code> path is also accepted. <code>openNamedPipe</code> retries while the server is still creating the pipe, so a client may start before the server. Pipe handles are ordinary handles and are released with <code>windowsApi.closeHandle</code>. Reads and writes are blocking.</p>
+<p><code>disconnectNamedPipe</code> ends the connection and <strong>discards the data still in the pipe</strong>, so a server that replies and then disconnects right away can lose the reply: the client is left with a broken pipe and <code>readNamedPipe</code> returns <code>&quot;&quot;</code> instead of the answer. Wait for the client to close its end before disconnecting — a blocking read returns as soon as the client closes the pipe.</p>
 <pre><code>fn main(){
     int server = windowsApi.createNamedPipe(&quot;lynxer-demo&quot;);
     // In another process:
@@ -303,6 +304,8 @@ fn main() {
     windowsApi.connectNamedPipe(server);
     println(windowsApi.readNamedPipe(server, 64));
     windowsApi.writeNamedPipe(server, &quot;pong&quot;);
+    // Wait for the client to close before the pipe goes away.
+    windowsApi.readNamedPipe(server, 16);
     windowsApi.disconnectNamedPipe(server);
     windowsApi.closeHandle(server);
 }</code></pre>

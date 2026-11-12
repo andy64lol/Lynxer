@@ -214,6 +214,12 @@ accepted. `openNamedPipe` retries while the server is still creating the pipe,
 so a client may start before the server. Pipe handles are ordinary handles and
 are released with `windowsApi.closeHandle`. Reads and writes are blocking.
 
+`disconnectNamedPipe` ends the connection and **discards the data still in the
+pipe**, so a server that replies and then disconnects right away can lose the
+reply: the client is left with a broken pipe and `readNamedPipe` returns `""`
+instead of the answer. Wait for the client to close its end before
+disconnecting — a blocking read returns as soon as the client closes the pipe.
+
 ```lynx
 fn main(){
     int server = windowsApi.createNamedPipe("lynxer-demo");
@@ -222,6 +228,8 @@ fn main(){
     windowsApi.connectNamedPipe(server);
     println(windowsApi.readNamedPipe(server, 64));
     windowsApi.writeNamedPipe(server, "pong");
+    // Wait for the client to close before the pipe goes away.
+    windowsApi.readNamedPipe(server, 16);
     windowsApi.disconnectNamedPipe(server);
     windowsApi.closeHandle(server);
 }

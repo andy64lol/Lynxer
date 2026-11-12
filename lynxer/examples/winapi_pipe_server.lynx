@@ -54,6 +54,11 @@ fn main(){
     println("server-connect=" + strOf(connectPipe(server)));
     println("server-read=" + readPipe(server, 16));
     println("server-write=" + strOf(writePipe(server, "pong") is 4));
+    // The pipe stays open until the client closed its end. Disconnecting here
+    // would discard the reply while the client is still reading it, and the
+    // client would read a broken pipe instead of the reply. The read below
+    // returns when the client closes the pipe.
+    readPipe(server, 16);
     disconnectPipe(server);
     closePipe(server);
 }

@@ -13,6 +13,24 @@ arrives. The client calls `open`, which retries for five seconds while the
 server is still creating the pipe. Reads and writes are blocking. Every handle
 must be released with `close`.
 
+## Tearing the pipe down
+
+`disconnect` ends the connection and **discards the data still in the pipe**,
+so a server that replies and then disconnects right away can lose the reply:
+the client is left with a broken pipe and `read` returns `""` instead of the
+answer. Wait for the client to close its end before disconnecting — a blocking
+`read` returns as soon as the client closes the pipe.
+
+```lynx
+winpipe.write(server, "pong");
+// Wait for the client to close; the read returns on the broken pipe.
+winpipe.read(server, 16);
+winpipe.disconnect(server);
+```
+
+The same rule applies to `close`: a client that reads after the server closed
+the pipe gets `""`.
+
 ## Functions
 
 | Function | Signature | Returns |
@@ -38,6 +56,8 @@ fn main(){
     winpipe.connect(server);
     println(winpipe.read(server, 64));
     winpipe.write(server, "pong");
+    // Wait for the client to close before the pipe goes away.
+    winpipe.read(server, 16);
     winpipe.disconnect(server);
     winpipe.close(server);
 }
