@@ -455,6 +455,120 @@ def check_editing_keys(interpreter):
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_wrapped_lines(interpreter):
+    """A long line wraps over several rows, each labelled with its line."""
+    import math
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-wrap-")
+    master = slave = None
+    process = None
+    try:
+        path = os.path.join(root, "wrap.lynx")
+        body = "w" * 200
+        with open(path, "w") as handle:
+            handle.write("first\n" + body + "\nlast\n")
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", path],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+
+        def step(data, label):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, 0.45, chunks)
+            raw = b"".join(chunks).decode("utf-8", "replace")
+            if not raw:
+                print(f"{label}: the IDE stopped drawing", file=sys.stderr)
+                return None, []
+            rows = re.split(r"\x1b\[\d+;\d+H", raw)
+            return raw, rows
+
+        drain(master, 1.2, chunks)
+        screen = b"".join(chunks).decode("utf-8", "replace")
+        rows = re.split(r"\x1b\[\d+;\d+H", screen)
+        plain = [strip_ansi(row) for row in rows]
+
+        # Every row of the long line repeats its line number in the gutter.
+        wrapped = [row for row in plain if "   2 | " in row]
+        if len(wrapped) < 2:
+            print(f"the long line did not wrap: {len(wrapped)} row(s)",
+                  file=sys.stderr)
+            return 1
+        text = "".join(row.split("   2 | ", 1)[1] for row in wrapped).strip()
+        if text != body:
+            print("the wrapped rows do not carry the whole line", file=sys.stderr)
+            return 1
+        width = len(wrapped[0].split("   2 | ", 1)[1].rstrip())
+        if len(wrapped) != math.ceil(len(body) / width):
+            print(f"unexpected wrap: {len(wrapped)} rows of {width} columns",
+                  file=sys.stderr)
+            return 1
+
+        # Down walks the wrapped rows of the line, so the line number in the
+        # status bar only changes when the caret leaves the line.
+        raw, rows = step(b"\x1b[B", "down")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        if not any("Ln 2, Col 1" in row for row in plain):
+            print("Down did not reach the long line", file=sys.stderr)
+            return 1
+        # Every remaining row of the line keeps the same line number.
+        for _ in range(len(wrapped) - 1):
+            raw, rows = step(b"\x1b[B", "down")
+            if raw is None:
+                return 1
+            plain = [strip_ansi(row) for row in rows]
+            if not any("Ln 2, Col 1" in row for row in plain):
+                print("Down left the wrapped line", file=sys.stderr)
+                return 1
+        # The caret is drawn on the continuation row of the same line.
+        if not any("   2 | " in row and "\x1b[7m" in row for row in rows):
+            print("the caret is not drawn on the wrapped row", file=sys.stderr)
+            return 1
+        raw, rows = step(b"\x1b[B", "down")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        if not any("Ln 3, Col 1" in row for row in plain):
+            print("Down did not leave the wrapped line", file=sys.stderr)
+            return 1
+
+        os.write(master, b"\x18")
+        drain(master, 0.4, chunks)
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("wrap IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"wrap IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     if len(sys.argv) != 3:
         print("usage: cli_ide_pty_test.py <lynxer> <scratch-file>", file=sys.stderr)
@@ -585,6 +699,10 @@ def main():
     editing_result = check_editing_keys(interpreter)
     if editing_result != 0:
         return editing_result
+
+    wrapping_result = check_wrapped_lines(interpreter)
+    if wrapping_result != 0:
+        return wrapping_result
 
     print("terminal IDE pty smoke test passed")
     return 0

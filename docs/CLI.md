@@ -153,6 +153,13 @@ line above, and Delete at the end of a line joins it with the line below.
 Backspace is accepted as `BS` (8) and as `DEL` (127), the byte most terminals
 send, so the key works on every layout.
 
+Long lines are soft-wrapped like a paragraph: the text continues on the next
+row and every row repeats the line number in the gutter, so a wrapped line
+still reads as one line. Up and Down walk the wrapped rows one by one and
+keep the column inside the row; Home and End move to the start and the end of
+the row the caret is in. The column in the status bar is the column on
+screen, not the offset inside the whole line.
+
 ## Exit codes
 
 | Code | Meaning |

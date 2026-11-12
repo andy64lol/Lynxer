@@ -1365,11 +1365,14 @@ std::size_t ideVisibleWidth(const std::string& text) {
 }
 
 // Keeps a row within `width` visible columns without ever cutting an ANSI
-// escape sequence in half.
+// escape sequence in half. The escapes that follow the clipped text are kept:
+// a row cut in the middle of the text still has to reset its attributes, or
+// the reverse video of the caret bleeds into the rest of the screen.
 std::string ideClamp(const std::string& text, std::size_t width) {
     std::string out;
     std::size_t used = 0;
-    for (std::size_t i = 0; i < text.size() && used < width;) {
+    std::size_t i = 0;
+    while (i < text.size() && used < width) {
         const unsigned char lead = static_cast<unsigned char>(text[i]);
         if (lead == 0x1b) {
             const std::size_t end = ideEscapeEnd(text, i);
@@ -1385,6 +1388,11 @@ std::string ideClamp(const std::string& text, std::size_t width) {
         out.append(text, i, take);
         i += take;
         ++used;
+    }
+    while (i < text.size() && static_cast<unsigned char>(text[i]) == 0x1b) {
+        const std::size_t end = ideEscapeEnd(text, i);
+        out.append(text, i, end - i);
+        i = end;
     }
     return out;
 }
@@ -1863,7 +1871,88 @@ std::vector<int> ideTokenColors(const std::string& line) {
     return colors;
 }
 
+// Byte offset where every visual row of `line` starts when the text is
+// wrapped at `width` display columns. The offsets always start with 0 and
+// never split a UTF-8 character, so a wrapped row is always whole
+// characters. A tab counts as one column, like the renderer draws it.
+std::vector<std::size_t> ideWrapOffsets(const std::string& line, int width) {
+    std::vector<std::size_t> offsets{0};
+    if (width <= 0) return offsets;
+    int column = 0;
+    std::size_t index = 0;
+    while (index < line.size()) {
+        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+        const std::size_t take =
+            (index + static_cast<std::size_t>(length) <= line.size())
+                ? static_cast<std::size_t>(length)
+                : 1;
+        if (column >= width) {
+            offsets.push_back(index);
+            column = 0;
+        }
+        ++column;
+        index += take;
+    }
+    return offsets;
+}
+
+// Number of visual rows a buffer line occupies at the given wrap width.
+// This is the hot path of the caret movement, so it counts without
+// allocating.
+int ideLineRows(const std::string& line, int width) {
+    if (width <= 0) return 1;
+    int rows = 1;
+    int column = 0;
+    std::size_t index = 0;
+    while (index < line.size()) {
+        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+        const std::size_t take =
+            (index + static_cast<std::size_t>(length) <= line.size())
+                ? static_cast<std::size_t>(length)
+                : 1;
+        if (column >= width) {
+            ++rows;
+            column = 0;
+        }
+        ++column;
+        index += take;
+    }
+    return rows;
+}
+
+// Number of display columns between two byte offsets of a line. Every
+// character counts as one column, like the renderer draws it.
+std::size_t ideColumnsBetween(const std::string& line, std::size_t from,
+                              std::size_t to) {
+    std::size_t column = 0;
+    for (std::size_t i = from; i < to && i < line.size();) {
+        const int length = ideUtf8Length(static_cast<unsigned char>(line[i]));
+        i += (i + static_cast<std::size_t>(length) <= to)
+                 ? static_cast<std::size_t>(length)
+                 : 1;
+        ++column;
+    }
+    return column;
+}
+
+// Byte offset `count` characters after `from`.
+std::size_t ideOffsetAfter(const std::string& line, std::size_t from,
+                            std::size_t count) {
+    std::size_t index = from;
+    for (std::size_t step = 0; step < count && index < line.size(); ++step) {
+        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+        index += (index + static_cast<std::size_t>(length) <= line.size())
+                     ? static_cast<std::size_t>(length)
+                     : 1;
+    }
+    return index;
+}
+
+// Draws the part of `line` between the byte offsets `from` and `to`: one
+// visual row of a soft-wrapped line. The caret is drawn on the character at
+// `cursorColumn`, or as a block past the end of the line.
 std::string ideRenderLine(const std::string& line, bool lynx,
+                          std::size_t from, std::size_t to,
                           std::size_t cursorColumn, bool current) {
     std::string display;
     for (const char c : line) display += (c == '\t') ? ' ' : c;
@@ -1871,10 +1960,10 @@ std::string ideRenderLine(const std::string& line, bool lynx,
         lynx ? ideTokenColors(display) : std::vector<int>(display.size(), IC_TEXT);
     std::string out;
     int active = -1;
-    for (std::size_t i = 0; i < display.size();) {
+    for (std::size_t i = from; i < to && i < display.size();) {
         const int length = ideUtf8Length(static_cast<unsigned char>(display[i]));
         const std::size_t take =
-            (i + static_cast<std::size_t>(length) <= display.size())
+            (i + static_cast<std::size_t>(length) <= to)
                 ? static_cast<std::size_t>(length)
                 : 1;
         const int color = colors[i];
@@ -1901,6 +1990,9 @@ struct IdeBuffer {
     std::size_t cursorLine = 0;
     std::size_t cursorColumn = 0;
     std::size_t topLine = 0;
+    // Wrap segment of `topLine` shown on the first editor row: a long line
+    // occupies several rows and the view can start in the middle of it.
+    std::size_t topWrap = 0;
 };
 
 struct IdeTreeRow {
@@ -1965,6 +2057,67 @@ struct IdeState {
 
 // At most nine buffers so the 1-9 keys can reach every one.
 constexpr std::size_t kIdeMaxBuffers = 9;
+
+// The editor column shows a line number and a separator before the text, so
+// the text of a row is this many columns narrower than the column. The
+// number is at least four digits wide and grows with the file.
+int ideGutterColumns(IdeState& state);
+
+// Width of the file-tree column. The renderer and the caret movement share
+// it so both agree on where a long line wraps.
+int ideExplorerWidth(int columns) {
+    return std::min(32, std::max(22, columns / 4));
+}
+
+// Display columns available for the text of one editor row.
+int ideWrapWidth(IdeState& state) {
+    const int columns = state.columns > 0 ? state.columns : 80;
+    const int editorWidth = columns - ideExplorerWidth(columns);
+    return std::max(8, editorWidth - ideGutterColumns(state));
+}
+
+// Index of the wrap segment that holds `column` in `line`. The last segment
+// also owns the position past the end of the line.
+std::size_t ideCaretSegment(const std::string& line, std::size_t column,
+                            int width) {
+    const std::vector<std::size_t> offsets = ideWrapOffsets(line, width);
+    for (std::size_t i = 0; i + 1 < offsets.size(); ++i) {
+        if (column >= offsets[i] && column < offsets[i + 1]) return i;
+    }
+    return offsets.size() - 1;
+}
+
+// Visual row of a buffer position, counted from the first line of the file.
+// A soft-wrapped line counts as one row per segment.
+std::size_t ideVisualRow(const IdeBuffer& buffer, std::size_t line,
+                         std::size_t column, int width) {
+    std::size_t row = 0;
+    for (std::size_t i = 0; i < line && i < buffer.lines.size(); ++i) {
+        row += static_cast<std::size_t>(ideLineRows(buffer.lines[i], width));
+    }
+    if (line >= buffer.lines.size()) return row;
+    return row + ideCaretSegment(buffer.lines[line], column, width);
+}
+
+// Buffer line and wrap segment of a visual row counted from the first line.
+void ideVisualRowAt(const IdeBuffer& buffer, std::size_t row, int width,
+                    std::size_t& line, std::size_t& segment) {
+    for (std::size_t i = 0; i < buffer.lines.size(); ++i) {
+        const int rows = ideLineRows(buffer.lines[i], width);
+        if (row < static_cast<std::size_t>(rows)) {
+            line = i;
+            segment = row;
+            return;
+        }
+        row -= static_cast<std::size_t>(rows);
+    }
+    line = buffer.lines.empty() ? 0 : buffer.lines.size() - 1;
+    segment = 0;
+    if (!buffer.lines.empty()) {
+        segment = static_cast<std::size_t>(
+            ideLineRows(buffer.lines[line], width) - 1);
+    }
+}
 
 // The command menu (Ctrl+Alt+C) lists every action with its combo. The same
 // table drives the nano-style shortcut bar, the help overlay and key dispatch,
@@ -2350,6 +2503,23 @@ IdeBuffer& ideActive(IdeState& state) {
     return state.buffers[state.active];
 }
 
+// The editor column shows a line number and a separator before the text, so
+// the text of a row is this many columns narrower than the column. The
+// number is at least four digits wide and grows with the file.
+int ideGutterColumns(IdeState& state) {
+    int digits = 4;
+    if (ideHasBuffer(state)) {
+        std::size_t count = ideActive(state).lines.size();
+        int found = 1;
+        while (count >= 10) {
+            count /= 10;
+            ++found;
+        }
+        digits = std::max(digits, found);
+    }
+    return digits + 3;
+}
+
 bool ideOpenFile(IdeState& state, const std::string& path) {
     for (std::size_t i = 0; i < state.buffers.size(); ++i) {
         if (state.buffers[i].path == path) {
@@ -2436,16 +2606,31 @@ void ideSaveActive(IdeState& state) {
     state.status = "Saved " + buffer.path;
 }
 
+// Keeps the caret inside the visible rows. The view scrolls in visual rows,
+// so a long line that wraps over several rows scrolls as one block.
 void ideEnsureVisible(IdeState& state, int editorHeight) {
     if (!ideHasBuffer(state)) return;
     IdeBuffer& buffer = ideActive(state);
     if (editorHeight < 1) editorHeight = 1;
-    if (buffer.cursorLine < buffer.topLine) {
+    const int width = ideWrapWidth(state);
+    const std::size_t row =
+        ideVisualRow(buffer, buffer.cursorLine, buffer.cursorColumn, width);
+    std::size_t top = buffer.topWrap;
+    for (std::size_t i = 0; i < buffer.topLine && i < buffer.lines.size(); ++i) {
+        top += static_cast<std::size_t>(ideLineRows(buffer.lines[i], width));
+    }
+    if (row < top) {
+        // Scroll up until the caret is the first visible row.
         buffer.topLine = buffer.cursorLine;
-    } else if (buffer.cursorLine >=
-               buffer.topLine + static_cast<std::size_t>(editorHeight)) {
-        buffer.topLine = buffer.cursorLine -
-                         static_cast<std::size_t>(editorHeight) + 1;
+        buffer.topWrap = ideCaretSegment(buffer.lines[buffer.cursorLine],
+                                         buffer.cursorColumn, width);
+        return;
+    }
+    if (row >= top + static_cast<std::size_t>(editorHeight)) {
+        // Scroll down until the caret is the last visible row.
+        const std::size_t target =
+            row - static_cast<std::size_t>(editorHeight) + 1;
+        ideVisualRowAt(buffer, target, width, buffer.topLine, buffer.topWrap);
     }
 }
 
@@ -2551,7 +2736,10 @@ void ideRender(IdeState& state) {
     const int mainStart = 2;
     const int mainEnd = outputHeight > 0 ? outputStart - 1 : filesRow - 1;
     const int mainHeight = mainEnd - mainStart + 1;
-    const int explorerWidth = std::min(32, std::max(22, columns / 4));
+    const int explorerWidth = ideExplorerWidth(columns);
+    // The editor column is filled before the frame is drawn: a soft-wrapped
+    // line needs more rows than the buffer has lines.
+    std::vector<std::string> editorRows(static_cast<std::size_t>(mainHeight));
 
     // ---------------------------------------------------------- title bar
     std::ostringstream title;
@@ -2610,6 +2798,7 @@ void ideRender(IdeState& state) {
     helpLines.push_back("  Editor:   arrow keys move, Home/End, PgUp/PgDn, type to edit");
     helpLines.push_back("            Enter newline, Tab indent, Backspace/Delete remove");
     helpLines.push_back("            Left/Right cross line boundaries");
+    helpLines.push_back("            Long lines wrap; every row repeats its line number");
     helpLines.push_back("");
     helpLines.push_back("  Up to 9 files open at once; the bottom FILES list shows them.");
     helpLines.push_back("  Non-text files (.pdf, .png, .docx, ...) are never opened.");
@@ -2690,23 +2879,62 @@ void ideRender(IdeState& state) {
         const int editorWidth = columns - explorerWidth;
         if (ideHasBuffer(state)) {
             IdeBuffer& buffer = ideActive(state);
-            const std::size_t lineIndex = buffer.topLine + static_cast<std::size_t>(r);
-            if (lineIndex < buffer.lines.size()) {
+            const int width = ideWrapWidth(state);
+            const bool lynx = ideIsLynx(buffer.path);
+            const std::string empty =
+                std::string(static_cast<std::size_t>(ideGutterColumns(state)), ' ') +
+                "~";
+            // A long line wraps over several rows; every row repeats the line
+            // number so the wrapped text still reads as one line.
+            std::size_t lineIndex = buffer.topLine;
+            std::size_t segment = buffer.topWrap;
+            for (int row = 0; row < mainHeight; ++row) {
+                if (lineIndex >= buffer.lines.size()) {
+                    for (int rest = row; rest < mainHeight; ++rest) {
+                        editorRows[static_cast<std::size_t>(rest)] =
+                            ideFg(IC_GUTTER) + empty + kIdeReset;
+                    }
+                    break;
+                }
+                const std::string& text = buffer.lines[lineIndex];
+                const std::vector<std::size_t> offsets =
+                    ideWrapOffsets(text, width);
+                if (segment >= offsets.size()) segment = offsets.size() - 1;
+                const std::size_t from = offsets[segment];
+                const std::size_t to = (segment + 1 < offsets.size())
+                                           ? offsets[segment + 1]
+                                           : text.size();
                 std::ostringstream gutter;
-                gutter << std::setw(4) << (lineIndex + 1) << " | ";
+                gutter << std::setw(ideGutterColumns(state) - 3)
+                       << (lineIndex + 1) << " | ";
                 const bool current = lineIndex == buffer.cursorLine;
-                right = ideFg(IC_GUTTER) + gutter.str() + kIdeReset +
-                        ideRenderLine(buffer.lines[lineIndex],
-                                      ideIsLynx(buffer.path),
-                                      buffer.cursorColumn, current) +
-                        kIdeReset;
-            } else {
-                right = ideFg(IC_GUTTER) + "     | ~" + kIdeReset;
+                editorRows[static_cast<std::size_t>(row)] =
+                    ideFg(IC_GUTTER) + gutter.str() + kIdeReset +
+                    ideRenderLine(text, lynx, from, to,
+                                  buffer.cursorColumn, current) +
+                    kIdeReset;
+                if (segment + 1 < offsets.size()) {
+                    ++segment;
+                    continue;
+                }
+                if (lineIndex + 1 < buffer.lines.size()) {
+                    ++lineIndex;
+                    segment = 0;
+                    continue;
+                }
+                // The last line of the file is on screen; the rows below it
+                // are empty.
+                for (int rest = row + 1; rest < mainHeight; ++rest) {
+                    editorRows[static_cast<std::size_t>(rest)] =
+                        ideFg(IC_GUTTER) + empty + kIdeReset;
+                }
+                break;
             }
         } else if (r == mainHeight / 2) {
-            right = ideFg(IC_MUTED) +
-                    "  ^O Open a file, or pick one in the explorer" + kIdeReset;
+            editorRows[static_cast<std::size_t>(r)] = ideFg(IC_MUTED) +
+                "  ^O Open a file, or pick one in the explorer" + kIdeReset;
         }
+        right = editorRows[static_cast<std::size_t>(r)];
         frame[static_cast<std::size_t>(row)] =
             ideClamp(left, static_cast<std::size_t>(explorerWidth)) +
             ideClamp(right, static_cast<std::size_t>(editorWidth));
@@ -2785,8 +3013,18 @@ void ideRender(IdeState& state) {
         std::ostringstream status;
         if (ideHasBuffer(state)) {
             const IdeBuffer& buffer = ideActive(state);
+            // The column is the one on screen: a soft-wrapped line restarts
+            // its columns on every row.
+            const int width = ideWrapWidth(state);
+            const std::vector<std::size_t> offsets =
+                ideWrapOffsets(buffer.lines[buffer.cursorLine], width);
+            const std::size_t segment = ideCaretSegment(
+                buffer.lines[buffer.cursorLine], buffer.cursorColumn, width);
+            const std::size_t column = ideColumnsBetween(
+                buffer.lines[buffer.cursorLine], offsets[segment],
+                buffer.cursorColumn);
             status << " Ln " << (buffer.cursorLine + 1) << ", Col "
-                   << (buffer.cursorColumn + 1) << "   "
+                   << (column + 1) << "   "
                    << (ideIsLynx(buffer.path) ? "Lynxer" : "Plain text") << "   UTF-8";
             if (ideJoinLines(buffer.lines) != buffer.saved) status << "   modified";
         } else {
@@ -2967,16 +3205,10 @@ void ideDelete(IdeState& state) {
     }
 }
 
-void ideMoveCursor(IdeState& state, int deltaLine, int deltaColumn) {
+// Moves the caret one character left or right inside the line. A wrap
+// boundary is a byte offset like any other, so no special case is needed.
+void ideMoveCursor(IdeState& state, int deltaColumn) {
     IdeBuffer& buffer = ideActive(state);
-    const std::size_t maxLine = buffer.lines.size() - 1;
-    if (deltaLine < 0) {
-        buffer.cursorLine = buffer.cursorLine > static_cast<std::size_t>(-deltaLine)
-                                ? buffer.cursorLine - static_cast<std::size_t>(-deltaLine)
-                                : 0;
-    } else if (deltaLine > 0) {
-        buffer.cursorLine = std::min(buffer.cursorLine + static_cast<std::size_t>(deltaLine), maxLine);
-    }
     const std::string& line = buffer.lines[buffer.cursorLine];
     if (deltaColumn < 0) {
         std::size_t target = buffer.cursorColumn;
@@ -3003,7 +3235,7 @@ void ideMoveCursor(IdeState& state, int deltaLine, int deltaColumn) {
 void ideMoveLeft(IdeState& state) {
     IdeBuffer& buffer = ideActive(state);
     if (buffer.cursorColumn > 0) {
-        ideMoveCursor(state, 0, -1);
+        ideMoveCursor(state, -1);
         return;
     }
     if (buffer.cursorLine == 0) return;
@@ -3014,12 +3246,69 @@ void ideMoveLeft(IdeState& state) {
 void ideMoveRight(IdeState& state) {
     IdeBuffer& buffer = ideActive(state);
     if (buffer.cursorColumn < buffer.lines[buffer.cursorLine].size()) {
-        ideMoveCursor(state, 0, 1);
+        ideMoveCursor(state, 1);
         return;
     }
     if (buffer.cursorLine + 1 >= buffer.lines.size()) return;
     ++buffer.cursorLine;
     buffer.cursorColumn = 0;
+}
+
+// Up and Down move by visual row, so a soft-wrapped line is walked one row
+// at a time. The caret keeps its column inside the row it lands on.
+void ideMoveVertical(IdeState& state, int delta) {
+    IdeBuffer& buffer = ideActive(state);
+    const int width = ideWrapWidth(state);
+    const std::vector<std::size_t> offsets =
+        ideWrapOffsets(buffer.lines[buffer.cursorLine], width);
+    const std::size_t segment = ideCaretSegment(buffer.lines[buffer.cursorLine],
+                                                 buffer.cursorColumn, width);
+    const std::size_t screenColumn = ideColumnsBetween(
+        buffer.lines[buffer.cursorLine], offsets[segment], buffer.cursorColumn);
+    const long row = static_cast<long>(
+        ideVisualRow(buffer, buffer.cursorLine, buffer.cursorColumn, width));
+    const long target = row + delta;
+    if (target < 0) return;
+    std::size_t line = 0;
+    std::size_t index = 0;
+    ideVisualRowAt(buffer, static_cast<std::size_t>(target), width, line, index);
+    const std::vector<std::size_t> next = ideWrapOffsets(buffer.lines[line], width);
+    const std::size_t start = next[index];
+    const std::size_t end = (index + 1 < next.size())
+                                ? next[index + 1]
+                                : buffer.lines[line].size();
+    // The caret stays on the row: on its last character, or past the end of
+    // the line when the row is the last one.
+    const std::size_t limit = (index + 1 < next.size()) ? end - 1 : end;
+    const std::size_t column =
+        ideOffsetAfter(buffer.lines[line], start, screenColumn);
+    buffer.cursorLine = line;
+    buffer.cursorColumn = std::min(column, limit);
+}
+
+// Home and End work on the visual row: the start and the end of the
+// soft-wrapped segment the caret is in.
+void ideMoveToRowStart(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    const int width = ideWrapWidth(state);
+    const std::vector<std::size_t> offsets =
+        ideWrapOffsets(buffer.lines[buffer.cursorLine], width);
+    const std::size_t segment = ideCaretSegment(buffer.lines[buffer.cursorLine],
+                                                 buffer.cursorColumn, width);
+    buffer.cursorColumn = offsets[segment];
+}
+
+void ideMoveToRowEnd(IdeState& state) {
+    IdeBuffer& buffer = ideActive(state);
+    const int width = ideWrapWidth(state);
+    const std::vector<std::size_t> offsets =
+        ideWrapOffsets(buffer.lines[buffer.cursorLine], width);
+    const std::size_t segment = ideCaretSegment(buffer.lines[buffer.cursorLine],
+                                                 buffer.cursorColumn, width);
+    const std::size_t end = (segment + 1 < offsets.size())
+                                ? offsets[segment + 1]
+                                : buffer.lines[buffer.cursorLine].size();
+    buffer.cursorColumn = (segment + 1 < offsets.size()) ? end - 1 : end;
 }
 
 void ideFindNext(IdeState& state) {
@@ -3473,22 +3762,21 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
 
     // ---------------------------------------------------------- editor keys
     switch (key) {
-        case platform::KEY_UP: ideMoveCursor(state, -1, 0); break;
-        case platform::KEY_DOWN: ideMoveCursor(state, 1, 0); break;
+        case platform::KEY_UP: ideMoveVertical(state, -1); break;
+        case platform::KEY_DOWN: ideMoveVertical(state, 1); break;
         case platform::KEY_LEFT: ideMoveLeft(state); break;
         case platform::KEY_RIGHT: ideMoveRight(state); break;
         case platform::KEY_HOME:
-            ideActive(state).cursorColumn = 0;
+            ideMoveToRowStart(state);
             break;
         case platform::KEY_END:
-            ideActive(state).cursorColumn =
-                ideActive(state).lines[ideActive(state).cursorLine].size();
+            ideMoveToRowEnd(state);
             break;
         case platform::KEY_PAGE_UP:
-            ideMoveCursor(state, -std::max(1, state.rows / 2), 0);
+            ideMoveVertical(state, -std::max(1, state.rows / 2));
             break;
         case platform::KEY_PAGE_DOWN:
-            ideMoveCursor(state, std::max(1, state.rows / 2), 0);
+            ideMoveVertical(state, std::max(1, state.rows / 2));
             break;
         case platform::KEY_DELETE:
             ideDelete(state);
