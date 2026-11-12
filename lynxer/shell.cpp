@@ -2641,26 +2641,37 @@ void ideCollapseOrParent(IdeState& state) {
     }
 }
 
-// The text of one row of the file tree: the indent, the marker and the file
-// name. A name wider than the pane is cut off; the arrow keys scroll it, and
-// an ellipsis on either side marks the hidden text. A short name is never
-// scrolled: it stays whole, so the tree keeps its shape. A deep tree is
-// indented as far as the pane allows, so the name always stays visible.
-std::string ideTreeRowText(const IdeTreeRow& item, std::size_t scroll,
-                            std::size_t width) {
+// The indent of a tree row. A deep tree is indented as far as the pane
+// allows, so the name always stays visible; the ellipsis marks that the
+// indentation continues.
+std::size_t ideTreeIndentWidth(const IdeTreeRow& item, std::size_t width) {
     // The marker and a readable part of the name always fit.
     const std::size_t reserve = 4 + 8;
     const std::size_t full = static_cast<std::size_t>(item.depth) * 2;
     const std::size_t room = width > reserve ? width - reserve : 0;
-    const bool deep = full > room;
-    const std::size_t indentWidth = deep ? room : full;
+    return full > room ? room : full;
+}
+
+// The marker of a tree row: a folder, a binary file, a Lynxer file or a
+// plain one.
+std::string ideTreeMarker(const IdeTreeRow& item) {
+    if (item.isDir) return item.expanded ? "[-] " : "[+] ";
+    if (item.nonText) return " B  ";
+    return ideIsLynx(item.path) ? " L  " : " .  ";
+}
+
+// The text of one row of the file tree: the indent, the marker and the file
+// name. A name wider than the pane is cut off; the arrow keys scroll it, and
+// an ellipsis on either side marks the hidden text. A short name is never
+// scrolled: it stays whole, so the tree keeps its shape.
+std::string ideTreeRowText(const IdeTreeRow& item, std::size_t scroll,
+                            std::size_t width) {
+    const std::size_t indentWidth = ideTreeIndentWidth(item, width);
     std::string indent(indentWidth, ' ');
-    if (deep) indent = "\xE2\x80\xA6" + indent.substr(1);
-    const std::string marker = item.isDir
-                                   ? (item.expanded ? "[-] " : "[+] ")
-                                   : (item.nonText ? " B  "
-                                                   : (ideIsLynx(item.path) ? " L  " : " .  "));
-    const std::string prefix = indent + marker;
+    if (indentWidth < static_cast<std::size_t>(item.depth) * 2) {
+        indent = "\xE2\x80\xA6" + indent.substr(1);
+    }
+    const std::string prefix = indent + ideTreeMarker(item);
     const std::size_t used = ideVisibleWidth(prefix);
     if (used >= width) return prefix.substr(0, width);
     const std::size_t space = width - used;
@@ -2692,16 +2703,17 @@ int ideTreePaneWidth(const IdeState& state) {
 }
 
 // The columns one tree row needs: the indent, the marker and the name.
-std::size_t ideTreeRowWidth(const IdeTreeRow& item) {
-    return static_cast<std::size_t>(item.depth) * 2 + 4 +
+std::size_t ideTreeRowWidth(const IdeTreeRow& item, std::size_t pane) {
+    return ideTreeIndentWidth(item, pane) + 4 +
            ideVisibleWidth(ideSafeName(item.name));
 }
 
 // The columns the widest name of the tree needs, so the scroll range is known.
 std::size_t ideTreeNameWidth(const IdeState& state) {
+    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
     std::size_t widest = 0;
     for (const IdeTreeRow& item : state.tree) {
-        const std::size_t total = ideTreeRowWidth(item);
+        const std::size_t total = ideTreeRowWidth(item, pane);
         if (total > widest) widest = total;
     }
     return widest;
@@ -2718,18 +2730,18 @@ const IdeTreeRow* ideTreeSelected(const IdeState& state) {
 bool ideTreeOverflows(const IdeState& state) {
     const IdeTreeRow* item = ideTreeSelected(state);
     if (item == nullptr) return false;
-    return ideTreeRowWidth(*item) >
-           static_cast<std::size_t>(ideTreePaneWidth(state));
+    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
+    return ideTreeRowWidth(*item, pane) > pane;
 }
 
 // How far the tree may be scrolled to the right.
 std::size_t ideTreeMaxScroll(const IdeState& state) {
+    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
     std::size_t widest = 0;
     for (const IdeTreeRow& item : state.tree) {
-        const std::size_t total = ideTreeRowWidth(item);
+        const std::size_t total = ideTreeRowWidth(item, pane);
         if (total > widest) widest = total;
     }
-    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
     return widest > pane ? widest - pane : 0;
 }
 
@@ -2739,7 +2751,7 @@ void ideTreeScrollToSelection(IdeState& state) {
     const IdeTreeRow* item = ideTreeSelected(state);
     if (item == nullptr) return;
     const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
-    if (ideTreeRowWidth(*item) <= pane) {
+    if (ideTreeRowWidth(*item, pane) <= pane) {
         state.treeScroll = 0;
         return;
     }
