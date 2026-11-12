@@ -63,6 +63,20 @@ Up to nine files can be open at once. Non-text files (`.pdf`, `.png`, `.docx`,
 images, archives, executables, and any file whose content looks binary) are
 never opened; they are marked `B` in the tree and produce a status message.
 
+### Long names
+
+The tree pane is narrow, so a long file or directory name does not fit. The
+name is cut off with an ellipsis (`…`) and the arrow keys scroll it: Left and
+Right move the text sideways instead of expanding and collapsing folders, and
+the ellipsis on the other side marks the hidden part. The scroll only engages
+for a selected row that is wider than the pane, so a tree of short names keeps
+its usual keys. Enter still opens a file and toggles a folder either way.
+
+A name is measured in terminal columns, so a CJK or emoji name takes the space
+it really occupies and the tree stays aligned. Control characters in a name
+are shown in caret notation (`^I` for a tab), so a file name can never move the
+cursor or repaint the screen.
+
 ### Editor
 
 The editor has line numbers and Lynxer syntax highlighting (`.lynx` files
@@ -123,6 +137,7 @@ clears it).
 | `1`-`9` / `Alt+1`-`Alt+9` | switch to the numbered open file (max 9) |
 | `Ctrl+Left` / `Ctrl+Right` | previous / next tab |
 | Explorer: Up/Down, Right, Left | select files/folders, step into folder, collapse / parent |
+| Explorer: Left/Right (long name) | scroll the tree sideways |
 | Explorer: Enter | open file / expand folder, or close an already-open one |
 | Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter | move and edit |
 | Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc | select / run / close |

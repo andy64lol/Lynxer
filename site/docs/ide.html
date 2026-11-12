@@ -173,6 +173,9 @@ lynxer --cli-ide src/         # browse a folder</code></pre>
 <h3 id="file-tree">File tree</h3>
 <p>When no file is open the IDE starts in the file tree: Up/Down move through files and folders, Right expands a folder and steps into it, Left collapses a folder or jumps back to its parent, and Enter opens a file in the editor or expands a folder. Selecting an already-open file or an expanded folder <strong>closes</strong> it instead; when any buffer has unsaved edits a <code>Save all changes? (Y/n/c)</code> prompt appears first (Y saves every dirty buffer, N discards, C/Esc cancels). <code>^P</code> focuses the sidebar and <code>^E</code> the editor.</p>
 <p>A <code>FILES</code> row under the editor and output panel lists every open buffer with its <code>1</code>-<code>9</code> number — the active file is highlighted and unsaved files carry a <code>*</code>. Press the number to switch to that file (plain digits in the sidebar, <code>Alt+1</code>-<code>Alt+9</code> from anywhere, including while editing), then <code>^W</code> closes it. Up to nine files can be open at once. Non-text files (<code>.pdf</code>, <code>.png</code>, <code>.docx</code>, images, archives, executables, and any file whose content looks binary) are never opened; they are marked <code>B</code> in the tree and produce a status message.</p>
+<h3 id="long-names">Long names</h3>
+<p>The tree pane is narrow, so a long file or directory name does not fit. The name is cut off with an ellipsis (<code>…</code>) and the arrow keys scroll it: Left and Right move the text sideways instead of expanding and collapsing folders, and the ellipsis on the other side marks the hidden part. The scroll only engages for a selected row that is wider than the pane, so a tree of short names keeps its usual keys. Enter still opens a file and toggles a folder either way.</p>
+<p>A name is measured in terminal columns, so a CJK or emoji name takes the space it really occupies and the tree stays aligned. Control characters in a name are shown in caret notation (<code>^I</code> for a tab), so a file name can never move the cursor or repaint the screen.</p>
 <h3 id="editor">Editor</h3>
 <p>The editor has line numbers and Lynxer syntax highlighting (<code>.lynx</code> files only; every other file is plain text), Tab inserts four spaces, and Enter splits the line.</p>
 <p><strong>Long lines are soft-wrapped like a paragraph.</strong> The text continues on the next row and every row repeats the line number in the gutter, so a wrapped line still reads as one line:</p>
@@ -201,6 +204,7 @@ lynxer --cli-ide src/         # browse a folder</code></pre>
 <tr><td><code>1</code>-<code>9</code> / <code>Alt+1</code>-<code>Alt+9</code></td><td>switch to the numbered open file (max 9)</td></tr>
 <tr><td><code>Ctrl+Left</code> / <code>Ctrl+Right</code></td><td>previous / next tab</td></tr>
 <tr><td>Explorer: Up/Down, Right, Left</td><td>select files/folders, step into folder, collapse / parent</td></tr>
+<tr><td>Explorer: Left/Right (long name)</td><td>scroll the tree sideways</td></tr>
 <tr><td>Explorer: Enter</td><td>open file / expand folder, or close an already-open one</td></tr>
 <tr><td>Editor: arrows, Home/End, PgUp/PgDn, Tab, Backspace, Delete, Enter</td><td>move and edit</td></tr>
 <tr><td>Command menu: Up/Down, PgUp/PgDn, Home/End, Enter, Esc</td><td>select / run / close</td></tr>

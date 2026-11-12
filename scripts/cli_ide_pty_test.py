@@ -21,6 +21,7 @@ import subprocess
 import sys
 import termios
 import time
+import unicodedata
 
 
 def drain(master, seconds, chunks):
@@ -41,6 +42,19 @@ def drain(master, seconds, chunks):
 def strip_ansi(text):
     """Drop the colour and cursor escapes so the text can be matched."""
     return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", text)
+
+
+def display_width(text):
+    """The terminal columns a string takes, counting wide characters twice."""
+    width = 0
+    for char in text:
+        if unicodedata.east_asian_width(char) in ("W", "F"):
+            width += 2
+        elif unicodedata.combining(char):
+            continue
+        else:
+            width += 1
+    return width
 
 
 def check_tree_navigation(interpreter):
@@ -569,6 +583,134 @@ def check_wrapped_lines(interpreter):
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_long_names(interpreter):
+    """A long name scrolls in the tree and keeps the columns aligned."""
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-long-")
+    master = slave = None
+    process = None
+    try:
+        long_name = ("a-directory-with-a-name-far-too-long-for-the-tree-pane"
+                     "-of-the-terminal-ide")
+        os.mkdir(os.path.join(root, long_name))
+        with open(os.path.join(root, long_name, "inner.lynx"), "w") as handle:
+            handle.write("fn main(){}\n")
+        # A wide name and one with a control character in it.
+        with open(os.path.join(root, "日本語のファイル名.lynx"), "w") as handle:
+            handle.write("fn main(){}\n")
+        with open(os.path.join(root, "tab\tname.lynx"), "w") as handle:
+            handle.write("fn main(){}\n")
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", root],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+
+        def step(data, label):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, 0.45, chunks)
+            raw = b"".join(chunks).decode("utf-8", "replace")
+            if not raw:
+                print(f"{label}: the IDE stopped drawing", file=sys.stderr)
+                return None, []
+            return raw, re.split(r"\x1b\[\d+;\d+H", raw)
+
+        def separator_columns(rows):
+            columns = []
+            for row in rows:
+                plain = strip_ansi(row)
+                pos = plain.find("|")
+                if pos >= 0:
+                    columns.append(display_width(plain[:pos]))
+            return columns
+
+        drain(master, 1.2, chunks)
+        raw = b"".join(chunks).decode("utf-8", "replace")
+        rows = re.split(r"\x1b\[\d+;\d+H", raw)
+        if not rows:
+            print("the IDE did not draw its first frame", file=sys.stderr)
+            return 1
+        columns = separator_columns(rows)
+        if len(set(columns)) > 1:
+            print(f"the tree column is not aligned: {sorted(set(columns))}",
+                  file=sys.stderr)
+            return 1
+
+        # A control character in a name is shown as a caret, never written
+        # to the terminal as an escape sequence.
+        plain = [strip_ansi(row) for row in rows]
+        if not any("^I" in row for row in plain):
+            print("the tab in a file name was not escaped", file=sys.stderr)
+            return 1
+        if not any("日本語" in row for row in plain):
+            print("the wide file name is missing", file=sys.stderr)
+            return 1
+
+        # The long name is cut off with an ellipsis and scrolls with the
+        # arrow keys.
+        plain = [strip_ansi(row) for row in rows]
+        if not any("…" in row for row in plain):
+            print("the long name was not marked as cut off", file=sys.stderr)
+            return 1
+        before = [row for row in plain if "…" in row]
+        raw, rows = step(b"\x1b[C", "scroll right")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        after = [row for row in plain if "…" in row]
+        if before == after:
+            print("Right did not scroll the long name", file=sys.stderr)
+            return 1
+        columns = separator_columns(rows)
+        if len(set(columns)) > 1:
+            print(f"the tree column is not aligned after scrolling: "
+                  f"{sorted(set(columns))}", file=sys.stderr)
+            return 1
+
+        # Scrolling back returns to the start of the name.
+        raw, rows = step(b"\x1b[D", "scroll left")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        if [row for row in plain if "…" in row] != before:
+            print("Left did not scroll the long name back", file=sys.stderr)
+            return 1
+
+        os.write(master, b"\x18")
+        drain(master, 0.4, chunks)
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("long-name IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"long-name IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     if len(sys.argv) != 3:
         print("usage: cli_ide_pty_test.py <lynxer> <scratch-file>", file=sys.stderr)
@@ -703,6 +845,10 @@ def main():
     wrapping_result = check_wrapped_lines(interpreter)
     if wrapping_result != 0:
         return wrapping_result
+
+    names_result = check_long_names(interpreter)
+    if names_result != 0:
+        return names_result
 
     print("terminal IDE pty smoke test passed")
     return 0

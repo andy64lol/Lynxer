@@ -1328,6 +1328,83 @@ int ideUtf8Length(unsigned char lead) {
     return 1;
 }
 
+// Decodes the UTF-8 character at `index` and returns its code point.
+// `length` receives the number of bytes the character occupies.
+std::uint32_t ideUtf8Decode(const std::string& text, std::size_t index,
+                            int& length) {
+    const unsigned char lead = static_cast<unsigned char>(text[index]);
+    if (lead < 0x80) {
+        length = 1;
+        return lead;
+    }
+    int count = 0;
+    std::uint32_t code = 0;
+    if ((lead & 0xE0) == 0xC0) {
+        count = 2;
+        code = lead & 0x1Fu;
+    } else if ((lead & 0xF0) == 0xE0) {
+        count = 3;
+        code = lead & 0x0Fu;
+    } else if ((lead & 0xF8) == 0xF0) {
+        count = 4;
+        code = lead & 0x07u;
+    } else {
+        length = 1;
+        return lead;
+    }
+    if (index + static_cast<std::size_t>(count) > text.size()) {
+        length = 1;
+        return lead;
+    }
+    for (int i = 1; i < count; ++i) {
+        code = (code << 6) |
+               (static_cast<unsigned char>(
+                    text[index + static_cast<std::size_t>(i)]) & 0x3Fu);
+    }
+    length = count;
+    return code;
+}
+
+struct IdeCodeRange {
+    std::uint32_t first;
+    std::uint32_t last;
+};
+
+// East Asian wide and fullwidth characters take two terminal cells. Without
+// this a CJK file name pushes the tree column out of alignment.
+constexpr IdeCodeRange kIdeWideRanges[] = {
+    {0x1100, 0x115F}, {0x2E80, 0x303E}, {0x3041, 0x33FF},
+    {0x3400, 0x4DBF}, {0x4E00, 0x9FFF}, {0xA000, 0xA4CF},
+    {0xA960, 0xA97F}, {0xAC00, 0xD7A3}, {0xF900, 0xFAFF},
+    {0xFE10, 0xFE19}, {0xFE30, 0xFE6F}, {0xFF00, 0xFF60},
+    {0xFFE0, 0xFFE6}, {0x1F300, 0x1F64F}, {0x1F680, 0x1F6FF},
+    {0x1F900, 0x1F9FF}, {0x20000, 0x2FFFD}, {0x30000, 0x3FFFD},
+};
+
+// Combining marks and joiners take no cell of their own.
+constexpr IdeCodeRange kIdeZeroRanges[] = {
+    {0x0300, 0x036F}, {0x0483, 0x0489}, {0x0591, 0x05BD},
+    {0x0610, 0x061A}, {0x064B, 0x065F}, {0x06D6, 0x06DC},
+    {0x0730, 0x074A}, {0x07A6, 0x07B0}, {0x0900, 0x0903},
+    {0x093A, 0x093C}, {0x093E, 0x094F}, {0x0951, 0x0957},
+    {0x0962, 0x0963}, {0x0E31, 0x0E31}, {0x0E34, 0x0E3A},
+    {0x0E47, 0x0E4E}, {0x1AB0, 0x1AFF}, {0x1DC0, 0x1DFF},
+    {0x200B, 0x200F}, {0x20D0, 0x20FF}, {0xFE00, 0xFE0F},
+    {0xFE20, 0xFE2F}, {0x101FD, 0x101FD}, {0x1D167, 0x1D169},
+    {0x1D17B, 0x1D182}, {0xE0100, 0xE01EF},
+};
+
+// The terminal cells a code point takes.
+int ideCodePointCells(std::uint32_t code) {
+    for (const IdeCodeRange& range : kIdeZeroRanges) {
+        if (code >= range.first && code <= range.last) return 0;
+    }
+    for (const IdeCodeRange& range : kIdeWideRanges) {
+        if (code >= range.first && code <= range.last) return 2;
+    }
+    return 1;
+}
+
 // Returns the index just past the escape sequence beginning at `start`.
 // A CSI sequence is ESC '[', parameter/intermediate bytes (0x20-0x3F) and
 // one final byte (0x40-0x7E) -- notably '[' itself is NOT the final byte, so
@@ -1347,6 +1424,9 @@ std::size_t ideEscapeEnd(const std::string& text, std::size_t start) {
     return end;
 }
 
+// The terminal cells a string occupies. ANSI escapes take none, and a wide
+// character takes two, so the columns of the frame stay aligned even when a
+// file name holds CJK text or an emoji.
 std::size_t ideVisibleWidth(const std::string& text) {
     std::size_t width = 0;
     for (std::size_t i = 0; i < text.size();) {
@@ -1355,11 +1435,10 @@ std::size_t ideVisibleWidth(const std::string& text) {
             i = ideEscapeEnd(text, i);
             continue;
         }
-        const int length = ideUtf8Length(lead);
-        i += (i + static_cast<std::size_t>(length) <= text.size())
-                 ? static_cast<std::size_t>(length)
-                 : 1;
-        ++width;
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(text, i, length);
+        i += static_cast<std::size_t>(length);
+        width += static_cast<std::size_t>(ideCodePointCells(code));
     }
     return width;
 }
@@ -1367,7 +1446,8 @@ std::size_t ideVisibleWidth(const std::string& text) {
 // Keeps a row within `width` visible columns without ever cutting an ANSI
 // escape sequence in half. The escapes that follow the clipped text are kept:
 // a row cut in the middle of the text still has to reset its attributes, or
-// the reverse video of the caret bleeds into the rest of the screen.
+// the reverse video of the caret bleeds into the rest of the screen. A wide
+// character that would straddle the edge is dropped whole rather than split.
 std::string ideClamp(const std::string& text, std::size_t width) {
     std::string out;
     std::size_t used = 0;
@@ -1380,14 +1460,14 @@ std::string ideClamp(const std::string& text, std::size_t width) {
             i = end;
             continue;
         }
-        const int length = ideUtf8Length(lead);
-        const std::size_t take =
-            (i + static_cast<std::size_t>(length) <= text.size())
-                ? static_cast<std::size_t>(length)
-                : 1;
-        out.append(text, i, take);
-        i += take;
-        ++used;
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(text, i, length);
+        const std::size_t cells =
+            static_cast<std::size_t>(ideCodePointCells(code));
+        if (used + cells > width) break;
+        out.append(text, i, static_cast<std::size_t>(length));
+        i += static_cast<std::size_t>(length);
+        used += cells;
     }
     while (i < text.size() && static_cast<unsigned char>(text[i]) == 0x1b) {
         const std::size_t end = ideEscapeEnd(text, i);
@@ -1881,16 +1961,18 @@ std::vector<std::size_t> ideWrapOffsets(const std::string& line, int width) {
     int column = 0;
     std::size_t index = 0;
     while (index < line.size()) {
-        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(line, index, length);
         const std::size_t take =
             (index + static_cast<std::size_t>(length) <= line.size())
                 ? static_cast<std::size_t>(length)
                 : 1;
-        if (column >= width) {
+        const int cells = ideCodePointCells(code);
+        if (column + cells > width) {
             offsets.push_back(index);
             column = 0;
         }
-        ++column;
+        column += cells;
         index += take;
     }
     return offsets;
@@ -1905,16 +1987,18 @@ int ideLineRows(const std::string& line, int width) {
     int column = 0;
     std::size_t index = 0;
     while (index < line.size()) {
-        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(line, index, length);
         const std::size_t take =
             (index + static_cast<std::size_t>(length) <= line.size())
                 ? static_cast<std::size_t>(length)
                 : 1;
-        if (column >= width) {
+        const int cells = ideCodePointCells(code);
+        if (column + cells > width) {
             ++rows;
             column = 0;
         }
-        ++column;
+        column += cells;
         index += take;
     }
     return rows;
@@ -1926,24 +2010,28 @@ std::size_t ideColumnsBetween(const std::string& line, std::size_t from,
                               std::size_t to) {
     std::size_t column = 0;
     for (std::size_t i = from; i < to && i < line.size();) {
-        const int length = ideUtf8Length(static_cast<unsigned char>(line[i]));
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(line, i, length);
         i += (i + static_cast<std::size_t>(length) <= to)
                  ? static_cast<std::size_t>(length)
                  : 1;
-        ++column;
+        column += static_cast<std::size_t>(ideCodePointCells(code));
     }
     return column;
 }
 
-// Byte offset `count` characters after `from`.
+// Byte offset `count` columns after `from`.
 std::size_t ideOffsetAfter(const std::string& line, std::size_t from,
                             std::size_t count) {
     std::size_t index = from;
-    for (std::size_t step = 0; step < count && index < line.size(); ++step) {
-        const int length = ideUtf8Length(static_cast<unsigned char>(line[index]));
+    std::size_t column = 0;
+    while (column < count && index < line.size()) {
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(line, index, length);
         index += (index + static_cast<std::size_t>(length) <= line.size())
                      ? static_cast<std::size_t>(length)
                      : 1;
+        column += static_cast<std::size_t>(ideCodePointCells(code));
     }
     return index;
 }
@@ -2029,6 +2117,10 @@ struct IdeState {
     std::vector<IdeTreeRow> tree;
     std::size_t treeSelection = 0;
     std::size_t treeTop = 0;
+    // Horizontal scroll of the tree pane, in display columns. A name that
+    // is wider than the pane is cut off, and the arrow keys scroll it into
+    // view.
+    std::size_t treeScroll = 0;
     bool explorerFocus = false;
     std::vector<IdeBuffer> buffers;
     std::size_t active = 0;
@@ -2317,6 +2409,60 @@ bool ideIsNonTextFile(const std::string& path) {
     return count > 0 && control * 10 > count;
 }
 
+// Renders a file name safely for the screen. A name may hold control
+// characters -- an escape sequence would move the cursor and clear the
+// screen, a tab would shift the whole row -- so they are shown as a caret
+// notation instead of being written to the terminal.
+std::string ideSafeName(const std::string& name) {
+    std::string out;
+    out.reserve(name.size());
+    for (const char c : name) {
+        const unsigned char byte = static_cast<unsigned char>(c);
+        if (byte < 0x20 || byte == 0x7f) {
+            out += '^';
+            out += static_cast<char>(byte == 0x7f ? '?' : byte + 0x40);
+            continue;
+        }
+        out += c;
+    }
+    return out;
+}
+
+// The part of `text` that covers the display columns [from, from + width).
+// `cutRight` reports whether text continues past the window. A wide
+// character is never cut in half: the window ends before it instead.
+std::string ideColumnsSlice(const std::string& text, std::size_t from,
+                             std::size_t width, bool& cutRight) {
+    cutRight = false;
+    std::vector<std::size_t> offsets;
+    std::vector<std::size_t> columns;
+    std::size_t column = 0;
+    std::size_t index = 0;
+    while (index < text.size()) {
+        offsets.push_back(index);
+        columns.push_back(column);
+        int length = 0;
+        const std::uint32_t code = ideUtf8Decode(text, index, length);
+        index += static_cast<std::size_t>(length);
+        column += static_cast<std::size_t>(ideCodePointCells(code));
+    }
+    if (offsets.empty()) return std::string();
+    std::size_t first = offsets.size();
+    std::size_t last = offsets.size();
+    for (std::size_t i = 0; i < offsets.size(); ++i) {
+        if (first == offsets.size() && columns[i] >= from) first = i;
+        if (columns[i] >= from + width) {
+            last = i;
+            break;
+        }
+    }
+    if (first == offsets.size()) return std::string();
+    const std::size_t begin = offsets[first];
+    const std::size_t end = (last < offsets.size()) ? offsets[last] : text.size();
+    cutRight = last < offsets.size();
+    return text.substr(begin, end - begin);
+}
+
 std::vector<IdeEntry> ideListDir(const std::string& path) {
     static const std::unordered_set<std::string> ignored = {
         ".git", "node_modules", "target", ".cache", "__pycache__",
@@ -2495,10 +2641,122 @@ void ideCollapseOrParent(IdeState& state) {
     }
 }
 
+// The text of one row of the file tree: the indent, the marker and the file
+// name. A name wider than the pane is cut off; the arrow keys scroll it, and
+// an ellipsis on either side marks the hidden text. A short name is never
+// scrolled: it stays whole, so the tree keeps its shape. A deep tree is
+// indented as far as the pane allows, so the name always stays visible.
+std::string ideTreeRowText(const IdeTreeRow& item, std::size_t scroll,
+                            std::size_t width) {
+    // The marker and a readable part of the name always fit.
+    const std::size_t reserve = 4 + 8;
+    const std::size_t full = static_cast<std::size_t>(item.depth) * 2;
+    const std::size_t room = width > reserve ? width - reserve : 0;
+    const bool deep = full > room;
+    const std::size_t indentWidth = deep ? room : full;
+    std::string indent(indentWidth, ' ');
+    if (deep) indent = "\xE2\x80\xA6" + indent.substr(1);
+    const std::string marker = item.isDir
+                                   ? (item.expanded ? "[-] " : "[+] ")
+                                   : (item.nonText ? " B  "
+                                                   : (ideIsLynx(item.path) ? " L  " : " .  "));
+    const std::string prefix = indent + marker;
+    const std::size_t used = ideVisibleWidth(prefix);
+    if (used >= width) return prefix.substr(0, width);
+    const std::size_t space = width - used;
+    const std::string name = ideSafeName(item.name);
+    const std::size_t nameWidth = ideVisibleWidth(name);
+    if (nameWidth <= space) return prefix + name;
+    // The ellipses take a column of their own.
+    const std::size_t from = std::min(scroll, nameWidth - space);
+    std::size_t visible = space;
+    if (from > 0) --visible;
+    bool cut = false;
+    std::string text = ideColumnsSlice(name, from, visible, cut);
+    if (cut) {
+        if (visible > 1) --visible;
+        text = ideColumnsSlice(name, from, visible, cut);
+    }
+    if (from > 0) text = "\xE2\x80\xA6" + text;
+    if (cut) text += "\xE2\x80\xA6";
+    return prefix + text;
+}
+
+// The columns the widest name of the tree needs, so the scroll range is known.
+std::size_t ideTreeNameWidth(const IdeState& state);
+
+// The width of the file tree pane, without the separator column.
+int ideTreePaneWidth(const IdeState& state) {
+    const int columns = state.columns > 0 ? state.columns : 80;
+    return std::max(4, ideExplorerWidth(columns) - 1);
+}
+
+// The columns one tree row needs: the indent, the marker and the name.
+std::size_t ideTreeRowWidth(const IdeTreeRow& item) {
+    return static_cast<std::size_t>(item.depth) * 2 + 4 +
+           ideVisibleWidth(ideSafeName(item.name));
+}
+
+// The columns the widest name of the tree needs, so the scroll range is known.
+std::size_t ideTreeNameWidth(const IdeState& state) {
+    std::size_t widest = 0;
+    for (const IdeTreeRow& item : state.tree) {
+        const std::size_t total = ideTreeRowWidth(item);
+        if (total > widest) widest = total;
+    }
+    return widest;
+}
+
+// The tree row the cursor is on, or nothing when the tree is empty.
+const IdeTreeRow* ideTreeSelected(const IdeState& state) {
+    if (state.treeSelection >= state.tree.size()) return nullptr;
+    return &state.tree[state.treeSelection];
+}
+
+// The selected row does not fit the pane, so the arrow keys scroll it instead
+// of expanding and collapsing. A short name keeps the old behaviour.
+bool ideTreeOverflows(const IdeState& state) {
+    const IdeTreeRow* item = ideTreeSelected(state);
+    if (item == nullptr) return false;
+    return ideTreeRowWidth(*item) >
+           static_cast<std::size_t>(ideTreePaneWidth(state));
+}
+
+// How far the tree may be scrolled to the right.
+std::size_t ideTreeMaxScroll(const IdeState& state) {
+    std::size_t widest = 0;
+    for (const IdeTreeRow& item : state.tree) {
+        const std::size_t total = ideTreeRowWidth(item);
+        if (total > widest) widest = total;
+    }
+    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
+    return widest > pane ? widest - pane : 0;
+}
+
+// Scrolls so the selected row is visible: the name of a row that is wider
+// than the pane starts at its first column, so a short name is always whole.
+void ideTreeScrollToSelection(IdeState& state) {
+    const IdeTreeRow* item = ideTreeSelected(state);
+    if (item == nullptr) return;
+    const std::size_t pane = static_cast<std::size_t>(ideTreePaneWidth(state));
+    if (ideTreeRowWidth(*item) <= pane) {
+        state.treeScroll = 0;
+        return;
+    }
+    // The name of a long row is scrolled; keep the scroll inside the name.
+    const std::size_t nameWidth = ideVisibleWidth(ideSafeName(item->name));
+    const std::size_t space = pane > 12 ? pane - 12 : 1;
+    const std::size_t limit = nameWidth > space ? nameWidth - space : 0;
+    if (state.treeScroll > limit) state.treeScroll = limit;
+}
+
+// The tree scrolls a few columns per press, so a long name is readable
+// without holding a key down for a hundred presses.
+constexpr std::size_t kIdeTreeScrollStep = 4;
+
 bool ideHasBuffer(const IdeState& state) {
     return state.active < state.buffers.size();
 }
-
 IdeBuffer& ideActive(IdeState& state) {
     return state.buffers[state.active];
 }
@@ -2795,6 +3053,7 @@ void ideRender(IdeState& state) {
     helpLines.push_back("            or expands a folder; selecting an open file/folder");
     helpLines.push_back("            closes it (save-all prompt if edits are unsaved)");
     helpLines.push_back("            Right steps into a folder, Left collapses / parent");
+    helpLines.push_back("            A long name scrolls with Left / Right");
     helpLines.push_back("  Editor:   arrow keys move, Home/End, PgUp/PgDn, type to edit");
     helpLines.push_back("            Enter newline, Tab indent, Backspace/Delete remove");
     helpLines.push_back("            Left/Right cross line boundaries");
@@ -2859,17 +3118,14 @@ void ideRender(IdeState& state) {
         const std::size_t treeIndex = state.treeTop + static_cast<std::size_t>(r);
         if (treeIndex < state.tree.size()) {
             const IdeTreeRow& item = state.tree[treeIndex];
-            const std::string indent(static_cast<std::size_t>(item.depth) * 2, ' ');
-            const std::string marker = item.isDir
-                                           ? (item.expanded ? "[-] " : "[+] ")
-                                           : (item.nonText ? " B  "
-                                                           : (ideIsLynx(item.path) ? " L  " : " .  "));
             const bool selected = treeIndex == state.treeSelection && state.explorerFocus;
             left = (selected ? std::string(kIdeReverse) : std::string()) +
                    (item.isDir ? ideFg(IC_ACCENT) :
                                  (item.nonText ? ideFg(IC_ERROR) :
                                   (ideIsLynx(item.path) ? ideFg(IC_OK) : ideFg(IC_MUTED)))) +
-                   indent + marker + item.name + kIdeReset;
+                   ideTreeRowText(item, state.treeScroll,
+                                  static_cast<std::size_t>(explorerWidth - 1)) +
+                   kIdeReset;
         }
         left = idePad(ideClamp(left, static_cast<std::size_t>(explorerWidth - 1)),
                       static_cast<std::size_t>(explorerWidth - 1));
@@ -3718,6 +3974,9 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
     }
 
     if (inExplorer) {
+        // A tree wider than its pane scrolls with the arrow keys; otherwise
+        // they expand and collapse folders as usual.
+        const bool scrolls = ideTreeOverflows(state);
         switch (key) {
             case platform::KEY_UP:
                 if (state.treeSelection > 0) --state.treeSelection;
@@ -3726,10 +3985,22 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
                 if (state.treeSelection + 1 < state.tree.size()) ++state.treeSelection;
                 break;
             case platform::KEY_RIGHT:
+                if (scrolls) {
+                    const std::size_t maxScroll = ideTreeMaxScroll(state);
+                    state.treeScroll = std::min(maxScroll,
+                                                state.treeScroll + kIdeTreeScrollStep);
+                    break;
+                }
                 // Expand a folder and step into it; files are opened by Enter.
                 ideActivateTreeSelection(state, false);
                 break;
             case platform::KEY_LEFT:
+                if (scrolls && state.treeScroll > 0) {
+                    state.treeScroll = state.treeScroll > kIdeTreeScrollStep
+                                           ? state.treeScroll - kIdeTreeScrollStep
+                                           : 0;
+                    break;
+                }
                 ideCollapseOrParent(state);
                 break;
             case platform::KEY_HOME:
@@ -3748,6 +4019,8 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
             default:
                 break;
         }
+        // A selected row that is wider than the pane scrolls into view.
+        ideTreeScrollToSelection(state);
         // Keep the selection inside the visible explorer pane.
         const int paneHeight = ideEditorHeight(state);
         if (state.treeSelection < state.treeTop) {
