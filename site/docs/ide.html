@@ -162,7 +162,7 @@ lynxer --cli-ide program.lynx # open a file
 lynxer --cli-ide src/         # browse a folder</code></pre>
 <h3 id="layout">Layout</h3>
 <p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
-<pre><code>  LYNXER IDE Lynxer 0.1.9b2        File: program.lynx   Modified
+<pre><code>  LYNXER IDE Lynxer 0.1.9b3        File: program.lynx   Modified
   [program.lynx]
    1 | fn main(){
    2 |   println(&quot;Hello, Lynxer!&quot;);
@@ -186,6 +186,7 @@ lynxer --cli-ide src/         # browse a folder</code></pre>
 <h3 id="output-and-problems">Output and problems</h3>
 <p>The output panel shows the output of the last command: <code>Run</code>, <code>Lint</code>, <code>Format</code>, <code>Build</code> and <code>Run project</code> all shell out to this interpreter, and the result is captured into the panel instead of overwriting the screen. <code>^L</code> parses the <code>lynxer --lint</code> output into warnings and errors with their file, line and column; <code>^V</code> jumps to the next problem, and clicking is not needed — the message line names the file and position.</p>
 <p>The panel stays hidden until a command produces output (<code>^Z</code> toggles it, <code>^K</code> clears it).</p>
+<p><strong><code>^]</code> moves the focus to the output panel</strong>, so the output of a run can be read without leaving the file. The panel scrolls with the arrow keys, <code>PgUp</code>/<code>PgDn</code> page through it and <code>Home</code>/<code>End</code> jump to its ends; any other key hands the focus back to the file and is handled as usual. The panel that has the focus is drawn on a lighter background, and the delimiter columns of the tree and the editor carry a background of their own so the panes never run into each other.</p>
 <h3 id="key-bindings">Key bindings</h3>
 <p><code>^</code> means Ctrl, <code>M-^C</code> means Ctrl+Alt+C.</p>
 <table>
@@ -196,6 +197,7 @@ lynxer --cli-ide src/         # browse a folder</code></pre>
 <tr><td><code>^B</code></td><td>change folder</td></tr>
 <tr><td><code>^P</code> / <code>^E</code></td><td>focus sidebar / focus editor</td></tr>
 <tr><td><code>^Z</code> / <code>^K</code></td><td>toggle output panel / clear output</td></tr>
+<tr><td><code>^]</code></td><td>focus the output panel (and scroll it)</td></tr>
 <tr><td><code>^F</code> / <code>^_</code> / <code>^D</code></td><td>find / go to line / next match</td></tr>
 <tr><td><code>^R</code> / <code>^L</code> / <code>^T</code></td><td>run file / lint file / format file</td></tr>
 <tr><td><code>^Y</code> / <code>^U</code></td><td>build project / run project</td></tr>

@@ -547,7 +547,8 @@ def check_wrapped_lines(interpreter):
                 print("Down left the wrapped line", file=sys.stderr)
                 return 1
         # The caret is drawn on the continuation row of the same line.
-        if not any("   2 | " in row and "\x1b[7m" in row for row in rows):
+        if not any("   2 | " in strip_ansi(row) and "\x1b[7m" in row
+                   for row in rows):
             print("the caret is not drawn on the wrapped row", file=sys.stderr)
             return 1
         raw, rows = step(b"\x1b[B", "down")
@@ -711,6 +712,134 @@ def check_long_names(interpreter):
         shutil.rmtree(root, ignore_errors=True)
 
 
+def check_output_focus(interpreter):
+    """^] moves the focus to the output panel, which then scrolls."""
+    import shutil
+    import tempfile
+
+    root = tempfile.mkdtemp(prefix="lynxer-ide-output-")
+    master = slave = None
+    process = None
+    try:
+        path = os.path.join(root, "loud.lynx")
+        with open(path, "w") as handle:
+            handle.write('fn main(){\n'
+                         '    int i = 0;\n'
+                         '    while (i < 40) {\n'
+                         '        println("output line ", i);\n'
+                         '        i = i + 1;\n'
+                         '    }\n'
+                         '}\n')
+
+        import pty
+        master, slave = pty.openpty()
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 100, 0, 0))
+        process = subprocess.Popen(
+            [interpreter, "--cli-ide", path],
+            stdin=slave, stdout=slave, stderr=slave, close_fds=True,
+        )
+        os.close(slave)
+        slave = None
+
+        chunks = []
+
+        def step(data, label, wait=0.45):
+            chunks.clear()
+            os.write(master, data)
+            drain(master, wait, chunks)
+            raw = b"".join(chunks).decode("utf-8", "replace")
+            if not raw:
+                print(f"{label}: the IDE stopped drawing", file=sys.stderr)
+                return None, []
+            return raw, re.split(r"\x1b\[\d+;\d+H", raw)
+
+        def output_lines(rows):
+            lines = []
+            for row in rows:
+                plain = strip_ansi(row).strip()
+                # The panel prints "output line <n>"; the source line in the
+                # editor prints "output line ", i);".
+                if re.search(r"output line \d+$", plain):
+                    lines.append(plain)
+            return lines
+
+        drain(master, 1.2, chunks)
+        # Run the file: the panel shows the newest output.
+        raw, rows = step(b"\x12", "run", 2.0)
+        if raw is None:
+            return 1
+        lines = output_lines(rows)
+        if not lines:
+            print("the run produced no output panel", file=sys.stderr)
+            return 1
+        if "output line 39" not in lines[-1]:
+            print(f"the panel does not show the newest output: {lines[-1]!r}",
+                  file=sys.stderr)
+            return 1
+
+        # ^] focuses the panel and says so in the message line.
+        raw, rows = step(b"\x1d", "focus output")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        if not any("Output: Up/Down scroll" in row for row in plain):
+            print("^] did not focus the output panel", file=sys.stderr)
+            return 1
+
+        # The arrow keys scroll the panel instead of moving the caret.
+        raw, rows = step(b"\x1b[A\x1b[A\x1b[A", "scroll up")
+        if raw is None:
+            return 1
+        lines = output_lines(rows)
+        if "output line 39" in lines[-1]:
+            print("Up did not scroll the output panel", file=sys.stderr)
+            return 1
+
+        # Home jumps to the first line of the output.
+        raw, rows = step(b"\x1b[H", "home")
+        if raw is None:
+            return 1
+        lines = output_lines(rows)
+        if "output line 0" not in lines[0]:
+            print(f"Home did not jump to the first output line: {lines[:1]}",
+                  file=sys.stderr)
+            return 1
+
+        # Any other key hands the focus back to the file.
+        raw, rows = step(b"z", "type")
+        if raw is None:
+            return 1
+        plain = [strip_ansi(row) for row in rows]
+        if not any("Ln 1, Col 2" in row for row in plain):
+            print("typing did not return the focus to the file", file=sys.stderr)
+            return 1
+
+        os.write(master, b"\x18")
+        drain(master, 0.4, chunks)
+        os.write(master, b"n\r")
+        try:
+            code = process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            print("output IDE did not exit after Ctrl+X", file=sys.stderr)
+            return 1
+        process = None
+        if code != 0:
+            print(f"output IDE exited with {code}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        if process is not None:
+            process.kill()
+            process.wait()
+        if slave is not None:
+            os.close(slave)
+        if master is not None:
+            os.close(master)
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main():
     if len(sys.argv) != 3:
         print("usage: cli_ide_pty_test.py <lynxer> <scratch-file>", file=sys.stderr)
@@ -849,6 +978,10 @@ def main():
     names_result = check_long_names(interpreter)
     if names_result != 0:
         return names_result
+
+    output_result = check_output_focus(interpreter)
+    if output_result != 0:
+        return output_result
 
     print("terminal IDE pty smoke test passed")
     return 0

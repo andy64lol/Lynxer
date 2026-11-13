@@ -195,7 +195,7 @@ void printUsage() {
 void printVersion() {
     const Config& config = Config::instance();
     std::cout << config.format("version.line", "Lynxer {0}", "{0}",
-                               config.get("version", "0.1.9b2"))
+                               config.get("version", "0.1.9b3"))
               << '\n';
 }
 
@@ -1268,7 +1268,7 @@ constexpr int IC_TEXT = 0, IC_KEYWORD = 1, IC_TYPE = 2, IC_BUILTIN = 3,
               IC_DELIM = 12, IC_ACCENT = 13, IC_MUTED = 14, IC_ERROR = 15,
               IC_WARN = 16, IC_INFO = 17, IC_SURFACE = 18, IC_PANEL = 19,
               IC_EDITOR = 20, IC_STATUS = 21, IC_GUTTER = 22,
-              IC_OK = 23;
+              IC_OK = 23, IC_FOCUS = 24;
 
 struct IdeRgb {
     int r, g, b;
@@ -1299,6 +1299,7 @@ const IdeRgb kIdePalette[] = {
     {0x0f, 0x45, 0x4f},  // status
     {0x5a, 0x60, 0x6a},  // gutter
     {0x4e, 0xc9, 0xb0},  // ok
+    {0x2f, 0x34, 0x3d},  // focus (a panel that has the keyboard)
 };
 
 std::string ideFg(int index) {
@@ -2130,6 +2131,10 @@ struct IdeState {
     std::string status;
     std::string findQuery;
     bool showOutput = false;  // nano-like: no empty panel until a command runs
+    // The output panel takes the arrow keys while it has the focus, so the
+    // output of a run can be read without leaving the file.
+    bool outputFocus = false;
+    std::size_t outputScroll = 0;
     bool showHelp = false;
     std::size_t helpTop = 0;
     bool showCommands = false;
@@ -2217,7 +2222,7 @@ void ideVisualRowAt(const IdeBuffer& buffer, std::size_t row, int width,
 enum class IdeCommandId {
     Help, Open, Save, Exit, CloseTab, New, Find, Run, Lint, Format, Output,
     Goto, NextMatch, NextProblem, Build, RunProject, Folder, Sidebar, Editor,
-    Clear,
+    Clear, FocusOutput,
 };
 
 struct IdeCommand {
@@ -2252,6 +2257,7 @@ const std::vector<IdeCommand>& ideCommands() {
         {IdeCommandId::Sidebar,     "Focus sidebar",       "Side",  "^P", 16},
         {IdeCommandId::Editor,      "Focus editor",        "Edit",  "^E",  5},
         {IdeCommandId::Clear,       "Clear output",        "Clear",  "^K", 11},
+        {IdeCommandId::FocusOutput, "Focus output",        "Output", "^]", 29},
     };
     return commands;
 }
@@ -2302,6 +2308,38 @@ std::string ideJoinLines(const std::vector<std::string>& lines) {
     }
     out += '\n';
     return out;
+}
+
+// The output rows the panel shows below its header.
+int ideOutputRows(const IdeState& state) {
+    return std::max(1, ideOutputHeight(state) - 1);
+}
+
+// The first output line the panel may show.
+std::size_t ideOutputMaxScroll(const IdeState& state) {
+    const std::size_t lines = ideSplitLines(state.output).size();
+    const std::size_t rows = static_cast<std::size_t>(ideOutputRows(state));
+    return lines > rows ? lines - rows : 0;
+}
+
+// Keeps the scroll of the output panel inside the output.
+void ideClampOutputScroll(IdeState& state) {
+    const std::size_t maxScroll = ideOutputMaxScroll(state);
+    if (state.outputScroll > maxScroll) state.outputScroll = maxScroll;
+}
+
+// Scrolls the output panel to the newest line.
+void ideOutputScrollToEnd(IdeState& state) {
+    state.outputScroll = ideOutputMaxScroll(state);
+}
+
+// Scrolls the output panel by `delta` lines.
+void ideOutputScrollBy(IdeState& state, long delta) {
+    const long maxScroll = static_cast<long>(ideOutputMaxScroll(state));
+    long scroll = static_cast<long>(state.outputScroll) + delta;
+    if (scroll < 0) scroll = 0;
+    if (scroll > maxScroll) scroll = maxScroll;
+    state.outputScroll = static_cast<std::size_t>(scroll);
 }
 
 std::string ideTrim(const std::string& text) {
@@ -3071,6 +3109,10 @@ void ideRender(IdeState& state) {
     helpLines.push_back("            Left/Right cross line boundaries");
     helpLines.push_back("            Long lines wrap; every row repeats its line number");
     helpLines.push_back("");
+    helpLines.push_back("  Output:   ^] moves the focus to the output panel");
+    helpLines.push_back("            Up/Down scroll it, PgUp/PgDn page, Home/End ends");
+    helpLines.push_back("            any other key hands the focus back to the file");
+    helpLines.push_back("");
     helpLines.push_back("  Up to 9 files open at once; the bottom FILES list shows them.");
     helpLines.push_back("  Non-text files (.pdf, .png, .docx, ...) are never opened.");
     helpLines.push_back("  Syntax highlighting is enabled for .lynx files only.");
@@ -3141,7 +3183,9 @@ void ideRender(IdeState& state) {
         }
         left = idePad(ideClamp(left, static_cast<std::size_t>(explorerWidth - 1)),
                       static_cast<std::size_t>(explorerWidth - 1));
-        left += ideFg(IC_MUTED) + "|" + kIdeReset;
+        // The separator between the tree and the editor gets a background of
+        // its own, so the two columns never run into each other.
+        left += ideBg(IC_PANEL) + ideFg(IC_MUTED) + "|" + kIdeReset;
 
         // Editor column.
         const int editorWidth = columns - explorerWidth;
@@ -3173,11 +3217,16 @@ void ideRender(IdeState& state) {
                                            ? offsets[segment + 1]
                                            : text.size();
                 std::ostringstream gutter;
-                gutter << std::setw(ideGutterColumns(state) - 3)
-                       << (lineIndex + 1) << " | ";
+                // The separator between the line number and the text gets a
+                // background of its own, so the gutter never runs into the
+                // code.
+                gutter << ideFg(IC_GUTTER)
+                       << std::setw(ideGutterColumns(state) - 3)
+                       << (lineIndex + 1) << ideBg(IC_PANEL) << ideFg(IC_MUTED)
+                       << " | " << kIdeReset;
                 const bool current = lineIndex == buffer.cursorLine;
                 editorRows[static_cast<std::size_t>(row)] =
-                    ideFg(IC_GUTTER) + gutter.str() + kIdeReset +
+                    gutter.str() +
                     ideRenderLine(text, lynx, from, to,
                                   buffer.cursorColumn, current) +
                     kIdeReset;
@@ -3220,14 +3269,12 @@ void ideRender(IdeState& state) {
                     << kIdeReset << ideFg(IC_MUTED)
                     << "    ^R run  ^L lint  ^T format  ^Y build  ^U run-project"
                     << kIdeReset;
-        ideSetRow(frame, outputStart, panelHeader.str(), columns, IC_PANEL);
+        ideSetRow(frame, outputStart, panelHeader.str(), columns,
+                  state.outputFocus ? IC_FOCUS : IC_PANEL);
         const std::vector<std::string> outputLines = ideSplitLines(state.output);
         const int visible = outputHeight - 1;
-        const std::size_t first = outputLines.size() >
-                                         static_cast<std::size_t>(visible)
-                                     ? outputLines.size() -
-                                           static_cast<std::size_t>(visible)
-                                     : 0;
+        const std::size_t first = std::min(state.outputScroll,
+                                           outputLines.size());
         for (int i = 0; i < visible; ++i) {
             const std::size_t index = first + static_cast<std::size_t>(i);
             std::string text = index < outputLines.size() ? outputLines[index] : std::string();
@@ -3238,7 +3285,8 @@ void ideRender(IdeState& state) {
                      text.find("Warning") != std::string::npos) color = IC_WARN;
             else if (!text.empty() && text[0] == '[') color = IC_INFO;
             ideSetRow(frame, outputStart + 1 + i,
-                      ideFg(color) + " " + text + kIdeReset, columns, IC_SURFACE);
+                      ideFg(color) + " " + text + kIdeReset, columns,
+                      state.outputFocus ? IC_FOCUS : IC_SURFACE);
         }
     }
 
@@ -3327,6 +3375,10 @@ void ideRender(IdeState& state) {
         } else if (state.prompt != IdePrompt::None) {
             hint = line == 0 ? " Enter Confirm   Esc Cancel   ^G Help"
                              : " ^O Open   ^S Save   ^X Exit   M-^C Commands";
+        } else if (state.outputFocus) {
+            hint = line == 0
+                       ? " Up/Down Scroll   PgUp/PgDn Page   Home/End Ends"
+                       : " ^] Back   ^Z Hide   ^G Help   ^X Exit";
         } else if (state.explorerFocus || !ideHasBuffer(state)) {
             hint = line == 0
                        ? " Up/Down Select   Enter Open/Close   Right In   Left Back"
@@ -3383,6 +3435,8 @@ void ideRunCommand(IdeState& state, const std::vector<std::string>& arguments,
     state.output = out.str();
     if (state.output.empty() || state.output.back() != '\n') state.output += '\n';
     state.showOutput = true;
+    // The newest output is what the panel shows.
+    ideOutputScrollToEnd(state);
     state.status = label + " finished [exit " +
                    std::to_string(captured.exitCode) + "]";
     if (lint) {
@@ -3782,7 +3836,15 @@ bool ideExecuteCommand(IdeState& state, IdeCommandId id) {
         case IdeCommandId::Clear:
             state.output.clear();
             state.diagnostics.clear();
+            state.outputScroll = 0;
             state.status = "Output cleared";
+            return false;
+        case IdeCommandId::FocusOutput:
+            state.showOutput = true;
+            state.outputFocus = !state.outputFocus;
+            if (state.outputFocus) ideOutputScrollToEnd(state);
+            state.status = state.outputFocus ? "Output: Up/Down scroll, ^] back"
+                                             : "Output closed";
             return false;
     }
     return false;
@@ -3978,6 +4040,25 @@ bool ideHandleKey(IdeState& state, const platform::KeyEvent& event) {
         return false;
     }
 
+    // The output panel takes the arrow keys while it has the focus, so the
+    // output of a run can be read without leaving the file. Any other key
+    // hands the focus back and is handled as usual.
+    if (state.outputFocus) {
+        const int page = ideOutputRows(state);
+        switch (key) {
+            case platform::KEY_UP: ideOutputScrollBy(state, -1); return false;
+            case platform::KEY_DOWN: ideOutputScrollBy(state, 1); return false;
+            case platform::KEY_PAGE_UP: ideOutputScrollBy(state, -page); return false;
+            case platform::KEY_PAGE_DOWN: ideOutputScrollBy(state, page); return false;
+            case platform::KEY_HOME:
+                state.outputScroll = 0;
+                return false;
+            case platform::KEY_END: ideOutputScrollToEnd(state); return false;
+            default: break;
+        }
+        state.outputFocus = false;
+    }
+
     // A lone Escape moves focus to the explorer, so the arrow keys can be
     // used to navigate the file tree as well as the editor.
     if (escape) {
@@ -4102,7 +4183,7 @@ int launchCliIde(const char* argv0,
         std::filesystem::absolute(state.interpreter, pathError);
     if (!pathError) state.interpreter = absolute.string();
     state.version = "Lynxer " +
-                    Config::instance().get("version", "0.1.9b2");
+                    Config::instance().get("version", "0.1.9b3");
 
     std::error_code cwdError;
     state.root = std::filesystem::current_path(cwdError).string();

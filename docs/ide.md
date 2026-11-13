@@ -35,7 +35,7 @@ the highlighted entry with Enter, or press its shortcut directly. Esc closes
 any overlay or prompt.
 
 ```text
-  LYNXER IDE Lynxer 0.1.9b2        File: program.lynx   Modified
+  LYNXER IDE Lynxer 0.1.9b3        File: program.lynx   Modified
   [program.lynx]
    1 | fn main(){
    2 |   println("Hello, Lynxer!");
@@ -117,6 +117,14 @@ the message line names the file and position.
 The panel stays hidden until a command produces output (`^Z` toggles it, `^K`
 clears it).
 
+**`^]` moves the focus to the output panel**, so the output of a run can be
+read without leaving the file. The panel scrolls with the arrow keys,
+`PgUp`/`PgDn` page through it and `Home`/`End` jump to its ends; any other
+key hands the focus back to the file and is handled as usual. The panel that
+has the focus is drawn on a lighter background, and the delimiter columns of
+the tree and the editor carry a background of their own so the panes never
+run into each other.
+
 ### Key bindings
 
 `^` means Ctrl, `M-^C` means Ctrl+Alt+C.
@@ -129,6 +137,7 @@ clears it).
 | `^B` | change folder |
 | `^P` / `^E` | focus sidebar / focus editor |
 | `^Z` / `^K` | toggle output panel / clear output |
+| `^]` | focus the output panel (and scroll it) |
 | `^F` / `^_` / `^D` | find / go to line / next match |
 | `^R` / `^L` / `^T` | run file / lint file / format file |
 | `^Y` / `^U` | build project / run project |

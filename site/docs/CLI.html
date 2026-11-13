@@ -191,7 +191,7 @@ lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its
 <h3 id="terminal-ide">Terminal IDE</h3>
 <p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
 <p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
-<p>Up to nine files can be open at once, the file tree marks non-text files with <code>B</code> and refuses to open them, and long lines are soft-wrapped like a paragraph: the text continues on the next row and every row repeats the line number in the gutter.</p>
+<p>Up to nine files can be open at once, the file tree marks non-text files with <code>B</code> and refuses to open them, and long lines are soft-wrapped like a paragraph: the text continues on the next row and every row repeats the line number in the gutter. <code>^]</code> moves the focus to the output panel, where the arrow keys scroll the output of the last run.</p>
 <p>See <a href="ide.html">ide</a> for the file tree, the editor, the output panel and the full key bindings.</p>
 <h2 id="exit-codes">Exit codes</h2>
 <table>
@@ -258,7 +258,7 @@ lynxer --emit-library app.lynx -o app.dll        # Windows</code></pre>
 <tr><td><code>--help</code></td><td><code>-h</code></td><td>print the usage summary</td></tr>
 <tr><td><code>--easterEgg</code></td><td><code>-easterEgg</code>, <code>--idklmao</code>, <code>-wnwnerbcyunwrbygnubeuyxnqybxun</code></td><td>print the easter egg</td></tr>
 </table>
-<p>The version string comes from the <code>version</code> key in <code>lynxer/lynxer.config</code> (currently <code>0.1.9b2</code>).</p>
+<p>The version string comes from the <code>version</code> key in <code>lynxer/lynxer.config</code> (currently <code>0.1.9b3</code>).</p>
 <h2 id="installing">Installing</h2>
 <pre><code>sudo lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
 sudo lynxer --uninstall    # remove the installed interpreter</code></pre>

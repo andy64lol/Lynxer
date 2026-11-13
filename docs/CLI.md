@@ -108,7 +108,8 @@ any overlay or prompt.
 Up to nine files can be open at once, the file tree marks non-text files with
 `B` and refuses to open them, and long lines are soft-wrapped like a
 paragraph: the text continues on the next row and every row repeats the line
-number in the gutter.
+number in the gutter. `^]` moves the focus to the output panel, where the
+arrow keys scroll the output of the last run.
 
 See [ide.md](ide.md) for the file tree, the editor, the output panel and the
 full key bindings.
@@ -292,7 +293,7 @@ interpreter's `stdlib/` directory together with its `////` docstring, and exits
 | `--easterEgg` | `-easterEgg`, `--idklmao`, `-wnwnerbcyunwrbygnubeuyxnqybxun` | print the easter egg |
 
 The version string comes from the `version` key in `lynxer/lynxer.config`
-(currently `0.1.9b2`).
+(currently `0.1.9b3`).
 
 ## Installing
 
