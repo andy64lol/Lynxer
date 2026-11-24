@@ -256,11 +256,20 @@ impl Parser {
                 }
                 continue;
             }
-            let pname = self.expect_ident()?;
-            let pty = if self.match_kind(TokenKind::Colon) {
-                self.expect_type_name()?
+            let (pname, pty) = if self.is_type_keyword() {
+                // Wynxer style (type first): `str name`
+                let ty = self.expect_type_name()?;
+                let name = self.expect_ident()?;
+                (name, ty)
             } else {
-                "any".to_string()
+                // Colon style: `name: str`
+                let name = self.expect_ident()?;
+                let ty = if self.match_kind(TokenKind::Colon) {
+                    self.expect_type_name()?
+                } else {
+                    "any".to_string()
+                };
+                (name, ty)
             };
             params.push((pname, pty));
             if !self.match_kind(TokenKind::Comma) {

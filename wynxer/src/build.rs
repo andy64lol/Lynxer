@@ -192,7 +192,18 @@ pub fn render_page(page: &wpf::Page, css_href: &str, js_href: &str) -> String {
 }
 
 /// Transpile a Wynxer script (.wynx) to JavaScript (best-effort).
+/// Transpile a Wynxer script to JavaScript using the real parser/AST.
+/// Falls back to the legacy line-based transpiler if parsing fails, so an
+/// unfinished script still produces output rather than nothing.
 pub fn transpile_script(source: &str) -> String {
+    match crate::parser::parse_module(source) {
+        Ok(module) => crate::backend::js::emit(&module),
+        Err(_) => transpile_script_line_based(source),
+    }
+}
+
+/// Legacy line-based transpiler (kept as a fallback for unparseable scripts).
+fn transpile_script_line_based(source: &str) -> String {
     let mut out = String::new();
     for line in source.lines() {
         let t = line.trim();
@@ -211,7 +222,9 @@ pub fn transpile_script(source: &str) -> String {
         }
         if t.starts_with("export ") {
             let name = t.trim_start_matches("export ").trim_end_matches(';').trim();
-            out.push_str(&format!("export {{ {} }};\n", name));
+            // Plain <script src="app.js"> is not an ES module, so a real
+            // `export` statement would be a syntax error in the browser.
+            out.push_str(&format!("// export {}\n", name));
             continue;
         }
         // alert("...") stays as-is; println -> console.log.
