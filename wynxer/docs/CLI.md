@@ -16,32 +16,43 @@ wynxer --version
 | `wynxer version` | Print the version and exit |
 | `wynxer elements` | List every element kind Wynxer understands (56 kinds) |
 | `wynxer parse <file.wpf>` | Parse a `.wpf` file and print its structure |
-| `wynxer build [path]` | Compile a project into `build/` (JS, WASM, HTML, CSS) — planned |
-| `wynxer serve [path] [--port N]` | Dev server with live reload — planned |
-| `wynxer check [path]` | Parse + typecheck + WPF validation — planned |
+| `wynxer build [path]` | Compile a project into `build/` (JS, WASM, HTML, CSS) |
+| `wynxer serve [path] [--port N]` | Dev server serving the build directory |
+| `wynxer check [path]` | Parse + validate element kinds |
+| `wynxer init [name]` | Scaffold a new project in the current directory |
+| `wynxer run [path] [--port N]` | Build, then serve on the port from `.wynxcfg` |
 
 ## Running a program
 
 ```bash
+wynxer init my-app # scaffold a project (creates .wynxcfg)
+cd my-app
 wynxer build       # compile the project in the current directory
-wynxer serve       # serve it on http://localhost:3000
+wynxer run         # build, then serve on http://localhost:<port>
 ```
 
 Anything the parser does not recognise is treated as an error.
 
 ## Projects
 
-A Wynxer project is a directory with a `wynxer.config` file and an `index.wpf`
-entry page:
+A Wynxer project is a directory with a `.wynxcfg` file and an `index.wpf`
+entry page. `wynxer --init` generates this layout and refuses to overwrite
+existing files:
 
 ```
 my-app/
-  wynxer.config
+  .wynxcfg        # project settings (name, entry, script, output, port)
+  README.md
   index.wpf
   app.wynx
   styles.css
+  .gitignore
   build/          # generated output
 ```
+
+`.wynxcfg` uses the same `key = value` format as `lynxer.config`. `--init`
+creates a starter page, script, and stylesheet; `--run` reads `output` and
+`port` from the config (override the port with `wynxer run --port N`).
 
 ## Exit codes
 

@@ -7,7 +7,7 @@ work to take it from scaffolding to a usable web toolchain.
 
 ## 0. Project setup
 - [x] Create the `wynxer/` crate (Cargo.toml, version 0.1.0, MIT licence).
-- [x] Wire up the CLI shell (`wynxer version`, `build`, `serve`, `check`).
+- [x] Wire up the CLI shell (`wynxer version`, `elements`, `parse`, `build`, `serve`, `check`, `init`, `run`).
 - [x] Add a README and example files.
 - [x] Add a `wynxer.config` with name, version and CLI messages (mirror lynxer).
 - [x] Add CI workflow for Wynxer (build + test on Linux and Windows).
@@ -64,7 +64,9 @@ work to take it from scaffolding to a usable web toolchain.
 - [ ] WASM size budget / tree-shaking.
 
 ## 5. Build and project model
-- [ ] `wynxer.config` (name, version, entry, output dir).
+- [x] `wynxer.config` (name, version, entry, output dir).
+- [x] `wynxer init [name]` — scaffold a project (README, index.wpf, app.wynx, styles.css, .gitignore, `.wynxcfg`, build/); refuses to overwrite.
+- [x] `wynxer run [path] [--port N]` — build, then serve; reads output/port from `.wynxcfg`.
 - [x] `wynxer build` — emit `build/` with index.html, *.js, *.css (HTML from .wpf, JS transpiled from .wynx and inline scripts, CSS concatenated).
 - [x] `wynxer serve` — minimal HTTP dev server serving the build directory.
 - [x] `wynxer check` — parse + validate element kinds.

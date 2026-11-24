@@ -39,6 +39,19 @@ pub enum Command {
         #[arg(default_value = ".")]
         path: String,
     },
+    /// Scaffold a new Wynxer project in the current directory.
+    Init {
+        /// Optional project name (defaults to the directory name).
+        name: Option<String>,
+    },
+    /// Build the project and serve it on the configured port.
+    Run {
+        #[arg(default_value = ".")]
+        path: String,
+        /// Override the port from .wynxcfg.
+        #[arg(long)]
+        port: Option<u16>,
+    },
 }
 
 pub fn run() -> i32 {
@@ -134,6 +147,35 @@ pub fn run() -> i32 {
             match crate::build::check_project(dir) {
                 Ok(()) => 0,
                 Err(e) => { eprintln!("wynxer: check failed: {}", e); 1 }
+            }
+        }
+        Some(Command::Init { name }) => {
+            let dir = std::path::Path::new(".");
+            match crate::init::init_project(dir, name.as_deref()) {
+                Ok(msg) => { println!("{}", msg); 0 }
+                Err(e) => { eprintln!("wynxer: {}", e); 1 }
+            }
+        }
+        Some(Command::Run { path, port }) => {
+            let dir = std::path::Path::new(&path);
+            // Build first (mirrors `lynxer --run` building before launching).
+            if let Err(e) = crate::build::build_project(dir) {
+                eprintln!("wynxer: build failed: {}", e);
+                return 1;
+            }
+            // Determine port from .wynxcfg, with an optional CLI override.
+            let config = crate::init::read_config(dir);
+            let port = port.unwrap_or_else(|| {
+                use crate::init::config_get;
+                config_get(&config, "port", "3000")
+                    .parse::<u16>()
+                    .unwrap_or(3000)
+            });
+            let output = crate::init::config_get(&config, "output", "build");
+            let serve_dir = dir.join(output);
+            match crate::build::serve(&serve_dir, port) {
+                Ok(()) => 0,
+                Err(e) => { eprintln!("wynxer: serve failed: {}", e); 1 }
             }
         }
     }

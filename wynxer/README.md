@@ -21,6 +21,23 @@ cargo build
 cargo run -- version
 ```
 
+## Start a project
+
+Like `lynxer --init`, `wynxer init [name]` scaffolds a project in the current
+directory and refuses to overwrite existing files. It generates `index.wpf`,
+`app.wynx`, `styles.css`, a `README.md`, a `.gitignore`, and a `.wynxcfg`
+configuration file (the Wynxer equivalent of `lynxer.config`):
+
+```bash
+wynxer init my-app
+cd my-app
+wynxer build        # generate build/index.html, app.js, styles.css
+wynxer run          # build, then serve on the port from .wynxcfg (default 3000)
+```
+
+`.wynxcfg` uses `key = value` lines (`name`, `entry`, `script`, `output`,
+`port`). Override the port with `wynxer run --port N`.
+
 ## Example
 
 See `examples/`: `index.wpf` is the page (using the WPF DSL), `app.wynx` is

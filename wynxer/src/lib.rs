@@ -12,6 +12,7 @@ pub mod ast;
 pub mod build;
 pub mod cli;
 pub mod diagnostic;
+pub mod init;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
