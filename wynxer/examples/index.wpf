@@ -1,0 +1,21 @@
+import script app;
+import styles styles;
+
+page index{
+    page.title = "Main";
+    contents {
+        element.header1("Hello World!"){styles.blue-text};
+        ignore(".blue-text behind the elements from the css");
+        element.button("Click me!", app.onClick);
+        element.newline();
+        element.text("This is written in Wynxer!"){styles.blue-text};
+        element.button("Greet me!", local.main);
+    };
+    scripts {
+        // local scripts
+        fn main(){
+            alert("Hello!");
+        }
+        export main;
+    }
+}

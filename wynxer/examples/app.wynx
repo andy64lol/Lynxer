@@ -1,0 +1,5 @@
+fn onClick() {
+    alert("clicked")
+}
+
+export onClick;

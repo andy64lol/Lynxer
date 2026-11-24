@@ -26,6 +26,34 @@ fn main(){
 
 ---
 
+## Wynxer
+
+[Wynxer](wynxer/README.md) is a sibling project in this repository: a
+Lynxer-like language for the web. It borrows Lynxer's surface syntax —
+typed variables like `int x = 5;` (never `let`), `fn` functions, control
+flow, and macros — but targets websites instead of the native machine.
+Wynxer compiles logic to JavaScript/WebAssembly and pages written in
+`.wpf` (Wynxer Page Format) to HTML and CSS, so authors never write HTML
+by hand.
+
+It is a separate binary (version 0.1.0) with a Rust backend, built from
+the `wynxer/` directory:
+
+```bash
+cd wynxer
+cargo build
+cargo run -- parse examples/index.wpf
+cargo run -- build examples/
+cargo run -- elements
+```
+
+See [wynxer/README.md](wynxer/README.md) and
+[wynxer/docs/](wynxer/docs/README.md) for the full CLI, language, and WPF
+references. Wynxer shares only language concepts with Lynxer — the two
+codebases are independent.
+
+---
+
 ## Platforms
 
 Lynxer supports **64-bit Linux** and **64-bit Windows** on `amd64` and `arm64`.
@@ -151,6 +179,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | Resource | Link |
 |----------|------|
 | GitHub repository | <https://github.com/andy64lol/Lynxer> |
+| Wynxer (web language) | [wynxer/README.md](wynxer/README.md) |
 
 ---
 
@@ -161,6 +190,10 @@ lynxer/        The interpreter and its standard library
   *.cpp, *.hpp   Lexer, parser, interpreter, optimizer, formatter, CLI
   stdlib/        Native and pure stdlib modules
   rust/          Rust-backed native modules
+wynxer/        Sibling web language (separate Rust binary, v0.1.0)
+  src/           Lexer, parser, AST, WPF parser, build pipeline
+  docs/          CLI, language, WPF, and element references
+  examples/      .wpf page, .wynx script, and stylesheet
 docs/          Documentation (Markdown source)
 editors/       Editor and shell integrations (VS Code, Zed, PowerShell, Clink)
 site/          Static website: home page plus docs/ rendered to HTML

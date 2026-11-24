@@ -1,0 +1,11 @@
+# Rust build artifacts
+/target/
+
+# Generated build output from `wynxer build`
+examples/build/
+build/
+
+# Editor / OS files
+*.swp
+*.swo
+.DS_Store

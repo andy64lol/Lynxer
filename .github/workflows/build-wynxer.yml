@@ -1,0 +1,54 @@
+name: Build Wynxer
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+
+jobs:
+  build-linux:
+    name: Build and test Wynxer on Linux
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wynxer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+      - name: Build
+        run: cargo build --release
+      - name: Test
+        run: cargo test
+      - name: Version check
+        run: ./target/release/wynxer --version
+
+  build-windows:
+    name: Build and test Wynxer on Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: wynxer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+      - name: Build
+        run: cargo build --release
+      - name: Test
+        run: cargo test
+      - name: Version check
+        run: ./target/release/wynxer.exe --version

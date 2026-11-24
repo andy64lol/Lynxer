@@ -13,6 +13,8 @@ lynxer/*.dll.a
 lynxer/build/
 lynxer/rust/target/
 lynxer/rust/*/target/
+wynxer/target/
+wynxer/examples/build/
 editors/zed/target/
 lynxer/runtime/
 
