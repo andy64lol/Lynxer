@@ -21,6 +21,25 @@ wynxer --version
 | `wynxer check [path]` | Parse + validate element kinds |
 | `wynxer init [name]` | Scaffold a new project in the current directory |
 | `wynxer run [path] [--port N]` | Build, then serve on the port from `.wynxcfg` |
+| `wynxer ast <file>` | Print the parsed AST of a `.wynx` or `.wpf` file |
+| `wynxer lint <file>` | Lint a script/page (unused variables, no `let`, unknown elements) |
+| `wynxer format <file> [--write]` | Format a `.wynx` script (print or write back) |
+
+## Errors and tooling
+
+Parse and lint errors are reported with a source excerpt and caret:
+
+```text
+app.wynx:3:1: error: expected Semicolon
+     |
+   3 | }
+     | ^ expected Semicolon
+```
+
+`wynxer ast` dumps the full AST (`{:#?}`) for debugging the parser.
+`wynxer lint` flags unused variables, `let` declarations (Wynxer uses typed
+declarations), and unknown `.wpf` element kinds. `wynxer format` normalises
+indentation/operators and writes to stdout unless `--write` is given.
 
 ## Running a program
 

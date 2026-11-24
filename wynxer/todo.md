@@ -22,8 +22,8 @@ work to take it from scaffolding to a usable web toolchain.
 - [x] WPF element registry with common-sense APIs (header1..header6, text, button, newline, paragraph, image, link, input, div, span, list, table, etc. — 56 kinds).
 - [x] Type checker with basic validation (`wynxer check` validates element kinds and parse the project).
 - [x] Borrow the macro system from Lynxer (`pub`, `*args`, codeblock parameters) — parser handles `pub fn`, `*args`, `...` variadics, codeblock params; 3 dedicated tests.
-- [ ] Error reporting with source locations (file:line:column + caret).
-- [ ] `--ast`, `--lint`, `--format` style tooling, like lynxer.
+- [x] Error reporting with source locations (file:line:column + caret) — `diagnostic.rs` renders source excerpts; wired into parse/ast/lint.
+- [x] `--ast`, `--lint`, `--format` style tooling, like lynxer — `ast`, `lint`, `format [--write]` subcommands.
 - [x] Unit tests for the lexer and parser (22 tests pass: 8 lexer + 14 parser).
 
 ## 2. WPF (Wynxer Page Format)

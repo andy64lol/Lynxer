@@ -52,6 +52,24 @@ pub enum Command {
         #[arg(long)]
         port: Option<u16>,
     },
+    /// Print the parsed AST of a .wynx or .wpf file.
+    Ast {
+        /// Path to the source file.
+        path: String,
+    },
+    /// Lint a .wynx script or .wpf page for common issues.
+    Lint {
+        /// Path to the source file.
+        path: String,
+    },
+    /// Format a .wynx script (prints to stdout; use --write to save).
+    Format {
+        /// Path to the .wynx file.
+        path: String,
+        /// Write the formatted source back to the file.
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 pub fn run() -> i32 {
@@ -95,7 +113,7 @@ pub fn run() -> i32 {
                                 0
                             }
                             Err(e) => {
-                                eprintln!("wynxer: parse error: {}", e);
+                                eprintln!("{}", crate::diagnostic::format_parse_error(&e, &source, Some(&path)));
                                 1
                             }
                         }
@@ -114,7 +132,7 @@ pub fn run() -> i32 {
                                 0
                             }
                             Err(e) => {
-                                eprintln!("wynxer: parse error: {}", e);
+                                eprintln!("{}", crate::diagnostic::format_parse_error(&e, &source, Some(&path)));
                                 1
                             }
                         }
@@ -176,6 +194,79 @@ pub fn run() -> i32 {
             match crate::build::serve(&serve_dir, port) {
                 Ok(()) => 0,
                 Err(e) => { eprintln!("wynxer: serve failed: {}", e); 1 }
+            }
+        }
+        Some(Command::Ast { path }) => {
+            match fs::read_to_string(&path) {
+                Ok(source) => {
+                    if path.ends_with(".wpf") {
+                        match crate::wpf::parse(&source) {
+                            Ok(file) => {
+                                println!("{:#?}", file);
+                                0
+                            }
+                            Err(e) => {
+                                eprintln!("{}", crate::diagnostic::format_parse_error(&e, &source, Some(&path)));
+                                1
+                            }
+                        }
+                    } else {
+                        match crate::parser::parse_module(&source) {
+                            Ok(module) => {
+                                println!("{:#?}", module);
+                                0
+                            }
+                            Err(e) => {
+                                eprintln!("{}", crate::diagnostic::format_parse_error(&e, &source, Some(&path)));
+                                1
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("wynxer: cannot read '{}': {}", path, e);
+                    1
+                }
+            }
+        }
+        Some(Command::Lint { path }) => {
+            match fs::read_to_string(&path) {
+                Ok(source) => {
+                    let (diagnostics, had_error) = if path.ends_with(".wpf") {
+                        crate::lint::lint_wpf(&source, Some(&path))
+                    } else {
+                        crate::lint::lint_script(&source, Some(&path))
+                    };
+                    for d in &diagnostics {
+                        println!("{}", d.render(Some(&source)));
+                    }
+                    if had_error { 1 } else { 0 }
+                }
+                Err(e) => {
+                    eprintln!("wynxer: cannot read '{}': {}", path, e);
+                    1
+                }
+            }
+        }
+        Some(Command::Format { path, write }) => {
+            match fs::read_to_string(&path) {
+                Ok(source) => {
+                    let formatted = crate::format::format_script(&source);
+                    if write {
+                        if let Err(e) = fs::write(&path, &formatted) {
+                            eprintln!("wynxer: cannot write '{}': {}", path, e);
+                            return 1;
+                        }
+                        println!("wynxer: formatted {}", path);
+                    } else {
+                        print!("{}", formatted);
+                    }
+                    0
+                }
+                Err(e) => {
+                    eprintln!("wynxer: cannot read '{}': {}", path, e);
+                    1
+                }
             }
         }
     }
