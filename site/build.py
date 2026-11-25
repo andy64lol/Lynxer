@@ -38,6 +38,10 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("Runtime",
      ["async.md", "native-memory.md", "filesystem.md", "networking.md", "process.md"]),
     ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md", "embedding.md", "windows.md", "windows-api.md", "winapi/windows-amd64.md", "winapi/windows-arm64.md"]),
+    ("Wynxer (web language)",
+     ["wynxer.md", "wynxer-language.md", "wynxer-wpf.md", "wynxer-cli.md", "wynxer-js-abi.md"]),
+    ("Bobcat (IDEs)",
+     ["bobcat.md", "bobcat-cli.md", "bobcat-ide.md"]),
 ]
 
 STDLIB_MODULES = [
@@ -342,6 +346,8 @@ TEMPLATE = """<!DOCTYPE html>
     <main class="doc">
         <div class="breadcrumb">
             <a href="{rel}index.html">Home</a>
+            <a href="{rel}docs/wynxer.html">Wynxer</a>
+            <a href="{rel}docs/bobcat.html">Bobcat</a>
             <a href="{rel}docs/stdlib/index.html">Standard Library</a>
             <span>{title}</span>
         </div>

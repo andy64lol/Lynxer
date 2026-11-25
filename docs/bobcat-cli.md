@@ -1,0 +1,49 @@
+# Bobcat CLI IDE
+
+A standalone full-screen terminal IDE, extracted from Lynxer's built-in
+`--cli-ide` (which remains intact in `lynxer/shell.cpp`). Built with ratatui
+and crossterm.
+
+## Features
+
+- Full-screen editor with line numbers, cursor highlight, scrolling, and a
+  status bar (`Ln/Col`, engine, dirty marker).
+- Output panel (toggle with `Ctrl+P`) showing stdout, stderr and exit code
+  from Run / Lint / Format.
+- Auto-detects the engine from the file extension:
+  - `.lynx` → `lynxer` (`lynxer <file>`, `--lint`, `--format`)
+  - `.wynx` / `.wpf` → `wynxer` (`wynxer build <dir>`, `lint`, `format --write`)
+- Saves before running, reloads the file after formatting.
+- No compiler embedded: `lynxer` and/or `wynxer` must be on `PATH`.
+
+## Build and run
+
+```bash
+cd bobcat/cli
+cargo build --release
+./target/release/bobcat-cli            # start empty
+./target/release/bobcat-cli app.lynx   # open a file on startup
+```
+
+## Keys
+
+| Key | Action |
+| --- | --- |
+| `Ctrl+O` | Open file (prompt at the status bar) |
+| `Ctrl+S` | Save |
+| `F5` | Run |
+| `F6` | Lint |
+| `F7` | Format |
+| `Ctrl+P` | Toggle output panel |
+| `F1` | Key help |
+| `Esc` | Close output panel |
+| `Ctrl+Q` | Quit |
+| Arrows / Home / End / PageUp / PageDown | Move cursor |
+| Backspace / Delete / Enter / Tab | Edit (`Tab` = four spaces) |
+
+## Relationship to the original
+
+The standalone Rust IDE reimplements the original editor UX. A verbatim copy
+of the C++ terminal IDE code (`ideRender`, `IdeState`, `ideHandleKey`,
+`runCliIde`) lives in `bobcat/cli/extracted/cli_ide_extract.cpp` as a reference
+for further porting. Nothing was removed from Lynxer.

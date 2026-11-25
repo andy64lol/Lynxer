@@ -273,3 +273,27 @@ Use a bare function name in its own module and `<module>.<function>(...)` after
 importing another module. The old `global`, `local`, and `func` declaration
 keywords remain accepted with deprecation warnings; see
 [functions.md](functions.md#deprecated-declaration-keywords).
+
+## Sister projects
+
+These projects live in this repository but have their own sources and docs.
+
+**Wynxer** — a web language that compiles to JS/WASM, HTML and CSS, with
+`.wpf` pages and typed Lynxer-style syntax (no `let`).
+
+| Document | What it covers |
+| --- | --- |
+| [wynxer.md](wynxer.md) | Overview, quick start and project layout |
+| [wynxer-language.md](wynxer-language.md) | Types, functions, control flow, structs, enums, macros |
+| [wynxer-wpf.md](wynxer-wpf.md) | The `.wpf` page format and all 56 element kinds |
+| [wynxer-cli.md](wynxer-cli.md) | CLI commands, `.wynxcfg` and error format |
+| [wynxer-js-abi.md](wynxer-js-abi.md) | JS interop ABI and Node/npm packages |
+
+**Bobcat** — standalone IDEs extracted from Lynxer's editors, with the
+originals left in place.
+
+| Document | What it covers |
+| --- | --- |
+| [bobcat.md](bobcat.md) | Overview and relationship to Lynxer |
+| [bobcat-cli.md](bobcat-cli.md) | Terminal IDE: keys, engine detection, build/run |
+| [bobcat-ide.md](bobcat-ide.md) | Native GUI IDE: features and runtime dependency |
