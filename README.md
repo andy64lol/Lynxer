@@ -54,6 +54,25 @@ codebases are independent.
 
 ---
 
+## Bobcat
+
+[Bobcat](bobcat/README.md) is a separate IDE project extracted from Lynxer's
+editors. It provides two independent frontends — a **standalone terminal IDE**
+(`bobcat/cli`, built with ratatui) for `.lynx`/`.wynx`/`.wpf` files, and a
+**native GUI IDE** (`bobcat/ide`, a rebranded iced frontend). Both shell out to
+`lynxer`/`wynxer` for Run, Lint and Format; neither embeds a compiler. The
+originals — Lynxer's `--cli-ide` in `lynxer/shell.cpp` and `lynxer/ide/` — are
+left untouched.
+
+```bash
+cd bobcat/cli && cargo build --release   # ./target/release/bobcat-cli [file]
+cd ../ide && cargo build --release        # ./target/release/bobcat-ide
+```
+
+See [bobcat/README.md](bobcat/README.md) for keys and details.
+
+---
+
 ## Platforms
 
 Lynxer supports **64-bit Linux** and **64-bit Windows** on `amd64` and `arm64`.
@@ -180,6 +199,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 |----------|------|
 | GitHub repository | <https://github.com/andy64lol/Lynxer> |
 | Wynxer (web language) | [wynxer/README.md](wynxer/README.md) |
+| Bobcat (standalone IDEs) | [bobcat/README.md](bobcat/README.md) |
 
 ---
 
@@ -194,6 +214,9 @@ wynxer/        Sibling web language (separate Rust binary, v0.1.0)
   src/           Lexer, parser, AST, WPF parser, build pipeline
   docs/          CLI, language, WPF, and element references
   examples/      .wpf page, .wynx script, and stylesheet
+bobcat/        Standalone IDEs extracted from Lynxer's editors
+  cli/           Terminal IDE (ratatui) — bobcat-cli
+  ide/           Native GUI IDE (iced) — bobcat-ide
 docs/          Documentation (Markdown source)
 editors/       Editor and shell integrations (VS Code, Zed, PowerShell, Clink)
 site/          Static website: home page plus docs/ rendered to HTML

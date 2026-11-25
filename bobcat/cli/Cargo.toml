@@ -1,0 +1,13 @@
+[package]
+name = "bobcat-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Bobcat CLI IDE - a standalone terminal IDE extracted from Lynxer's --cli-ide"
+
+[dependencies]
+ratatui = "=0.24.0"
+crossterm = "=0.27.0"
+
+[profile.release]
+opt-level = 3
+strip = true

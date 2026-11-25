@@ -1,0 +1,4 @@
+cli/target/
+ide/target/
+*.swp
+.DS_Store
