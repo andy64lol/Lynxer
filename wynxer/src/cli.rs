@@ -8,6 +8,18 @@ use std::fs;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Install npm packages via Node/npm and record them in .wynxcfg.
+    #[arg(long, value_name = "PACKAGE", num_args = 1..)]
+    pub add: Option<Vec<String>>,
+
+    /// Uninstall npm packages via Node/npm and update .wynxcfg.
+    #[arg(long, value_name = "PACKAGE", num_args = 1..)]
+    pub remove: Option<Vec<String>>,
+
+    /// With --add, save packages as devDependencies.
+    #[arg(long, requires = "add")]
+    pub dev: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -74,6 +86,23 @@ pub enum Command {
 
 pub fn run() -> i32 {
     let cli = Cli::parse();
+
+    // Node/npm package management: `wynxer --add pkg [--dev]` and
+    // `wynxer --remove pkg`. These take precedence over subcommands.
+    let dir = std::path::Path::new(".");
+    if let Some(packages) = &cli.add {
+        match crate::init::add_packages(dir, packages, cli.dev) {
+            Ok(msg) => { println!("{}", msg); return 0; }
+            Err(e) => { eprintln!("wynxer: {}", e); return 1; }
+        }
+    }
+    if let Some(packages) = &cli.remove {
+        match crate::init::remove_packages(dir, packages) {
+            Ok(msg) => { println!("{}", msg); return 0; }
+            Err(e) => { eprintln!("wynxer: {}", e); return 1; }
+        }
+    }
+
     match cli.command {
         None | Some(Command::Version) => {
             println!("wynxer {}", env!("CARGO_PKG_VERSION"));

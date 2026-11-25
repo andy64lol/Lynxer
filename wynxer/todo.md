@@ -67,6 +67,8 @@ work to take it from scaffolding to a usable web toolchain.
 - [x] `wynxer.config` (name, version, entry, output dir).
 - [x] `wynxer init [name]` — scaffold a project (README, index.wpf, app.wynx, styles.css, .gitignore, `.wynxcfg`, build/); refuses to overwrite.
 - [x] `wynxer run [path] [--port N]` — build, then serve; reads output/port from `.wynxcfg`.
+- [x] Node/npm package support: `wynxer --add <pkg> [--dev]` / `--remove <pkg>` run npm, update `.wynxcfg` (deps/devDeps) and generate/sync `package.json`.
+- [x] JS interop ABI (`wynxer_js_abi_v1`): `js`, `jsExpr`, `jsImport`, `jsRequire`, `jsGlobal` builtins; configurable browser/node-esm/node-cjs module target.
 - [x] `wynxer build` — emit `build/` with index.html, *.js, *.css (HTML from .wpf, JS transpiled from .wynx and inline scripts, CSS concatenated).
 - [x] `wynxer serve` — minimal HTTP dev server serving the build directory.
 - [x] `wynxer check` — parse + validate element kinds.

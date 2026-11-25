@@ -7,6 +7,14 @@
 //! rather than copied verbatim.
 
 use crate::ast::{Expr, Module, Stmt};
+use crate::jsabi::{self, Target};
+
+/// Configure the emitter's module target (defaults to Browser).
+pub fn emit_with_target(module: &Module, target: Target) -> String {
+    let mut emitter = JsEmitter::new();
+    emitter.target = target;
+    emitter.emit_module(module)
+}
 
 /// Map a parser operator spelling (`EqEq`, `Plus`, ...) to its JS form.
 fn op_to_js(op: &str) -> &str {
@@ -33,6 +41,7 @@ fn op_to_js(op: &str) -> &str {
 pub struct JsEmitter {
     out: String,
     indent: usize,
+    target: Target,
 }
 
 impl JsEmitter {
@@ -40,6 +49,7 @@ impl JsEmitter {
         Self {
             out: String::new(),
             indent: 0,
+            target: Target::Browser,
         }
     }
 
@@ -59,6 +69,26 @@ impl JsEmitter {
             Expr::Bool(b) => b.to_string(),
             Expr::None => "undefined".to_string(),
             Expr::Ident(name) => name.clone(),
+            // ---- JS ABI builtins ----
+            Expr::Call { callee, args } if jsabi::is_raw_expression(callee) => {
+                jsabi::string_arg(args, 0).unwrap_or_else(|| "undefined".to_string())
+            }
+            Expr::Call { callee, args } if jsabi::is_require(callee) => {
+                let pkg = jsabi::string_arg(args, 0).unwrap_or_default();
+                format!("require(\"{}\")", pkg)
+            }
+            Expr::Call { callee, args } if jsabi::is_global(callee) => {
+                jsabi::string_arg(args, 0).unwrap_or_else(|| "undefined".to_string())
+            }
+            Expr::Call { callee, args } if jsabi::is_import(callee) => {
+                // Imports are emitted as statements by emit_module; as an
+                // expression they resolve to the package's namespace.
+                let pkg = jsabi::string_arg(args, 0).unwrap_or_default();
+                match self.target {
+                    Target::NodeCommonJs => format!("require(\"{}\")", pkg),
+                    _ => format!("await import(\"{}\")", pkg),
+                }
+            }
             Expr::Call { callee, args } => {
                 let args = args.iter().map(|e| self.emit_expr(e)).collect::<Vec<_>>();
                 // Map Wynxer/Lynxer builtins to their web equivalents.
@@ -158,6 +188,19 @@ impl JsEmitter {
                 self.line(&format!("{} = {};", name, v));
             }
             Stmt::Expr(expr) => {
+                // Raw JS statement via the ABI: `js("...");`
+                if let Expr::Call { callee, args } = expr {
+                    if jsabi::is_raw_statement(callee) {
+                        if let Some(code) = jsabi::string_arg(args, 0) {
+                            // Raw code is emitted verbatim, one line at a time,
+                            // with the current indentation preserved.
+                            for raw in code.lines() {
+                                self.line(raw);
+                            }
+                            return;
+                        }
+                    }
+                }
                 let e = self.emit_expr(expr);
                 self.line(&format!("{};", e));
             }
@@ -286,13 +329,34 @@ impl JsEmitter {
     }
 
     pub fn emit_module(&mut self, module: &Module) -> String {
-        // Top-level comments for imports/exports recorded on the module.
+        // ABI header.
+        self.line(&jsabi::header(self.target).trim_end());
+
+        // Wynxer module imports that are not JS/npm packages stay as comments.
         for name in &module.imports {
             self.line(&format!("// import {}", name));
         }
         for name in &module.exports {
             self.line(&format!("// export {}", name));
         }
+
+        // Hoist `jsImport("pkg", "names")` calls found in function bodies into
+        // real module-level imports so ESM/CJS output is valid.
+        let mut imports: Vec<String> = Vec::new();
+        for func in &module.functions {
+            collect_js_imports(&func.body, self.target, &mut imports);
+        }
+        for stmt in &module.js_blocks {
+            // Top-level raw JS is emitted verbatim.
+            for raw in stmt.lines() {
+                self.line(raw);
+            }
+        }
+        for imp in imports {
+            self.line(&imp);
+        }
+        self.out.push('\n');
+
         for func in &module.functions {
             let params = func
                 .params
@@ -329,6 +393,49 @@ pub fn emit(module: &Module) -> String {
 
 fn escape_string(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")
+}
+
+/// Walk statements and collect `jsImport(...)` calls to hoist as module-level
+/// imports. Avoids duplicates so a package imported in two functions is
+/// emitted once.
+fn collect_js_imports(stmts: &[Stmt], target: Target, out: &mut Vec<String>) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Expr(Expr::Call { callee, args }) if jsabi::is_import(callee) => {
+                let pkg = jsabi::string_arg(args, 0).unwrap_or_default();
+                let names = jsabi::string_arg(args, 1).unwrap_or_default();
+                if pkg.is_empty() {
+                    continue;
+                }
+                let line = jsabi::emit_import(&pkg, &names, target);
+                if !out.contains(&line) {
+                    out.push(line);
+                }
+            }
+            Stmt::If { then_branch, else_branch, .. } => {
+                collect_js_imports(then_branch, target, out);
+                collect_js_imports(else_branch, target, out);
+            }
+            Stmt::While { body, .. } | Stmt::ForEach { body, .. } => {
+                collect_js_imports(body, target, out);
+            }
+            Stmt::For { body, .. } => collect_js_imports(body, target, out),
+            Stmt::Block(body) => collect_js_imports(body, target, out),
+            Stmt::Try { body, catch_body, .. } => {
+                collect_js_imports(body, target, out);
+                collect_js_imports(catch_body, target, out);
+            }
+            Stmt::Switch { cases, default, .. } => {
+                for (_, body) in cases {
+                    collect_js_imports(body, target, out);
+                }
+                if let Some(body) = default {
+                    collect_js_imports(body, target, out);
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 #[cfg(test)]
@@ -377,5 +484,37 @@ mod tests {
         assert!(js.contains("while (x < 3)"));
         assert!(js.contains("var x = 0;"));
         assert!(js.contains("return;"));
+    }
+
+    #[test]
+    fn test_raw_js_abi_statement() {
+        let module = parse_module("fn f() { js(\"console.log('raw');\"); }").unwrap();
+        let js = emit(&module);
+        assert!(js.contains("console.log('raw');"));
+        assert!(js.contains(jsabi::ABI_VERSION));
+    }
+
+    #[test]
+    fn test_raw_js_abi_expression() {
+        let module = parse_module("fn f() { int x = jsExpr(\"Date.now()\"); }").unwrap();
+        let js = emit(&module);
+        assert!(js.contains("var x = Date.now();"));
+    }
+
+    #[test]
+    fn test_js_import_hoisting() {
+        let module = parse_module("fn f() { jsImport(\"lodash\", \"map\"); }").unwrap();
+        let js = emit_with_target(&module, Target::NodeModule);
+        assert!(js.contains("import { map } from \"lodash\";"));
+        let cjs = emit_with_target(&module, Target::NodeCommonJs);
+        assert!(cjs.contains("const { map } = require(\"lodash\");"));
+    }
+
+    #[test]
+    fn test_top_level_js_block() {
+        let module = parse_module("js(\"const GLOBAL_X = 1;\"); fn f() { }").unwrap();
+        assert_eq!(module.js_blocks.len(), 1);
+        let js = emit(&module);
+        assert!(js.contains("const GLOBAL_X = 1;"));
     }
 }

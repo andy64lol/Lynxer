@@ -29,6 +29,7 @@ impl Parser {
             imports: Vec::new(),
             exports: Vec::new(),
             macros: Vec::new(),
+            js_blocks: Vec::new(),
         };
         while !self.at(TokenKind::Eof) {
             // Optional `pub` modifier applies to the next function/macro.
@@ -39,6 +40,28 @@ impl Parser {
                 false
             };
 
+            // JS ABI: `js("raw JavaScript");` at top level.
+            if self.check_ident("js") {
+                if let Some(TokenKind::LParen) = self.tokens.get(self.pos + 1).map(|t| &t.kind) {
+                    self.advance(); // js
+                    self.advance(); // (
+                    let code = match &self.current().kind {
+                        TokenKind::StrLit(s) => {
+                            let s = s.clone();
+                            self.advance();
+                            s
+                        }
+                        _ => {
+                            let tok = self.current();
+                            return Err(format!("js() expects a string literal at {}:{}", tok.line, tok.column));
+                        }
+                    };
+                    self.expect(TokenKind::RParen)?;
+                    self.expect(TokenKind::Semicolon)?;
+                    module.js_blocks.push(code);
+                    continue;
+                }
+            }
             if self.match_kind(TokenKind::Import) {
                 // import("dom");  /  import "dom";  /  import dom;
                 if self.check(TokenKind::LParen) {

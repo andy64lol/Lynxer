@@ -24,6 +24,22 @@ wynxer --version
 | `wynxer ast <file>` | Print the parsed AST of a `.wynx` or `.wpf` file |
 | `wynxer lint <file>` | Lint a script/page (unused variables, no `let`, unknown elements) |
 | `wynxer format <file> [--write]` | Format a `.wynx` script (print or write back) |
+| `wynxer --add <pkg>... [--dev]` | Install npm packages via Node/npm; record in `.wynxcfg` + `package.json` |
+| `wynxer --remove <pkg>...` | Uninstall npm packages via Node/npm; update `.wynxcfg` + `package.json` |
+
+## Node packages and the JS ABI
+
+```bash
+wynxer --add lodash chalk           # npm install, record in .wynxcfg deps
+wynxer --add typescript --dev       # save as devDependencies
+wynxer --remove chalk               # npm uninstall
+```
+
+`.wynxcfg` carries the node keys (`deps`, `devDeps`, `node`, `type`,
+`package_manager`, `target`). `wynxer build` keeps `package.json` in sync and
+selects the JS module target from `target`/`type`. Wynxer can call JavaScript
+through the `wynxer_js_abi_v1` builtins (`js`, `jsExpr`, `jsImport`,
+`jsRequire`, `jsGlobal`) — see [js-abi.md](js-abi.md).
 
 ## Errors and tooling
 
@@ -91,3 +107,4 @@ creates a starter page, script, and stylesheet; `--run` reads `output` and
 - [wpf.md](wpf.md) — the Wynxer Page Format
 - [elements.md](elements.md) — the complete element API
 - [language.md](language.md) — the Wynxer language
+- [js-abi.md](js-abi.md) — JS interop and Node/npm packages

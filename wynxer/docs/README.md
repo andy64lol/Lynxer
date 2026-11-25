@@ -19,6 +19,7 @@ Wynxer is a separate binary from `lynxer` and ships its own version
 | [wpf.md](wpf.md) | The Wynxer Page Format: pages, contents, elements, styles, scripts |
 | [elements.md](elements.md) | The complete element API (56 kinds) |
 | [stdlib.md](stdlib.md) | Built-in functions and the web standard library |
+| [js-abi.md](js-abi.md) | JS interop ABI (`js`, `jsExpr`, `jsImport`) and Node/npm packages |
 
 **Reference**
 

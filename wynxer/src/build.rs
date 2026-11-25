@@ -196,9 +196,30 @@ pub fn render_page(page: &wpf::Page, css_href: &str, js_href: &str) -> String {
 /// Falls back to the legacy line-based transpiler if parsing fails, so an
 /// unfinished script still produces output rather than nothing.
 pub fn transpile_script(source: &str) -> String {
+    transpile_script_with_target(source, crate::jsabi::Target::Browser)
+}
+
+/// Transpile with an explicit JS module target (browser / node-esm / node-cjs).
+pub fn transpile_script_with_target(source: &str, target: crate::jsabi::Target) -> String {
     match crate::parser::parse_module(source) {
-        Ok(module) => crate::backend::js::emit(&module),
+        Ok(module) => crate::backend::js::emit_with_target(&module, target),
         Err(_) => transpile_script_line_based(source),
+    }
+}
+
+/// Determine the JS target from a project's `.wynxcfg`.
+///
+/// `target = browser` (the default) emits bundler-friendly ES imports for a
+/// web page. `target = node` honours `type = module|commonjs`.
+pub fn target_from_dir(dir: &Path) -> crate::jsabi::Target {
+    use crate::jsabi::Target;
+    let config = crate::init::read_config(dir);
+    match crate::init::config_get(&config, "target", "browser") {
+        "node" | "nodejs" | "nodejs-esm" => match crate::init::config_get(&config, "type", "commonjs") {
+            "module" | "esm" => Target::NodeModule,
+            _ => Target::NodeCommonJs,
+        },
+        _ => Target::Browser,
     }
 }
 
@@ -263,11 +284,17 @@ pub fn build_project(dir: &Path) -> Result<(), String> {
     }
     fs::write(out_dir.join("styles.css"), css).map_err(|e| e.to_string())?;
 
-    // JS: transpile all .wynx files.
+    // Keep package.json in sync with .wynxcfg (node packages / engines).
+    if dir.join(crate::init::CONFIG_FILE).is_file() {
+        let _ = crate::init::sync_package_json(dir);
+    }
+
+    // JS: transpile all .wynx files using the configured module target.
+    let target = target_from_dir(dir);
     let mut js = String::new();
     if let Some(script_path) = find_script(dir) {
         if let Ok(src) = fs::read_to_string(&script_path) {
-            js.push_str(&transpile_script(&src));
+            js.push_str(&transpile_script_with_target(&src, target));
             js.push('\n');
         }
     }
@@ -275,7 +302,7 @@ pub fn build_project(dir: &Path) -> Result<(), String> {
     for page in &file.pages {
         for script in &page.scripts {
             if !script.source.trim().is_empty() {
-                js.push_str(&transpile_script(&script.source));
+                js.push_str(&transpile_script_with_target(&script.source, target));
                 js.push('\n');
             }
         }
@@ -356,4 +383,24 @@ pub fn serve(dir: &Path, port: u16) -> Result<(), String> {
         let _ = stream.write_all(&body);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_target_from_dir() {
+        let dir = std::env::temp_dir().join(format!("wynxer-target-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(".wynxcfg"), "target = browser\n").unwrap();
+        assert_eq!(target_from_dir(&dir), crate::jsabi::Target::Browser);
+        fs::write(dir.join(".wynxcfg"), "target = node\ntype = commonjs\n").unwrap();
+        assert_eq!(target_from_dir(&dir), crate::jsabi::Target::NodeCommonJs);
+        fs::write(dir.join(".wynxcfg"), "target = node\ntype = module\n").unwrap();
+        assert_eq!(target_from_dir(&dir), crate::jsabi::Target::NodeModule);
+        fs::remove_dir_all(&dir).ok();
+    }
 }

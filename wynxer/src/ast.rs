@@ -94,4 +94,6 @@ pub struct Module {
     pub imports: Vec<String>,
     pub exports: Vec<String>,
     pub macros: Vec<MacroDef>,
+    /// Raw JavaScript statements injected via the JS ABI (`js("...");`).
+    pub js_blocks: Vec<String>,
 }

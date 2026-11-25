@@ -36,7 +36,24 @@ wynxer run          # build, then serve on the port from .wynxcfg (default 3000)
 ```
 
 `.wynxcfg` uses `key = value` lines (`name`, `entry`, `script`, `output`,
-`port`). Override the port with `wynxer run --port N`.
+`port`, plus node keys `deps`, `devDeps`, `node`, `type`, `package_manager`,
+`target`). Override the port with `wynxer run --port N`. `wynxer build` keeps
+`package.json` in sync with the config.
+
+### Node packages and JS interop
+
+Wynxer uses Node/npm to manage JS packages:
+
+```bash
+wynxer --add lodash chalk          # npm install + record in .wynxcfg
+wynxer --add typescript --dev      # save as a dev dependency
+wynxer --remove chalk              # npm uninstall + update config
+```
+
+Wynxer source can call JavaScript through the `wynxer_js_abi_v1` builtins:
+`js("...")` (raw statement), `jsExpr("...")` (raw expression),
+`jsImport("pkg", "names")` (hoisted package import), `jsRequire("pkg")` and
+`jsGlobal("name")`. See [docs/js-abi.md](docs/js-abi.md).
 
 ## Example
 

@@ -15,6 +15,7 @@ pub mod diagnostic;
 pub mod format;
 pub mod init;
 pub mod ir;
+pub mod jsabi;
 pub mod lint;
 pub mod lexer;
 pub mod parser;
