@@ -1,14 +1,12 @@
-name: Build Wynxer
+name: Wynxer combined smoke test (manual)
+
+# Legacy combined Linux + Windows check. The canonical CI is the four
+# per-platform workflows (build-wynxer-linux-amd64.yml, ...-arm64.yml,
+# ...-windows-amd64.yml, ...-windows-arm64.yml); this one is kept for a quick
+# manual cross-platform sanity run and does not fire on push/PR.
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'wynxer/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'wynxer/**'
+  workflow_dispatch:
 
 jobs:
   build-linux:

@@ -1,0 +1,72 @@
+name: Build Bobcat on Linux AMD64
+
+# Bobcat contains two independent binaries: the ratatui terminal IDE (no
+# display deps) and the iced GUI IDE (X11/Wayland + software rendering).
+# The GUI IDE release link uses LTO, so this job gets a generous timeout.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'bobcat/**'
+      - 'Makefile'
+      - '.github/workflows/build-bobcat-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'bobcat/**'
+      - 'Makefile'
+      - '.github/workflows/build-bobcat-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Bobcat on Linux AMD64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            bobcat/cli -> target
+            bobcat/ide -> target
+
+      - name: Install GUI dependencies
+        timeout-minutes: 15
+        run: |
+          bash .github/scripts/apt-install.sh \
+            build-essential pkg-config libgl1-mesa-dev libx11-dev \
+            libxkbcommon-dev libwayland-dev libudev-dev
+
+      - name: Build Bobcat CLI IDE
+        run: make buildBobcatCli
+
+      - name: Test Bobcat CLI IDE
+        run: make testBobcatCli
+
+      - name: Check Bobcat CLI IDE
+        run: make checkBobcatCli
+
+      - name: Build Bobcat GUI IDE
+        run: make buildBobcatIde
+
+      - name: Check Bobcat GUI IDE
+        run: make checkBobcatIde
+
+      - name: Test Bobcat GUI IDE
+        run: make testBobcatIde
+
+      - name: Upload Bobcat binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: bobcat-linux-amd64
+          path: |
+            bobcat/cli/target/release/bobcat-cli
+            bobcat/ide/target/release/bobcat-ide
+          if-no-files-found: error

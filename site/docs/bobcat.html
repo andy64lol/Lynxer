@@ -191,6 +191,8 @@ cargo build --release
 <tr><td><a href="bobcat-cli.html">bobcat-cli</a></td><td>Keys, engine detection, build and run</td></tr>
 <tr><td><a href="bobcat-ide.html">bobcat-ide</a></td><td>Native GUI features and runtime dependency</td></tr>
 </table>
+<h2 id="ci">CI</h2>
+<p>Four workflows under <code>.github/workflows/</code> build and check both IDEs on Linux AMD64/ARM64 and Windows AMD64/ARM64 (<code>build-bobcat-&lt;platform&gt;-&lt;arch&gt;.yml</code>). They upload both binaries (<code>bobcat-cli</code> and <code>bobcat-ide</code>) as artifacts. The GUI IDE's LTO link and test-profile compile give those jobs a 120-minute timeout.</p>
 <h2 id="relationship-to-lynxer">Relationship to Lynxer</h2>
 <p>The extraction is a copy, not a move:</p>
 <ul>

@@ -1,0 +1,62 @@
+name: Build Wynxer on Windows AMD64
+
+# Pure Rust: no MSYS2 needed. Cargo is invoked directly (the Makefile path is
+# exercised by the Linux jobs, where `make` is guaranteed to exist).
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Wynxer on Windows AMD64
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: wynxer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+
+      - name: Show the toolchain
+        run: cargo --version
+
+      - name: Build Wynxer
+        run: cargo build --release
+
+      - name: Test Wynxer
+        run: cargo test
+
+      - name: Version check
+        run: ./target/release/wynxer.exe --version
+
+      - name: Element count check
+        run: |
+          $count = (./target/release/wynxer.exe elements | Measure-Object -Line).Lines
+          if ($count -ne 56) { throw "expected 56 element kinds, got $count" }
+
+      - name: Upload Wynxer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wynxer-windows-amd64
+          path: wynxer/target/release/wynxer.exe
+          if-no-files-found: error

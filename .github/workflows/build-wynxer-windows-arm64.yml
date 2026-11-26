@@ -1,0 +1,54 @@
+name: Build Wynxer on Windows ARM64
+
+# Native arm64 Windows runner; cargo / Rust are provided by the toolchain
+# action. No MSYS2 or C++ toolchain is needed for the pure-Rust crate.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Wynxer on Windows ARM64
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: wynxer
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+
+      - name: Build Wynxer
+        run: cargo build --release
+
+      - name: Test Wynxer
+        run: cargo test
+
+      - name: Version check
+        run: ./target/release/wynxer.exe --version
+
+      - name: Upload Wynxer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wynxer-windows-arm64
+          path: wynxer/target/release/wynxer.exe
+          if-no-files-found: error

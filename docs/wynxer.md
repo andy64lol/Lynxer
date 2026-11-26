@@ -75,6 +75,13 @@ fn onClick() {
 | [wynxer-cli.md](wynxer-cli.md) | Every `wynxer` command, config keys and tooling |
 | [wynxer-js-abi.md](wynxer-js-abi.md) | JS interop ABI and Node/npm packages |
 
+## CI
+
+Four workflows under `.github/workflows/` build, test and upload the binary
+on Linux AMD64/ARM64 and Windows AMD64/ARM64
+(`build-wynxer-<platform>-<arch>.yml`). They call the same `make buildWynxer`,
+`testWynxer` and `checkWynxer` targets documented above.
+
 ## Status
 
 Pre-alpha. The parser, AST, lexer, WPF parser, build pipeline and CLI are

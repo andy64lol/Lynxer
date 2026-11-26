@@ -1,0 +1,53 @@
+name: Build Wynxer on Linux AMD64
+
+# Wynxer is a pure-Rust crate: no system libraries beyond a Rust toolchain.
+# Runs the Makefile targets so CI exercises the same entry points as a developer.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Wynxer on Linux AMD64
+    # 24.04 is the same baseline as the Lynxer jobs and keeps glibc's ISA level
+    # predictable; the Rust-only build has no apt dependencies.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+
+      - name: Build Wynxer
+        run: make buildWynxer
+
+      - name: Test Wynxer
+        run: make testWynxer
+
+      - name: Check Wynxer
+        run: make checkWynxer
+
+      - name: Upload Wynxer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wynxer-linux-amd64
+          path: wynxer/target/release/wynxer
+          if-no-files-found: error

@@ -1,0 +1,53 @@
+name: Build Wynxer on Linux ARM64
+
+# Native aarch64 runner — no cross-compilation needed for a pure-Rust crate.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'wynxer/**'
+      - 'Makefile'
+      - '.github/workflows/build-wynxer-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Wynxer on Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: wynxer -> target
+
+      - name: Show the host
+        run: uname -m
+
+      - name: Build Wynxer
+        run: make buildWynxer
+
+      - name: Test Wynxer
+        run: make testWynxer
+
+      - name: Check Wynxer
+        run: make checkWynxer
+
+      - name: Upload Wynxer binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: wynxer-linux-arm64
+          path: wynxer/target/release/wynxer
+          if-no-files-found: error

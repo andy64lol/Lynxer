@@ -207,6 +207,8 @@ page index {
 <tr><td><a href="wynxer-cli.html">wynxer-cli</a></td><td>Every <code>wynxer</code> command, config keys and tooling</td></tr>
 <tr><td><a href="wynxer-js-abi.html">wynxer-js-abi</a></td><td>JS interop ABI and Node/npm packages</td></tr>
 </table>
+<h2 id="ci">CI</h2>
+<p>Four workflows under <code>.github/workflows/</code> build, test and upload the binary on Linux AMD64/ARM64 and Windows AMD64/ARM64 (<code>build-wynxer-&lt;platform&gt;-&lt;arch&gt;.yml</code>). They call the same <code>make buildWynxer</code>, <code>testWynxer</code> and <code>checkWynxer</code> targets documented above.</p>
 <h2 id="status">Status</h2>
 <p>Pre-alpha. The parser, AST, lexer, WPF parser, build pipeline and CLI are working; the WebAssembly backend and the web standard library are planned. See <code>wynxer/todo.md</code> in the repository for the full roadmap.</p>
     </main>

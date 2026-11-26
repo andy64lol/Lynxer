@@ -1,0 +1,60 @@
+name: Build Bobcat on Windows AMD64
+
+# The terminal IDE builds with plain cargo. The iced GUI IDE uses the MSVC
+# toolchain already present on windows-latest; wgpu/gfx-backend choose the
+# DirectX backend at runtime, so no extra SDK install is needed here.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'bobcat/**'
+      - 'Makefile'
+      - '.github/workflows/build-bobcat-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'bobcat/**'
+      - 'Makefile'
+      - '.github/workflows/build-bobcat-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test Bobcat on Windows AMD64
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            bobcat/cli -> target
+            bobcat/ide -> target
+
+      - name: Build and test terminal IDE
+        working-directory: bobcat/cli
+        run: |
+          cargo build --release
+          cargo test
+          cargo check
+
+      - name: Build and check GUI IDE
+        working-directory: bobcat/ide
+        run: |
+          cargo build --release
+          cargo check
+
+      - name: Upload Bobcat binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: bobcat-windows-amd64
+          path: |
+            bobcat/cli/target/release/bobcat-cli.exe
+            bobcat/ide/target/release/bobcat-ide.exe
+          if-no-files-found: error
