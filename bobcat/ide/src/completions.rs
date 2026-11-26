@@ -328,7 +328,7 @@ pub fn for_prefix(prefix: &str, document_words: &[String]) -> Vec<String> {
         add(word);
     }
 
-    out.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    out.sort_by_key(|a| a.to_lowercase());
     out.truncate(6);
     out
 }

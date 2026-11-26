@@ -44,13 +44,19 @@ pub struct JsEmitter {
     target: Target,
 }
 
-impl JsEmitter {
-    pub fn new() -> Self {
+impl Default for JsEmitter {
+    fn default() -> Self {
         Self {
             out: String::new(),
             indent: 0,
             target: Target::Browser,
         }
+    }
+}
+
+impl JsEmitter {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     fn line(&mut self, text: &str) {
@@ -330,7 +336,7 @@ impl JsEmitter {
 
     pub fn emit_module(&mut self, module: &Module) -> String {
         // ABI header.
-        self.line(&jsabi::header(self.target).trim_end());
+        self.line(jsabi::header(self.target).trim_end());
 
         // Wynxer module imports that are not JS/npm packages stay as comments.
         for name in &module.imports {

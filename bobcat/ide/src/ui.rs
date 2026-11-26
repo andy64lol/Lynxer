@@ -133,7 +133,6 @@ pub fn completion_popup(_: &Theme) -> container::Style {
             color: accent(),
             width: 1.0,
             radius: 6.0.into(),
-            ..Border::default()
         },
         ..base()
     }
@@ -147,7 +146,6 @@ pub fn tab_active(_: &Theme, _: button::Status) -> button::Style {
             color: border(),
             width: 1.0,
             radius: 4.0.into(),
-            ..Border::default()
         },
         ..button::Style::default()
     }

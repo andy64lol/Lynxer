@@ -162,10 +162,7 @@ fn format_line(line: &str) -> String {
             let prev = chars.get(i.wrapping_sub(1)).copied().unwrap_or(' ');
             let next = chars.get(i + 1).copied().unwrap_or(' ');
             // Keep two-character operators together.
-            if (c == '=' && next == '=')
-                || (c == '!' && next == '=')
-                || (c == '<' && next == '=')
-                || (c == '>' && next == '=')
+            if (next == '=' && (c == '=' || c == '!' || c == '<' || c == '>'))
                 || (c == '&' && next == '&')
                 || (c == '|' && next == '|')
             {
@@ -206,7 +203,7 @@ mod tests {
         let src = "fn f() {\nint x = 5;\n}\n";
         let formatted = format_script(src);
         assert!(formatted.contains("fn f() {"));
-        assert!(formatted.contains("  var x = 5;") == false); // no var rewriting
+        assert!(!formatted.contains("  var x = 5;")); // no var rewriting
         assert!(formatted.contains("  int x = 5;"));
         assert!(formatted.contains("}"));
     }

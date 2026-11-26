@@ -1282,8 +1282,7 @@ fn current_prefix(content: &text_editor::Content) -> Option<String> {
     // Autocomplete only at the end of a word, not while editing its middle.
     if text
         .chars()
-        .skip(cursor.position.column)
-        .next()
+        .nth(cursor.position.column)
         .map(|c| c.is_alphanumeric() || c == '_')
         .unwrap_or(false)
     {
@@ -1309,7 +1308,7 @@ fn current_prefix(content: &text_editor::Content) -> Option<String> {
         return Some(String::new());
     }
     let idx = before.len() - prefix.len();
-    if idx > 0 && before[..idx].chars().last() == Some('.') {
+    if idx > 0 && before[..idx].ends_with('.') {
         return None;
     }
     Some(prefix)

@@ -439,6 +439,7 @@ SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 .PHONY: all cargo lynxerToolchain rustToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testAll testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkAll checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
 .PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit where
 .PHONY: buildWynxer testWynxer checkWynxer cleanWynxer buildBobcat buildBobcatCli buildBobcatIde testBobcat testBobcatCli testBobcatIde checkBobcat checkBobcatCli checkBobcatIde cleanBobcat
+.PHONY: lint lintWynxer lintBobcat lintPython
 
 # Fast default suite: Lynxer, Wynxer and the Bobcat terminal IDE. The iced
 # GUI IDE tests (a separate dev-profile compile) live in `testAll`.
@@ -624,6 +625,30 @@ checkBobcatIde: rustToolchain
 cleanBobcat:
 	@rm -rf $(BOBCAT_CLI_DIR)/target $(BOBCAT_IDE_DIR)/target
 	@echo "✓ Cleaned Bobcat build artifacts."
+
+# Lint every component with warnings-as-errors. C++ is already built with
+# -Wall -Wextra -pedantic, so `make buildLynxer` covers its compiler warnings;
+# these targets add Clippy for the Rust crates and a syntax/style pass for the
+# Python tooling.
+lint: lintWynxer lintBobcat lintPython
+	@echo "✓ All lint checks passed."
+
+lintWynxer: rustToolchain
+	$(WYNXER_CARGO) clippy --manifest-path $(WYNXER_DIR)/Cargo.toml --all-targets -- -D warnings
+	@echo "✓ Wynxer lint clean."
+
+lintBobcat: rustToolchain
+	$(WYNXER_CARGO) clippy --manifest-path $(BOBCAT_CLI_DIR)/Cargo.toml --all-targets -- -D warnings
+	$(WYNXER_CARGO) clippy --manifest-path $(BOBCAT_IDE_DIR)/Cargo.toml --all-targets -- -D warnings
+	@echo "✓ Bobcat lint clean."
+
+lintPython:
+	@python3 -m compileall -q site scripts
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check site scripts lynxer/*.py; \
+	else \
+		echo "ruff not on PATH; compileall passed (style pass skipped)"; \
+	fi
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
 buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
@@ -1615,6 +1640,7 @@ help:
 	@echo "  make testBobcat                       Both Bobcat IDE test suites"
 	@echo "  make check                             Lint syntax.lynx, then run the suite"
 	@echo "  make checkAll                          All checks (Lynxer + Wynxer + Bobcat)"
+	@echo "  make lint                              Clippy (-D warnings) + Python lint"
 	@echo "  make testLynxerGui                     Graphics fixtures (needs a display)"
 	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
 	@echo "  make testLynxerProject                --init / --build / --run project workflow"
