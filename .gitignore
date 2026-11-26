@@ -25,3 +25,6 @@ lynxer/runtime/
 modules/
 full_conversation_detailed.json
 editors/
+
+# personal note from the agent (not for the remote)
+.tx

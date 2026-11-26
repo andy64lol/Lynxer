@@ -46,17 +46,17 @@ pub struct JsEmitter {
 
 impl Default for JsEmitter {
     fn default() -> Self {
-        Self {
-            out: String::new(),
-            indent: 0,
-            target: Target::Browser,
-        }
+        Self::new()
     }
 }
 
 impl JsEmitter {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            out: String::new(),
+            indent: 0,
+            target: Target::Browser,
+        }
     }
 
     fn line(&mut self, text: &str) {
