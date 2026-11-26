@@ -1,6 +1,6 @@
 # Bobcat — standalone IDEs extracted from Lynxer.
 #
-# The originals (lynxer/shell.cpp --cli-ide and lynxer/ide/) are untouched.
+# Lynxer's built-in IDEs were removed; Bobcat is now the only IDE.
 
 .PHONY: all help build release check test clean where
 

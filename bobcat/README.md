@@ -42,12 +42,12 @@ Enter, and `Tab` (four spaces).
 
 ## Relationship to Lynxer
 
-Bobcat is a separate frontend. The extraction is a copy, not a move:
+Bobcat is a separate frontend. Lynxer's built-in IDEs were removed after the
+extraction:
 
-- `lynxer/shell.cpp` still contains the original `--cli-ide`.
-- `lynxer/ide/` still contains the original native IDE.
-- `bobcat/cli/` reimplements that terminal IDE as a standalone binary.
-- `bobcat/ide/` is a rebranded copy of the native IDE (package `bobcat-ide`).
+- `bobcat/cli/` reimplements the former terminal IDE as a standalone binary.
+- `bobcat/ide/` is a rebranded copy of the former native IDE (package
+  `bobcat-ide`). It is now the only GUI IDE for the toolchain.
 
 See [`cli/README.md`](cli/README.md) and [`ide/README.md`](ide/README.md) for
 each component's details.
