@@ -60,9 +60,7 @@ codebases are independent.
 editors. It provides two independent frontends — a **standalone terminal IDE**
 (`bobcat/cli`, built with ratatui) for `.lynx`/`.wynx`/`.wpf` files, and a
 **native GUI IDE** (`bobcat/ide`, a rebranded iced frontend). Both shell out to
-`lynxer`/`wynxer` for Run, Lint and Format; neither embeds a compiler. Lynxer's
-built-in `--cli-ide` and `--gui-ide` have been removed, so Bobcat is now the
-only IDE for the toolchain.
+`lynxer`/`wynxer` for Run, Lint and Format; neither embeds a compiler.
 
 ```bash
 cd bobcat/cli && cargo build --release   # ./target/release/bobcat-cli [file]
@@ -89,7 +87,7 @@ provide the interpreter, `--compile`, the embedding runtime, and
 **v0.1.9b3** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
-- 46 standard-library modules, native (C++/Rust) backends included;
+- 50 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
 - template inheritance with `extending` and `build ... named`, plus the legacy class form with `extends` and `super(...)`, first-class functions and closures, inferred generic parameters, and scoped named lambdas;
 - static analysis via `--lint`, a source debugger via `--debug`, and a language server in `lynxer/lsp.py`;
@@ -104,7 +102,7 @@ Planned gaps are tracked in [docs/limitations.md](docs/limitations.md).
 ## Quick start
 
 ```bash
-make build                                       # build the interpreter and every stdlib module
+make build                                       # build Lynxer + Wynxer + Bobcat CLI
 ./lynxer/lynxer syntax.lynx                      # run a source file
 ./lynxer/lynxer --compile syntax.lynx -o syntax  # compile to a standalone executable
 ./lynxer/lynxer --init                           # scaffold a Lynxer project here
@@ -113,7 +111,8 @@ make build                                       # build the interpreter and eve
 ./lynxer/lynxer --version                        # print the version
 ./lynxer/lynxer --help                           # list every command
 
-make test                                        # build and run the full test suite
+make test                                        # fast suite: Lynxer + Wynxer + Bobcat CLI
+make testAll                                     # all suites, including the Bobcat GUI IDE
 ```
 
 To install the interpreter system-wide (default prefix `/usr`, override with
