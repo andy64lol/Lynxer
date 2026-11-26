@@ -44,12 +44,6 @@ pub struct JsEmitter {
     target: Target,
 }
 
-impl Default for JsEmitter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl JsEmitter {
     pub fn new() -> Self {
         Self {
@@ -389,6 +383,16 @@ impl JsEmitter {
             self.out.push('\n');
         }
         self.out.clone()
+    }
+}
+
+impl Default for JsEmitter {
+    fn default() -> Self {
+        Self {
+            out: String::new(),
+            indent: 0,
+            target: Target::Browser,
+        }
     }
 }
 
