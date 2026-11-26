@@ -4,8 +4,9 @@
 `lynxer/shell.cpp` (lines 2043–4230): `ideRenderLine`, `struct IdeState`,
 `ideRender`, `ideHandleKey` and `runCliIde`.
 
-This is a **reference copy only** — Bobcat does not compile it. The original
-in `lynxer/shell.cpp` was not modified or removed. The runnable Bobcat CLI IDE
+This is a **reference copy only** — Bobcat does not compile it. Lynxer's
+original CLI IDE has since been removed; this copy preserves it. The runnable
+Bobcat CLI IDE
 is the standalone Rust binary in `../src/main.rs`, which reimplements the same
 editor UX and drives `lynxer`/`wynxer` as external engines.
 

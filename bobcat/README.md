@@ -1,9 +1,8 @@
 # Bobcat
 
 Bobcat is a standalone IDE project extracted from [Lynxer](../README.md)'s
-built-in editors. It contains two independent IDEs that share nothing with the
-originals at runtime — the Lynxer `--cli-ide` (in `lynxer/shell.cpp`) and the
-native GUI IDE (`lynxer/ide/`) are both left in place, untouched.
+former built-in editors. Lynxer's `--cli-ide`/`--gui-ide` and `lynxer/ide/`
+have been removed, so Bobcat is now the only IDE for the toolchain.
 
 | Component | Directory | What it is |
 | --- | --- | --- |

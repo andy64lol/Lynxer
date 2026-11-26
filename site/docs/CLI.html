@@ -27,7 +27,6 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html" class="active">CLI</a></li>
-<li><a href="ide.html">ide</a></li>
 <li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
@@ -192,28 +191,6 @@ build/</code></pre>
 <pre><code>lynxer --build   # compile `entry` into build/&lt;name&gt; only
 lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its exit code</code></pre>
 <p>Both commands require a <code>lynxer.config</code> in the working directory and take no arguments. <code>--run</code> returns the program's exit status. <strong>All build artifacts live inside <code>build/</code></strong> — nothing is written next to the sources.</p>
-<h2 id="ides">IDEs</h2>
-<p>Lynxer ships two IDEs, both launched from the interpreter itself and both listed by <code>--help</code>:</p>
-<table>
-<tr><th>Command</th><th>IDE</th><th>Needs</th></tr>
-<tr><td><code>lynxer --gui-ide</code></td><td>Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels</td><td>A graphical display and the <code>lynxer-ide</code> executable</td></tr>
-<tr><td><code>lynxer --cli-ide [file.lynx]</code></td><td>Built-in terminal IDE: a full-screen ANSI TUI with no separate binary</td><td>An interactive TTY on stdin <strong>and</strong> stdout</td></tr>
-</table>
-<p>Both are documented in <a href="ide.html">ide</a>: the terminal IDE's layout, file tree, editor, output panel and key bindings, and the GUI IDE's features and build.</p>
-<h3 id="gui-ide">GUI IDE</h3>
-<p><code>--gui-ide</code> resolves <code>lynxer-ide</code> next to the interpreter, in the installed <code>&lt;prefix&gt;/lib/lynxer</code> layout, or in <code>lynxer/ide/target/{release,debug}</code>. Set <code>LYNXER_IDE</code> to an explicit executable (or a directory containing it) to override. The launcher passes its own absolute path as <code>--lynxer &lt;path&gt;</code>, so Run / Lint / Format work even when <code>lynxer</code> is not on <code>PATH</code>. It takes no arguments and returns the IDE's exit code.</p>
-<h3 id="terminal-ide">Terminal IDE</h3>
-<p><code>--cli-ide</code> runs inside the interpreter. It opens in the current directory and accepts one optional argument: a <code>.lynx</code> file to open, or a folder to browse. It refuses to start when stdin or stdout is redirected, and restores the terminal on exit (alternate screen, cursor and raw-input mode).</p>
-<p>The layout follows nano: a reverse-video title bar with the version, file name and <code>Modified</code> marker, a plain editor body, a message line, and two rows of <code>^X</code>-style shortcut hints. No function keys are used — every action is a <code>Ctrl</code> combo. <code>Ctrl+Alt+C</code> (also <code>^A</code> / <code>^C</code>) opens a <strong>command menu</strong> that lists every command with its shortcut; navigate it with the arrow keys and run the highlighted entry with Enter, or press its shortcut directly. Esc closes any overlay or prompt.</p>
-<p>Up to nine files can be open at once, the file tree marks non-text files with <code>B</code> and refuses to open them, and long lines are soft-wrapped like a paragraph: the text continues on the next row and every row repeats the line number in the gutter. <code>^]</code> moves the focus to the output panel, where the arrow keys scroll the output of the last run.</p>
-<p>See <a href="ide.html">ide</a> for the file tree, the editor, the output panel and the full key bindings.</p>
-<h2 id="exit-codes">Exit codes</h2>
-<table>
-<tr><th>Code</th><th>Meaning</th></tr>
-<tr><td><code>0</code></td><td>success (also <code>--help</code>, <code>--version</code>, a clean <code>--lint</code>)</td></tr>
-<tr><td><code>1</code></td><td>any error: a missing file, a parse error, a runtime error, an unsupported flag</td></tr>
-<tr><td><code>130</code></td><td>interrupted (SIGINT)</td></tr>
-</table>
 <h2 id="the-ast-optimizer">The AST optimizer</h2>
 <p>Before execution Lynxer rewrites the parsed program: constant folding, short-circuit simplification of constant <code>and</code>/<code>or</code>, and dead-branch elimination for a constant <code>if</code>, <code>while (false)</code>, and <code>iterate (0)</code>. The pass is semantics-preserving, so output and exit codes are identical with and without it. <code>--no-opt</code> (or <code>-no-opt</code>) disables it for the run; a <strong>compiled</strong> executable ignores its command line and always optimizes.</p>
 <p><code>LYNXER_OPT_REPORT=1</code> prints one line of transformation counts to stderr after the program runs, for example <code>optimizer: constant folds=10, short-circuits=2, dead branches=3</code>.</p>
@@ -285,7 +262,6 @@ sudo lynxer --uninstall    # remove the installed interpreter</code></pre>
 <tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>print the optimizer counts to stderr after the run</td></tr>
 <tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>run the <code>game</code> module without opening a window</td></tr>
 <tr><td><code>LYNXER_GRAPHICS_HEADLESS=1</code></td><td>run the <code>graphics</code> module without opening a window</td></tr>
-<tr><td><code>LYNXER_IDE=/path/to/lynxer-ide</code></td><td>executable (or directory) used by <code>--gui-ide</code></td></tr>
 </table>
 <p><code>LYNXER_SKIP_DISPLAY=1</code> is a <strong>build/test</strong> variable, not a run-time one: it makes <code>make testLynxer</code> skip the display and audio fixtures. See <a href="install.html#environment-variables">install</a>.</p>
 <p>If <code>LYNXER_STDLIB</code> is unset, empty, or does not name an existing directory, Lynxer uses its normal executable-relative stdlib lookup. Imports still check project and local stdlib paths before this bundled-stdlib location; see <a href="modules.html#search-order">modules</a>.</p>

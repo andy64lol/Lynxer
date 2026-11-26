@@ -67,61 +67,6 @@ Both commands require a `lynxer.config` in the working directory and take no
 arguments. `--run` returns the program's exit status. **All build artifacts
 live inside `build/`** — nothing is written next to the sources.
 
-## IDEs
-
-Lynxer ships two IDEs, both launched from the interpreter itself and both
-listed by `--help`:
-
-| Command | IDE | Needs |
-|---------|-----|-------|
-| `lynxer --gui-ide` | Native GUI IDE (iced, no webview): file tree, tabs, autocomplete, Problems/Output panels | A graphical display and the `lynxer-ide` executable |
-| `lynxer --cli-ide [file.lynx]` | Built-in terminal IDE: a full-screen ANSI TUI with no separate binary | An interactive TTY on stdin **and** stdout |
-
-Both are documented in [ide.md](ide.md): the terminal IDE's layout, file
-tree, editor, output panel and key bindings, and the GUI IDE's features and
-build.
-
-### GUI IDE
-
-`--gui-ide` resolves `lynxer-ide` next to the interpreter, in the installed
-`<prefix>/lib/lynxer` layout, or in `lynxer/ide/target/{release,debug}`. Set
-`LYNXER_IDE` to an explicit executable (or a directory containing it) to
-override. The launcher passes its own absolute path as `--lynxer <path>`, so
-Run / Lint / Format work even when `lynxer` is not on `PATH`. It takes no
-arguments and returns the IDE's exit code.
-
-### Terminal IDE
-
-`--cli-ide` runs inside the interpreter. It opens in the current directory and
-accepts one optional argument: a `.lynx` file to open, or a folder to browse.
-It refuses to start when stdin or stdout is redirected, and restores the
-terminal on exit (alternate screen, cursor and raw-input mode).
-
-The layout follows nano: a reverse-video title bar with the version, file name
-and `Modified` marker, a plain editor body, a message line, and two rows of
-`^X`-style shortcut hints. No function keys are used — every action is a
-`Ctrl` combo. `Ctrl+Alt+C` (also `^A` / `^C`) opens a **command menu** that
-lists every command with its shortcut; navigate it with the arrow keys and run
-the highlighted entry with Enter, or press its shortcut directly. Esc closes
-any overlay or prompt.
-
-Up to nine files can be open at once, the file tree marks non-text files with
-`B` and refuses to open them, and long lines are soft-wrapped like a
-paragraph: the text continues on the next row and every row repeats the line
-number in the gutter. `^]` moves the focus to the output panel, where the
-arrow keys scroll the output of the last run.
-
-See [ide.md](ide.md) for the file tree, the editor, the output panel and the
-full key bindings.
-
-## Exit codes
-
-| Code | Meaning |
-|------|---------|
-| `0` | success (also `--help`, `--version`, a clean `--lint`) |
-| `1` | any error: a missing file, a parse error, a runtime error, an unsupported flag |
-| `130` | interrupted (SIGINT) |
-
 ## The AST optimizer
 
 Before execution Lynxer rewrites the parsed program: constant folding,
@@ -325,7 +270,6 @@ is a copy (`bin\lynxer.exe`) rather than a symlink, and the installed binary is
 | `LYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
 | `LYNXER_GRAPHICS_HEADLESS=1` | run the `graphics` module without opening a window |
-| `LYNXER_IDE=/path/to/lynxer-ide` | executable (or directory) used by `--gui-ide` |
 
 `LYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
 makes `make testLynxer` skip the display and audio fixtures. See

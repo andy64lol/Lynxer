@@ -1,7 +1,7 @@
 # Bobcat CLI IDE
 
-A standalone full-screen terminal IDE, extracted from Lynxer's built-in
-`--cli-ide` (which remains intact in `lynxer/shell.cpp`). Built with
+A standalone full-screen terminal IDE, extracted from Lynxer's former
+`--cli-ide` (now removed from `lynxer/shell.cpp`). Built with
 [ratatui](https://ratatui.rs) and [crossterm](https://github.com/crossterm-rs/crossterm).
 
 ## Features

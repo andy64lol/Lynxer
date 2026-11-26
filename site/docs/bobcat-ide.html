@@ -27,7 +27,6 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
-<li><a href="ide.html">ide</a></li>
 <li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
@@ -162,7 +161,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="bobcat-ide-native-gui">Bobcat IDE (native GUI)</h1>
-<p>A native GUI IDE built with <a href="https://iced.rs">iced</a> in pure Rust. It is a rebranded copy of <code>lynxer/ide</code> (the original remains in place). No Tauri, no webview, no React, no Monaco: the file explorer, tabbed editor, syntax highlighting, Run/Lint/Format and output panel are all Rust.</p>
+<p>A native GUI IDE built with <a href="https://iced.rs">iced</a> in pure Rust. It is a rebranded copy of the former <code>lynxer/ide</code> (now removed from Lynxer). No Tauri, no webview, no React, no Monaco: the file explorer, tabbed editor, syntax highlighting, Run/Lint/Format and output panel are all Rust.</p>
 <h2 id="features">Features</h2>
 <ul>
 <li>Modern dark IDE layout: top command bar, activity rail, collapsible explorer, styled tabs, breadcrumb bar, Problems / Output panel, and a status bar with error/warning counts, <code>Ln/Col</code>, encoding and engine version.</li>
@@ -187,7 +186,7 @@ cargo build --release
 <li>starting with <code>--lynxer &lt;path&gt;</code>.</li>
 </ul>
 <h2 id="relationship-to-the-original">Relationship to the original</h2>
-<p><code>bobcat/ide/src/main.rs</code> differs from <code>lynxer/ide/src/main.rs</code> only in the window title and module doc comment; the package is renamed to <code>bobcat-ide</code>. The original IDE stays in <code>lynxer/ide/</code>.</p>
+<p>The GUI IDE was copied from the former <code>lynxer/ide/</code> and rebranded to <code>bobcat-ide</code> (window title, module doc comment and package name). Lynxer's <code>--gui-ide</code> flag and original crate have been removed.</p>
     </main>
 </div>
 

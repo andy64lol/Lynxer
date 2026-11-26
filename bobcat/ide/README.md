@@ -4,7 +4,7 @@ A **native GUI** IDE extracted from Lynxer's IDE, built with
 [iced](https://iced.rs) in pure Rust. No Tauri, no webview, no React, no
 Monaco: the file explorer, tabbed editor, Lynxer syntax highlighting,
 Run/Lint/Format and the output panel are all Rust. Bobcat is a separate
-frontend; the original `lynxer/ide` is untouched.
+frontend; Lynxer's original IDE has been removed.
 
 ## Features
 
@@ -116,5 +116,5 @@ are crates.io packages resolved by Cargo.
 
 The IDE shells out to the `lynxer` interpreter. Put `lynxer` on `PATH`, or
 click **Set Lynxer** in the toolbar to pick the executable. A build of this
-repository produces it at `../../lynxer/lynxer` (relative to `lynxer/ide/`);
+repository produces it at `../../lynxer/lynxer` (relative to `bobcat/ide/`);
 build it with `make build` from the repo root.

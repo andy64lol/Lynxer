@@ -1,8 +1,8 @@
 # Bobcat
 
-Bobcat is a separate IDE project extracted from Lynxer's editors. It contains
-two independent frontends; the originals in `lynxer/shell.cpp` (`--cli-ide`)
-and `lynxer/ide/` are left untouched.
+Bobcat is a separate IDE project extracted from Lynxer's former editors. It
+contains two independent frontends; Lynxer's `--cli-ide`/`--gui-ide` and
+`lynxer/ide/` have been removed, so Bobcat is now the only IDE.
 
 | Component | Directory | What it is |
 | --- | --- | --- |
@@ -53,10 +53,10 @@ IDE's LTO link and test-profile compile give those jobs a 120-minute timeout.
 
 ## Relationship to Lynxer
 
-The extraction is a copy, not a move:
+Lynxer's built-in IDEs (`--cli-ide`, `--gui-ide`, and the `lynxer/ide/` crate)
+were removed after Bobcat was extracted:
 
-- `lynxer/shell.cpp` still contains the original `--cli-ide`.
-- `lynxer/ide/` still contains the original native IDE.
-- `bobcat/cli/` reimplements the terminal IDE as a standalone binary, and
-  keeps a verbatim reference copy of the C++ code under `extracted/`.
-- `bobcat/ide/` is a rebranded copy of the native IDE (package `bobcat-ide`).
+- `bobcat/cli/` reimplements the former terminal IDE as a standalone binary,
+  and keeps a verbatim reference copy of the C++ code under `extracted/`.
+- `bobcat/ide/` is a rebranded copy of the former native IDE (package
+  `bobcat-ide`). It is now the only GUI IDE for the toolchain.

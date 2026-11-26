@@ -1,7 +1,7 @@
 # Bobcat IDE (native GUI)
 
 A native GUI IDE built with [iced](https://iced.rs) in pure Rust. It is a
-rebranded copy of `lynxer/ide` (the original remains in place). No Tauri, no
+rebranded copy of the former `lynxer/ide` (now removed from Lynxer). No Tauri, no
 webview, no React, no Monaco: the file explorer, tabbed editor, syntax
 highlighting, Run/Lint/Format and output panel are all Rust.
 
@@ -47,6 +47,6 @@ but the IDE refuses to run a program when the engine is missing. Provide it by:
 
 ## Relationship to the original
 
-`bobcat/ide/src/main.rs` differs from `lynxer/ide/src/main.rs` only in the
-window title and module doc comment; the package is renamed to `bobcat-ide`.
-The original IDE stays in `lynxer/ide/`.
+The GUI IDE was copied from the former `lynxer/ide/` and rebranded to
+`bobcat-ide` (window title, module doc comment and package name). Lynxer's
+`--gui-ide` flag and original crate have been removed.

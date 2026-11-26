@@ -78,7 +78,27 @@ LYNXER_ISA_CXXFLAGS :=
 LYNXER_ISA_RUSTFLAGS :=
 endif
 
-LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS) $(LYNXER_ISA_CXXFLAGS)
+# --- Link-time / size optimisation -----------------------------------------
+# Section splitting lets the linker drop unreferenced functions and data from
+# the interpreter (the IDE removal alone deleted ~3000 lines of code). It is
+# safe for the shared libraries too: their exported symbols are pinned by a
+# version script / DEF file, so GC cannot remove the ABI surface.
+#
+# LTO is opt-in: it must be applied consistently to compilation and linking,
+# and mixing it into the cdylib/shared-module builds would change their ABI
+# behaviour. `make buildLynxer LYNXER_LTO=1` enables it for the executable.
+LYNXER_LTO ?=
+ifeq ($(LYNXER_LTO),1)
+LYNXER_LTO_CXXFLAGS := -flto
+LYNXER_LTO_LDFLAGS := -flto
+else
+LYNXER_LTO_CXXFLAGS :=
+LYNXER_LTO_LDFLAGS :=
+endif
+
+LYNXER_CXXFLAGS ?= -std=c++17 -O2 -DNDEBUG -ffunction-sections -fdata-sections $(LYNXER_LTO_CXXFLAGS) -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS) $(LYNXER_ISA_CXXFLAGS)
+# The interpreter is a standalone product; drop unused sections at link time.
+LYNXER_EXE_LDFLAGS ?= -Wl,--gc-sections $(LYNXER_LTO_LDFLAGS)
 LYNXER_MODULE_LDFLAGS ?=
 
 # Modules a Windows build must skip because they have no Windows backend yet.
@@ -417,7 +437,7 @@ endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
 .PHONY: all cargo lynxerToolchain rustToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testAll testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkAll checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
-.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde testLynxerCliIde where
+.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit where
 .PHONY: buildWynxer testWynxer checkWynxer cleanWynxer buildBobcat buildBobcatCli buildBobcatIde testBobcat testBobcatCli testBobcatIde checkBobcat checkBobcatCli checkBobcatIde cleanBobcat
 
 # Fast default suite: Lynxer, Wynxer and the Bobcat terminal IDE. The iced
@@ -634,7 +654,7 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 # vendored libffi into the staticlib, so it needs no `-lffi`; POSIX links the
 # system libffi through `LYNXER_PLATFORM_LIBS`.
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
-	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
+	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_EXE_LDFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
 
 # The embedding runtime: the same objects without `main.o`. Windows uses a
@@ -664,7 +684,7 @@ $(LYNXER_TARGET)-arm64: $(LYNXER_OBJECTS_ARM64) $(LYNXER_FFI_STATICLIB)
 	echo "error: cannot link the aarch64 native-call engine from $$(uname -m)."; \
 	echo "hint: build on an aarch64 host, or point LYNXER_FFI_STATICLIB at an aarch64 liblynxer_ffi.a."; \
 	exit 1; fi
-	@aarch64-linux-gnu-g++ $(filter-out -march=x86-64,$(LYNXER_CXXFLAGS)) $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
+	@aarch64-linux-gnu-g++ $(filter-out -march=x86-64 -flto,$(LYNXER_CXXFLAGS)) -Wl,--gc-sections $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
 
 $(LYNXER_DIR)/%.o: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -c $< -o $@
@@ -775,7 +795,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerGuiIde testLynxerCliIde $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerProject testLynxerGlobalDeprecation $(LYNXER_EMIT_TEST) testPackageManifests checkLynxerVersion
 	@command -v $(PYTHON) >/dev/null 2>&1 || { echo "lynxer: $(PYTHON) not found; Python 3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -1390,89 +1410,6 @@ testLynxerGui: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 # `global.` is deprecated. Source runs and --lint warn with
 # `warning[deprecatedGlobalPrefix]`; tooling parses (--format, --ast,
 # --compile) and imported module sources stay quiet.
-# `lynxer --gui-ide` launches the native IDE: it is listed in --help alongside
-# --cli-ide, hands the IDE this interpreter's path via --lynxer, and honours
-# LYNXER_IDE. `--ver` is an alias for `--version`. A stub script stands in for
-# the GUI so the test needs no display.
-# `lynxer --cli-ide` is the built-in full-screen terminal IDE. It is listed in
-# --help, refuses to start without a TTY, and is exercised under a
-# pseudo-terminal by scripts/cli_ide_pty_test.py (skipped where pty is absent).
-testLynxerCliIde: $(LYNXER_TARGET)
-	@src="$(CLYX_TMP)_cli_ide.lynx"; \
-	help="$(CLYX_TMP)_cli_ide_help.out"; \
-	err="$(CLYX_TMP)_cli_ide_err.out"; \
-	cleanup() { rm -f "$$src" "$$help" "$$err"; }; \
-	$(CLYX) --help > "$$help" 2>&1; \
-	if ! grep -q -- '--cli-ide' "$$help"; then \
-		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
-	if ! grep -q -- '--gui-ide' "$$help"; then \
-		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
-	if grep -q 'Removed with the bytecode backend' "$$help"; then \
-		echo "--help still lists the removed bytecode backend"; cleanup; exit 1; fi; \
-	if $(CLYX) --cli-ide a b > /dev/null 2> "$$err"; then \
-		echo "--cli-ide accepted two arguments"; cleanup; exit 1; fi; \
-	if ! grep -q 'at most one' "$$err"; then \
-		echo "--cli-ide did not explain its argument limit"; cleanup; exit 1; fi; \
-	if $(CLYX) --cli-ide > /dev/null 2> "$$err" < /dev/null; then \
-		echo "--cli-ide started without a TTY"; cleanup; exit 1; fi; \
-	if ! grep -q 'interactive terminal' "$$err"; then \
-		echo "--cli-ide did not explain the TTY requirement"; cleanup; exit 1; fi; \
-	printf 'fn setup(){}\nfn main(){ println("Hello, Lynxer!"); }\n' > "$$src"; \
-	if $(PYTHON) -c 'import pty' 2>/dev/null; then \
-		$(PYTHON) scripts/cli_ide_pty_test.py "$(abspath $(CLYX))" "$$src" || { cleanup; exit 1; }; \
-	else \
-		echo "skipping pty smoke test (no pty module on this host)"; \
-	fi; \
-	cleanup; \
-	echo "OK: terminal IDE (--cli-ide) passed."
-
-testLynxerGuiIde: $(LYNXER_TARGET)
-	@stub="$(CLYX_TMP)_ide_stub"; \
-	args="$(CLYX_TMP)_ide_args"; \
-	help="$(CLYX_TMP)_ide_help.out"; \
-	err="$(CLYX_TMP)_ide_err.out"; \
-	cleanup() { rm -f "$$stub" "$$stub.cpp" "$$stub.exe" "$$args" "$$help" "$$err"; }; \
-	ver="$$($(CLYX) --ver)"; \
-	if [ "$$ver" != "$$($(CLYX) --version)" ]; then \
-		echo "--ver did not match --version: $$ver"; cleanup; exit 1; fi; \
-	$(CLYX) --help > "$$help" 2>&1; \
-	if ! grep -q -- '--gui-ide' "$$help"; then \
-		echo "--gui-ide is not listed in --help"; cleanup; exit 1; fi; \
-	if ! grep -q -- '--cli-ide' "$$help"; then \
-		echo "--cli-ide is not listed in --help"; cleanup; exit 1; fi; \
-	ide="$$stub"; \
-	if [ "$(LYNXER_ON_WINDOWS)" = "1" ]; then \
-		printf '%s\n' \
-			'#include <cstdio>' \
-			'#include <cstdlib>' \
-			'int main(int argc, char** argv) { const char* p = std::getenv("LYNXER_IDE_ARGS_FILE"); if (!p) return 2; FILE* f = std::fopen(p, "wb"); if (!f) return 3; for (int i = 1; i < argc; ++i) { std::fputs(argv[i], f); std::fputc(10, f); } std::fclose(f); return 0; }' \
-			> "$$stub.cpp"; \
-		$(LYNXER_CXX) -std=c++17 -O2 "$$stub.cpp" -o "$$stub.exe" 2> "$$err" || { \
-			echo "could not build the Windows IDE stub"; cat "$$err"; cleanup; exit 1; }; \
-		ide="$$stub.exe"; \
-	else \
-		printf '#!/bin/sh\nprintf "%%s\\n" "$$@" > "%s"\nexit 0\n' "$$args" > "$$stub"; \
-		chmod +x "$$stub"; \
-	fi; \
-	if ! LYNXER_IDE="$$ide" LYNXER_IDE_ARGS_FILE="$$args" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
-		echo "--gui-ide failed to launch the IDE"; cat "$$err"; cleanup; exit 1; fi; \
-	if [ "$$(sed -n '1p' "$$args")" != "--lynxer" ]; then \
-		echo "--gui-ide did not pass --lynxer to the IDE"; cat "$$args"; cleanup; exit 1; fi; \
-	interpreter="$$(sed -n '2p' "$$args")"; \
-	if [ "$(LYNXER_ON_WINDOWS)" = "1" ]; then \
-		interpreter="$$(cygpath -u "$$interpreter" 2>/dev/null || printf '%s' "$$interpreter")"; \
-	fi; \
-	if [ ! -f "$$interpreter" ]; then \
-		echo "--gui-ide did not pass a usable interpreter path: $$interpreter"; cat "$$args"; cleanup; exit 1; fi; \
-	case "$$interpreter" in *lynxer*) ;; *) \
-		echo "--gui-ide passed an unexpected interpreter: $$interpreter"; cleanup; exit 1 ;; esac; \
-	if LYNXER_IDE="$(CLYX_TMP)_no_such_ide" $(CLYX) --gui-ide > /dev/null 2> "$$err"; then \
-		echo "--gui-ide accepted an invalid LYNXER_IDE"; cleanup; exit 1; fi; \
-	if ! grep -q 'LYNXER_IDE' "$$err"; then \
-		echo "--gui-ide did not explain an invalid LYNXER_IDE"; cat "$$err"; cleanup; exit 1; fi; \
-	cleanup; \
-	echo "OK: --gui-ide launcher, listed IDEs and --ver alias passed."
-
 # The stdlib-import check uses `typing`: it is pure Lynx (no native module),
 # declares its functions with `fn`, and still calls builtins through `global.`
 # prefixes, so importing it proves those calls stay warning-exempt. `sys` is
@@ -1622,7 +1559,6 @@ cleanLynxer:
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
-	@rm -rf $(LYNXER_DIR)/ide/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
 # Arch packaging artifacts: the staged payload and packages produced by
@@ -1683,8 +1619,6 @@ help:
 	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
 	@echo "  make testLynxerProject                --init / --build / --run project workflow"
 	@echo "  make testLynxerGlobalDeprecation      global. prefix deprecation warnings"
-	@echo "  make testLynxerGuiIde                GUI IDE launcher + --ver alias"
-	@echo "  make testLynxerCliIde                built-in terminal IDE (--cli-ide)"
 	@echo "  make testLynxerAmd64Syscalls           amd64 syscall fixtures (x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls           arm64 syscall fixtures (aarch64 host)"
 	@echo "  make testPackageManifests              Windows package manifest renderer"
@@ -1711,8 +1645,6 @@ help:
 	@echo "  ./lynxer/lynxer --init [name]        (scaffold a Lynxer project)"
 	@echo "  ./lynxer/lynxer --build              (compile the project into build/)"
 	@echo "  ./lynxer/lynxer --run                (build and run the project)"
-	@echo "  ./lynxer/lynxer --gui-ide            (launch the native GUI IDE)"
-	@echo "  ./lynxer/lynxer --cli-ide            (launch the terminal IDE)"
 	@echo "  ./lynxer/lynxer --format <file.lynx>"
 	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
 	@echo "  ./lynxer/lynxer --ast <file.lynx>"

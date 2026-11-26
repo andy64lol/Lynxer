@@ -60,9 +60,9 @@ codebases are independent.
 editors. It provides two independent frontends — a **standalone terminal IDE**
 (`bobcat/cli`, built with ratatui) for `.lynx`/`.wynx`/`.wpf` files, and a
 **native GUI IDE** (`bobcat/ide`, a rebranded iced frontend). Both shell out to
-`lynxer`/`wynxer` for Run, Lint and Format; neither embeds a compiler. The
-originals — Lynxer's `--cli-ide` in `lynxer/shell.cpp` and `lynxer/ide/` — are
-left untouched.
+`lynxer`/`wynxer` for Run, Lint and Format; neither embeds a compiler. Lynxer's
+built-in `--cli-ide` and `--gui-ide` have been removed, so Bobcat is now the
+only IDE for the toolchain.
 
 ```bash
 cd bobcat/cli && cargo build --release   # ./target/release/bobcat-cli [file]
@@ -110,8 +110,6 @@ make build                                       # build the interpreter and eve
 ./lynxer/lynxer --init                           # scaffold a Lynxer project here
 ./lynxer/lynxer --build                          # compile the project into build/
 ./lynxer/lynxer --run                            # build and run the project
-./lynxer/lynxer --gui-ide                        # launch the native GUI IDE
-./lynxer/lynxer --cli-ide [file.lynx]            # launch the built-in terminal IDE
 ./lynxer/lynxer --version                        # print the version
 ./lynxer/lynxer --help                           # list every command
 
@@ -170,7 +168,6 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 |------|----------|
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
-| [IDEs](docs/ide.md) | The terminal IDE (`--cli-ide`) and the native GUI IDE (`--gui-ide`) |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions, and scoping |
 | [Functions](docs/functions.md) | `fn` declarations, deprecated function keywords, nested and module functions, inferred generic parameters, and caller-supplied codeblocks |
 | [Deprecated syntax](docs/deprecated.md) | Migration reference for every deprecated language spelling |

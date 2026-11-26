@@ -27,7 +27,6 @@
 <h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="install.html">install</a></li>
 <li><a href="CLI.html">CLI</a></li>
-<li><a href="ide.html">ide</a></li>
 <li><a href="errorlist.html">errorlist</a></li>
 <li><a href="language-server.html">language-server</a></li>
 <li><a href="benchmarks.html">benchmarks</a></li>
@@ -162,7 +161,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="bobcat">Bobcat</h1>
-<p>Bobcat is a separate IDE project extracted from Lynxer's editors. It contains two independent frontends; the originals in <code>lynxer/shell.cpp</code> (<code>--cli-ide</code>) and <code>lynxer/ide/</code> are left untouched.</p>
+<p>Bobcat is a separate IDE project extracted from Lynxer's former editors. It contains two independent frontends; Lynxer's <code>--cli-ide</code>/<code>--gui-ide</code> and <code>lynxer/ide/</code> have been removed, so Bobcat is now the only IDE.</p>
 <table>
 <tr><th>Component</th><th>Directory</th><th>What it is</th></tr>
 <tr><td><strong>Bobcat CLI</strong></td><td><code>bobcat/cli/</code></td><td>Standalone full-screen terminal IDE (ratatui) for <code>.lynx</code>, <code>.wynx</code>, <code>.wpf</code></td></tr>
@@ -194,12 +193,10 @@ cargo build --release
 <h2 id="ci">CI</h2>
 <p>Four workflows under <code>.github/workflows/</code> build and check both IDEs on Linux AMD64/ARM64 and Windows AMD64/ARM64 (<code>build-bobcat-&lt;platform&gt;-&lt;arch&gt;.yml</code>). They upload both binaries (<code>bobcat-cli</code> and <code>bobcat-ide</code>) as artifacts. The GUI IDE's LTO link and test-profile compile give those jobs a 120-minute timeout.</p>
 <h2 id="relationship-to-lynxer">Relationship to Lynxer</h2>
-<p>The extraction is a copy, not a move:</p>
+<p>Lynxer's built-in IDEs (<code>--cli-ide</code>, <code>--gui-ide</code>, and the <code>lynxer/ide/</code> crate) were removed after Bobcat was extracted:</p>
 <ul>
-<li><code>lynxer/shell.cpp</code> still contains the original <code>--cli-ide</code>.</li>
-<li><code>lynxer/ide/</code> still contains the original native IDE.</li>
-<li><code>bobcat/cli/</code> reimplements the terminal IDE as a standalone binary, and keeps a verbatim reference copy of the C++ code under <code>extracted/</code>.</li>
-<li><code>bobcat/ide/</code> is a rebranded copy of the native IDE (package <code>bobcat-ide</code>).</li>
+<li><code>bobcat/cli/</code> reimplements the former terminal IDE as a standalone binary, and keeps a verbatim reference copy of the C++ code under <code>extracted/</code>.</li>
+<li><code>bobcat/ide/</code> is a rebranded copy of the former native IDE (package <code>bobcat-ide</code>). It is now the only GUI IDE for the toolchain.</li>
 </ul>
     </main>
 </div>
