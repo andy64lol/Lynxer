@@ -170,6 +170,12 @@
 </table>
 <p>Both IDEs are clients of the language engines: they shell out to <code>lynxer</code> and/or <code>wynxer</code> for Run, Lint and Format. Neither embeds a compiler.</p>
 <h2 id="quick-start">Quick start</h2>
+<p>From the repository root:</p>
+<pre><code>make buildBobcatCli   # release binary at bobcat/cli/target/release/bobcat-cli
+make buildBobcatIde   # release binary at bobcat/ide/target/release/bobcat-ide (slow LTO)
+make buildBobcat      # both IDEs
+make testBobcat       # both test suites</code></pre>
+<p>Or build directly:</p>
 <pre><code># CLI IDE — no display needed
 cd bobcat/cli
 cargo build --release

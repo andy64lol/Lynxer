@@ -192,6 +192,19 @@ LYNXER_PUBLIC_HEADERS := $(LYNXER_DIR)/lynxer.h $(LYNXER_FFI_ABI_HEADER)
 # complete, never a subset of itself.
 LYNXER_CARGO ?= cargo
 
+# --- Wynxer: the separate web language (Rust crate in wynxer/) --------------
+WYNXER_DIR := wynxer
+WYNXER_CARGO ?= $(LYNXER_CARGO)
+WYNXER_TARGET_DIR := $(WYNXER_DIR)/target
+WYNXER_BIN := $(WYNXER_TARGET_DIR)/release/wynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
+
+# --- Bobcat: standalone IDEs extracted from Lynxer (bobcat/) ----------------
+BOBCAT_DIR := bobcat
+BOBCAT_CLI_DIR := $(BOBCAT_DIR)/cli
+BOBCAT_IDE_DIR := $(BOBCAT_DIR)/ide
+BOBCAT_CLI_BIN := $(BOBCAT_CLI_DIR)/target/release/bobcat-cli$(if $(LYNXER_ON_WINDOWS),.exe,)
+BOBCAT_IDE_BIN := $(BOBCAT_IDE_DIR)/target/release/bobcat-ide$(if $(LYNXER_ON_WINDOWS),.exe,)
+
 # Every stdlib backend, C++ and Rust. Nothing here is conditional.
 LYNXER_NATIVE_BUILT := $(LYNXER_NATIVE_MODULES) $(LYNXER_RUST_MODULES)
 
@@ -403,10 +416,16 @@ SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/
 endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
+.PHONY: all cargo lynxerToolchain rustToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testAll testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkAll checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
 .PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit testLynxerGuiIde testLynxerCliIde where
+.PHONY: buildWynxer testWynxer checkWynxer cleanWynxer buildBobcat buildBobcatCli buildBobcatIde testBobcat testBobcatCli testBobcatIde checkBobcat checkBobcatCli checkBobcatIde cleanBobcat
 
-test: testLynxer
+# Fast default suite: Lynxer, Wynxer and the Bobcat terminal IDE. The iced
+# GUI IDE tests (a separate dev-profile compile) live in `testAll`.
+test: testLynxer testWynxer testBobcatCli
+
+testAll: test testBobcatIde
+	@echo "✓ All test suites passed."
 
 testPackageManifests:
 	@$(PYTHON) packaging/windows/test-package-manifests.py
@@ -418,16 +437,25 @@ check: testLynxer
 	done
 	@echo "✓ Lynxer checks passed."
 
+# Everything: the default checks plus Wynxer and Bobcat compile/lint checks.
+checkAll: check checkWynxer checkBobcat
+	@echo "✓ All checks passed."
+
 # Conventional alias for a full build.
 all: build
 
-# The interpreter, the native (C++) stdlib modules, and the Rust backends.
-build: buildLynxer
+# The default build covers the three fast products: Lynxer, Wynxer and the
+# Bobcat terminal IDE. The iced GUI IDE has a long release link (LTO), so it
+# is part of `buildAll` rather than `build`.
+build: buildLynxer buildWynxer buildBobcatCli
 	@echo "✓ Full build complete."
-	@echo "  Executable: $(abspath $(LYNXER_TARGET))"
-	@echo "  Run it with: ./$(LYNXER_TARGET) <file.lynx>"
+	@echo "  Lynxer    : $(abspath $(LYNXER_TARGET))"
+	@echo "  Wynxer    : $(abspath $(WYNXER_BIN))"
+	@echo "  Bobcat CLI: $(abspath $(BOBCAT_CLI_BIN))"
+	@echo "  Run with  : ./$(LYNXER_TARGET) <file.lynx>"
 
-buildAll: build
+buildAll: build buildBobcatIde
+	@echo "✓ All products built (including the Bobcat GUI IDE)."
 
 
 # ---------------------------------------------------------------------------
@@ -510,6 +538,72 @@ else
 sdk:
 	@echo "lynxer: embedding SDK is unavailable on this host"
 endif
+
+# ---------------------------------------------------------------------------
+# Wynxer (web language) and Bobcat (standalone IDEs) — both are independent
+# Rust projects. `lynxerToolchain` also gates these, but `rustToolchain` gives
+# them a message that does not mention the interpreter.
+# ---------------------------------------------------------------------------
+
+rustToolchain:
+	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { \
+	echo "make: cargo is required to build Wynxer and Bobcat, but it was not found on PATH."; \
+	echo "make: install a Rust toolchain (e.g. rustup) and run make again."; \
+	exit 1; }
+
+buildWynxer: rustToolchain
+	$(WYNXER_CARGO) build --release --manifest-path $(WYNXER_DIR)/Cargo.toml
+	@echo "✓ Wynxer build complete: $(abspath $(WYNXER_BIN))"
+
+testWynxer: rustToolchain
+	$(WYNXER_CARGO) test --manifest-path $(WYNXER_DIR)/Cargo.toml
+	@echo "✓ Wynxer tests passed."
+
+checkWynxer: rustToolchain buildWynxer
+	@"$(WYNXER_BIN)" --version
+	@count="$$("$(WYNXER_BIN)" elements | wc -l)"; \
+	test "$$count" -eq 56 || { echo "wynxer: expected 56 element kinds, got $$count"; exit 1; }
+	@"$(WYNXER_BIN)" check $(WYNXER_DIR)/examples >/dev/null
+	@"$(WYNXER_BIN)" build $(WYNXER_DIR)/examples >/dev/null
+	@echo "✓ Wynxer checks passed."
+
+cleanWynxer:
+	@rm -rf $(WYNXER_TARGET_DIR) $(WYNXER_DIR)/examples/build
+	@echo "✓ Cleaned Wynxer build artifacts."
+
+# Bobcat: the terminal IDE is quick; the iced GUI IDE has a long LTO link.
+buildBobcat: buildBobcatCli buildBobcatIde
+	@echo "✓ Bobcat build complete (CLI + GUI IDE)."
+
+buildBobcatCli: rustToolchain
+	$(WYNXER_CARGO) build --release --manifest-path $(BOBCAT_CLI_DIR)/Cargo.toml
+	@echo "✓ Bobcat CLI build complete: $(abspath $(BOBCAT_CLI_BIN))"
+
+buildBobcatIde: rustToolchain
+	$(WYNXER_CARGO) build --release --manifest-path $(BOBCAT_IDE_DIR)/Cargo.toml
+	@echo "✓ Bobcat IDE build complete: $(abspath $(BOBCAT_IDE_BIN))"
+
+testBobcat: testBobcatCli testBobcatIde
+	@echo "✓ Bobcat tests passed."
+
+testBobcatCli: rustToolchain
+	$(WYNXER_CARGO) test --manifest-path $(BOBCAT_CLI_DIR)/Cargo.toml
+
+testBobcatIde: rustToolchain
+	$(WYNXER_CARGO) test --manifest-path $(BOBCAT_IDE_DIR)/Cargo.toml
+
+checkBobcat: checkBobcatCli checkBobcatIde
+	@echo "✓ Bobcat checks passed."
+
+checkBobcatCli: rustToolchain
+	$(WYNXER_CARGO) check --manifest-path $(BOBCAT_CLI_DIR)/Cargo.toml
+
+checkBobcatIde: rustToolchain
+	$(WYNXER_CARGO) check --manifest-path $(BOBCAT_IDE_DIR)/Cargo.toml
+
+cleanBobcat:
+	@rm -rf $(BOBCAT_CLI_DIR)/target $(BOBCAT_IDE_DIR)/target
+	@echo "✓ Cleaned Bobcat build artifacts."
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
 buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
@@ -1542,7 +1636,7 @@ cleanArch:
 	@find packaging/aur -mindepth 2 -maxdepth 2 -type f \( -name '*.pkg.tar.*' -o -name '*.tar.gz' -o -name '*.tar.zst' -o -name '*.tar.xz' -o -name '*.zip' \) -delete 2>/dev/null || true
 	@echo "✓ Cleaned Arch packaging artifacts."
 
-cleanAll: clean cleanLynxer cleanArch
+cleanAll: clean cleanLynxer cleanArch cleanWynxer cleanBobcat
 	@echo "✓ Cleaned all generated build artifacts."
 
 # Print the absolute path of every produced artifact.
@@ -1555,12 +1649,16 @@ where:
 	@echo "  Arch package payload   : $(abspath $(DIST_DIR)/payload)/<arch>"
 	@echo "  Arch packages          : $(abspath $(DIST_DIR)/packages)/<arch>"
 	@echo "  Stdlib modules         : $(abspath $(LYNXER_DIR)/stdlib)"
+	@echo "Sister projects:"
+	@echo "  Wynxer binary          : $(abspath $(WYNXER_BIN))"
+	@echo "  Bobcat CLI IDE         : $(abspath $(BOBCAT_CLI_BIN))"
+	@echo "  Bobcat GUI IDE         : $(abspath $(BOBCAT_IDE_BIN))"
 
 help:
 	@echo "Lynxer - make targets"
 	@echo ""
 	@echo "Build:"
-	@echo "  make build / make all / make buildAll  Build interpreter + all stdlib modules"
+	@echo "  make build / make all                  Build Lynxer + Wynxer + Bobcat CLI"
 	@echo "  make buildLynxer                       Same as build (C++ + Rust backends)"
 	@echo "  make buildStdlib                       Build only the stdlib modules (C++ + Rust)"
 	@echo "  make buildLynxerArm64                  Cross-build the aarch64 interpreter"
@@ -1568,10 +1666,19 @@ help:
 	@echo "  make cargo                             Build only the Rust backends + FFI engine"
 	@echo "  make dist                              Bundle a relocatable runtime into dist/"
 	@echo "  make sdk                               Stage the embedding SDK headers/libs"
+	@echo "  make buildWynxer                       Build the Wynxer web language (release)"
+	@echo "  make buildBobcat                       Build both Bobcat IDEs (CLI + GUI)"
+	@echo "  make buildBobcatCli                    Build only the Bobcat terminal IDE"
+	@echo "  make buildBobcatIde                    Build only the Bobcat GUI IDE (slow LTO)"
+	@echo "  make buildAll                          Everything, including the Bobcat GUI IDE"
 	@echo ""
 	@echo "Test / check:"
-	@echo "  make test / make testLynxer            Run the Lynxer test suite"
+	@echo "  make test / make testLynxer            Fast suite: Lynxer + Wynxer + Bobcat CLI"
+	@echo "  make testAll                          All suites, including the Bobcat GUI IDE tests"
+	@echo "  make testWynxer                       Wynxer unit tests"
+	@echo "  make testBobcat                       Both Bobcat IDE test suites"
 	@echo "  make check                             Lint syntax.lynx, then run the suite"
+	@echo "  make checkAll                          All checks (Lynxer + Wynxer + Bobcat)"
 	@echo "  make testLynxerGui                     Graphics fixtures (needs a display)"
 	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
 	@echo "  make testLynxerProject                --init / --build / --run project workflow"
@@ -1588,6 +1695,8 @@ help:
 	@echo "  make cleanLynxer                       Remove Lynxer build artifacts"
 	@echo "  make cleanArch                         Remove Arch packaging artifacts"
 	@echo "  make cleanAll                          Remove all generated artifacts"
+	@echo "  make cleanWynxer                       Remove Wynxer target/ and example build/"
+	@echo "  make cleanBobcat                       Remove both Bobcat target/ directories"
 	@echo ""
 	@echo "Information:"
 	@echo "  make where                             Print the absolute path of every output"
@@ -1608,6 +1717,13 @@ help:
 	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
 	@echo "  ./lynxer/lynxer --ast <file.lynx>"
 	@echo "  ./lynxer/lynxer --lint <file.lynx>"
+	@echo ""
+	@echo "Sister project commands:"
+	@echo "  $(abspath $(WYNXER_BIN)) init [name]   (scaffold a Wynxer project)"
+	@echo "  $(abspath $(WYNXER_BIN)) build [path]  (generate HTML/JS/CSS)"
+	@echo "  $(abspath $(WYNXER_BIN)) --add <pkg>   (npm install + .wynxcfg)"
+	@echo "  $(abspath $(BOBCAT_CLI_BIN)) [file]    (terminal IDE)"
+	@echo "  $(abspath $(BOBCAT_IDE_BIN))           (GUI IDE)"
 
 checkLynxerVersion: $(LYNXER_TARGET)
 	@version="$$($(CLYX) --version)"; \

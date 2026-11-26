@@ -165,6 +165,11 @@
 <p>Wynxer is a sibling project in this repository: a Lynxer-like language built for the web. It borrows Lynxer's surface syntax — typed variables like <code>int x = 5;</code> (never <code>let</code>), <code>fn</code> functions, <code>if</code>/<code>elif</code>/<code>else</code>, <code>while</code>, <code>for</code>, macros — but targets websites instead of the native machine.</p>
 <p>Wynxer compiles logic to JavaScript (and has a WebAssembly backend) and pages written in <strong><code>.wpf</code> (Wynxer Page Format)</strong> to HTML and CSS, so authors never write HTML by hand. It is a separate binary (version 0.1.0) with a Rust backend, built from the <a href="https://github.com/andy64lol/Lynxer/tree/main/wynxer"><code>wynxer/</code></a> directory. The two codebases share only language concepts.</p>
 <h2 id="quick-start">Quick start</h2>
+<p>From the repository root:</p>
+<pre><code>make buildWynxer     # release binary at wynxer/target/release/wynxer
+make testWynxer      # unit tests
+make checkWynxer     # version + element count + example build/check</code></pre>
+<p>Or build directly:</p>
 <pre><code>cd wynxer
 cargo build --release
 ./target/release/wynxer init my-app

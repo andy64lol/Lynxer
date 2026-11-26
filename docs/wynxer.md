@@ -13,6 +13,16 @@ directory. The two codebases share only language concepts.
 
 ## Quick start
 
+From the repository root:
+
+```bash
+make buildWynxer     # release binary at wynxer/target/release/wynxer
+make testWynxer      # unit tests
+make checkWynxer     # version + element count + example build/check
+```
+
+Or build directly:
+
 ```bash
 cd wynxer
 cargo build --release

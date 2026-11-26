@@ -14,6 +14,17 @@ and/or `wynxer` for Run, Lint and Format. Neither embeds a compiler.
 
 ## Quick start
 
+From the repository root:
+
+```bash
+make buildBobcatCli   # release binary at bobcat/cli/target/release/bobcat-cli
+make buildBobcatIde   # release binary at bobcat/ide/target/release/bobcat-ide (slow LTO)
+make buildBobcat      # both IDEs
+make testBobcat       # both test suites
+```
+
+Or build directly:
+
 ```bash
 # CLI IDE — no display needed
 cd bobcat/cli
