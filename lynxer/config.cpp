@@ -23,6 +23,19 @@ std::string trim(const std::string& text) {
     return text.substr(begin, end - begin);
 }
 
+std::string formatValue(std::string value, const std::string& search,
+                        const std::string& replacement) {
+    if (search.empty()) {
+        return value;
+    }
+    std::size_t position = value.find(search);
+    while (position != std::string::npos) {
+        value.replace(position, search.size(), replacement);
+        position = value.find(search, position + replacement.size());
+    }
+    return value;
+}
+
 std::string unescape(const std::string& text) {
     std::string output;
     for (std::size_t index = 0; index < text.size(); ++index) {
@@ -144,6 +157,45 @@ Config::Config() {
                "lynxer: interpreter failure in '{0}': {1}");
     setDefault("error.validator_missing",
                "lynxer: comprehensive validator is not available");
+
+    // CLI messages below were previously hard-coded in shell.cpp. The
+    // compiled-in defaults keep a config-less binary byte-identical.
+    setDefault("error.emit_library_failed", "lynxer: emit-library failed: {0}");
+    setDefault("error.removed_flag",
+               "lynxer: '{0}' was removed with the bytecode backend");
+    setDefault("status.use_instead", "; use {0} instead");
+    setDefault("error.requires_name", "lynxer: {0} requires a name");
+    setDefault("error.output_given_twice",
+               "lynxer: the output name was given twice");
+    setDefault("error.requires_file", "lynxer: {0} requires a file");
+    setDefault("error.unexpected_extra_argument",
+               "lynxer: unexpected extra argument '{0}'");
+    setDefault("error.first_input_not_lynx",
+               "lynxer: the first input must be a .lynx program file");
+    setDefault("error.could_not_write", "lynxer: could not write '{0}'");
+    setDefault("error.invalid_project_name",
+               "lynxer: invalid project name '{0}'");
+    setDefault("error.could_not_create_dir",
+               "lynxer: cannot create {0}/: {1}");
+    setDefault("error.project_no_entry",
+               "lynxer: lynxer.config has no 'entry' key (expected e.g. "
+               "'entry = src/main.lynx')");
+    setDefault("error.project_entry_not_found",
+               "lynxer: project entry not found: '{0}'");
+    setDefault("error.could_not_run_output", "lynxer: could not run '{0}'");
+    setDefault("error.nothing_to_uninstall",
+               "lynxer: nothing to uninstall under {0}");
+    setDefault("error.retry_permission",
+               "lynxer: re-run with permission to write {0}");
+    setDefault("error.install_failed", "lynxer: install failed: {0}");
+    setDefault("error.could_not_remove", "lynxer: could not remove {0}: {1}");
+    setDefault("error.requires_source_file",
+               "lynxer: {0} requires a source file");
+    setDefault("error.runtime_requires_path",
+               "lynxer: --runtime requires a library path");
+    setDefault("error.cc_requires_command",
+               "lynxer: --cc requires a compiler command");
+
     setDefault("status.lint_ok", "Lint OK: {0}");
     setDefault("status.compile_ok", "Compiled: {0}");
     setDefault("warning.forever_no_break",
@@ -163,6 +215,16 @@ Config::Config() {
     loadConfigFile("lynxer.config", values_);
 }
 
+std::string Config::render(
+    const std::string& key, const std::string& fallback,
+    const std::vector<std::pair<std::string, std::string>>& values) const {
+    std::string result = get(key, fallback);
+    for (const auto& item : values) {
+        result = formatValue(result, item.first, item.second);
+    }
+    return result;
+}
+
 void Config::setDefault(const std::string& key, const std::string& value) {
     values_.emplace(key, value);
 }
@@ -180,13 +242,7 @@ std::string Config::format(const std::string& key,
                            const std::string& fallback,
                            const std::string& search,
                            const std::string& replacement) const {
-    std::string value = get(key, fallback);
-    std::size_t position = value.find(search);
-    while (position != std::string::npos) {
-        value.replace(position, search.size(), replacement);
-        position = value.find(search, position + replacement.size());
-    }
-    return value;
+    return formatValue(get(key, fallback), search, replacement);
 }
 
 } // namespace lynxer

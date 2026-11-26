@@ -33,6 +33,14 @@ namespace lynxer {
 
 namespace {
 
+// Render a CLI message from lynxer.config. The fallback is identical to the
+// previously hard-coded text, so a config-less binary behaves the same way.
+std::string message(
+    const char* key, const char* fallback,
+    const std::vector<std::pair<std::string, std::string>>& values = {}) {
+    return Config::instance().render(key, fallback, values);
+}
+
 // The program's own command line, set by `shellMain` before it hands the
 // program to `runProgram`: the script path followed by the arguments after it,
 // or the whole command line for a compiled executable. It is what `sys.argv`
@@ -50,10 +58,24 @@ std::string readFile(const std::string& path, const std::string& display,
         ok = false;
         return "";
     }
-    std::ostringstream content;
-    content << input.rdbuf();
+    // Read directly into a sized string: `ostringstream << rdbuf()` grows a
+    // stream buffer one chunk at a time and copies twice. tellg() gives the
+    // size in one call, so large modules and archives load noticeably faster.
+    input.seekg(0, std::ios::end);
+    const std::streamoff size = input.tellg();
+    if (size < 0) {
+        ok = false;
+        return "";
+    }
+    std::string content(static_cast<std::size_t>(size), '\0');
+    input.seekg(0, std::ios::beg);
+    if (!content.empty()) {
+        input.read(content.data(), static_cast<std::streamsize>(content.size()));
+        // Text mode may translate CRLF, so keep only what was actually read.
+        content.resize(static_cast<std::size_t>(input.gcount()));
+    }
     ok = true;
-    return content.str();
+    return content;
 }
 
 // `<file>:<line>:<column>` for a source error. A failure raised inside an
@@ -379,7 +401,8 @@ int formatFile(const std::string& display, const std::string& source,
         std::ofstream output(display, std::ios::binary | std::ios::trunc);
         output << formatted;
         if (!output) {
-            std::cerr << "lynxer: could not write '" << display << "'\n";
+            std::cerr << message("error.could_not_write", "lynxer: could not write '{0}'",
+                             {{"{0}", display}}) << '\n';
             return 1;
         }
     } catch (const SourceError& error) {
@@ -590,9 +613,12 @@ int installBinary(const char* argv0) {
                                                     std::error_code());
         }
     } catch (const std::filesystem::filesystem_error& error) {
-        std::cerr << "lynxer: install failed: " << error.what() << '\n';
-        std::cerr << "lynxer: re-run with permission to write " << prefix
-                  << " (for example with sudo)\n";
+        std::cerr << message("error.install_failed", "lynxer: install failed: {0}",
+                             {{"{0}", error.what()}}) << '\n';
+        std::cerr << message("error.retry_permission",
+                             "lynxer: re-run with permission to write {0} "
+                             "(for example with sudo)",
+                             {{"{0}", prefix}}) << '\n';
         return 1;
     }
 
@@ -615,24 +641,34 @@ int uninstallBinary() {
     std::error_code linkError;
     const bool removedLink = std::filesystem::remove(linkPath, linkError);
     if (linkError) {
-        std::cerr << "lynxer: could not remove " << linkPath << ": "
-                  << linkError.message() << '\n';
-        std::cerr << "lynxer: re-run with permission to write " << prefix
-                  << " (for example with sudo)\n";
+        std::cerr << message("error.could_not_remove",
+                             "lynxer: could not remove {0}: {1}",
+                             {{"{0}", linkPath}, {"{1}", linkError.message()}})
+                  << '\n';
+        std::cerr << message("error.retry_permission",
+                             "lynxer: re-run with permission to write {0} "
+                             "(for example with sudo)",
+                             {{"{0}", prefix}}) << '\n';
         return 1;
     }
     std::error_code libError;
     const std::uintmax_t removedLib =
         std::filesystem::remove_all(libDir, libError);
     if (libError) {
-        std::cerr << "lynxer: could not remove " << libDir << ": "
-                  << libError.message() << '\n';
-        std::cerr << "lynxer: re-run with permission to write " << prefix
-                  << " (for example with sudo)\n";
+        std::cerr << message("error.could_not_remove",
+                             "lynxer: could not remove {0}: {1}",
+                             {{"{0}", libDir}, {"{1}", libError.message()}})
+                  << '\n';
+        std::cerr << message("error.retry_permission",
+                             "lynxer: re-run with permission to write {0} "
+                             "(for example with sudo)",
+                             {{"{0}", prefix}}) << '\n';
         return 1;
     }
     if (!removedLink && removedLib == 0) {
-        std::cerr << "lynxer: nothing to uninstall under " << prefix << '\n';
+        std::cerr << message("error.nothing_to_uninstall",
+                             "lynxer: nothing to uninstall under {0}",
+                             {{"{0}", prefix}}) << '\n';
         return 1;
     }
     if (removedLink) {
@@ -972,10 +1008,12 @@ int failWith(const char* key, const char* fallback, const std::string& value) {
 }
 
 int removedFlag(const std::string& flag, const std::string& replacement) {
-    std::cerr << "lynxer: '" << flag
-              << "' was removed with the bytecode backend";
+    std::cerr << message("error.removed_flag",
+                         "lynxer: '{0}' was removed with the bytecode backend",
+                         {{"{0}", flag}});
     if (!replacement.empty()) {
-        std::cerr << "; use " << replacement << " instead";
+        std::cerr << message("status.use_instead", "; use {0} instead",
+                             {{"{0}", replacement}});
     }
     std::cerr << '\n';
     return 1;
@@ -991,11 +1029,13 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         if (argument == "-o" || argument == "--output" ||
             argument == "-name" || argument == "--name") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: " << argument << " requires a name\n";
+                std::cerr << message("error.requires_name", "lynxer: {0} requires a name",
+                             {{"{0}", argument}}) << '\n';
                 return 1;
             }
             if (!outputName.empty()) {
-                std::cerr << "lynxer: the output name was given twice\n";
+                std::cerr << message("error.output_given_twice",
+                             "lynxer: the output name was given twice") << '\n';
                 return 1;
             }
             outputName = arguments[++index];
@@ -1005,7 +1045,8 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         // file that the program reads with bundledFile().
         if (argument == "--include" || argument == "-i") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: " << argument << " requires a file\n";
+                std::cerr << message("error.requires_file", "lynxer: {0} requires a file",
+                             {{"{0}", argument}}) << '\n';
                 return 1;
             }
             inputs.push_back(arguments[++index]);
@@ -1018,8 +1059,9 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
             continue;
         }
         if (!outputName.empty()) {
-            std::cerr << "lynxer: unexpected extra argument '" << argument
-                      << "'\n";
+            std::cerr << message("error.unexpected_extra_argument",
+                             "lynxer: unexpected extra argument '{0}'",
+                             {{"{0}", argument}}) << '\n';
             return 1;
         }
         outputName = argument;
@@ -1035,7 +1077,9 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         return 1;
     }
     if (!endsWith(inputs.front(), ".lynx")) {
-        std::cerr << "lynxer: the first input must be a .lynx program file\n";
+        std::cerr << message("error.first_input_not_lynx",
+                             "lynxer: the first input must be a .lynx program file")
+                  << '\n';
         return 1;
     }
 
@@ -1161,7 +1205,9 @@ int initProject(const std::vector<std::string>& arguments) {
     if (name.empty() || name == "." || name == ".." || name == "/" ||
         name.find('/') != std::string::npos ||
         name.find('\\') != std::string::npos) {
-        std::cerr << "lynxer: invalid project name '" << name << "'\n";
+        std::cerr << message("error.invalid_project_name",
+                             "lynxer: invalid project name '{0}'",
+                             {{"{0}", name}}) << '\n';
         return 1;
     }
 
@@ -1179,12 +1225,17 @@ int initProject(const std::vector<std::string>& arguments) {
     std::error_code ec;
     std::filesystem::create_directories("src", ec);
     if (ec) {
-        std::cerr << "lynxer: cannot create src/: " << ec.message() << '\n';
+        std::cerr << message("error.could_not_create_dir",
+                             "lynxer: cannot create {0}/: {1}",
+                             {{"{0}", "src"}, {"{1}", ec.message()}}) << '\n';
         return 1;
     }
     std::filesystem::create_directories("build", ec);
     if (ec) {
-        std::cerr << "lynxer: cannot create build/: " << ec.message() << '\n';
+        std::cerr << message("error.could_not_create_dir",
+                             "lynxer: cannot create {0}/: {1}",
+                             {{"{0}", "build"}, {"{1}", ec.message()}})
+                  << '\n';
         return 1;
     }
 
@@ -1253,8 +1304,10 @@ int buildProject(bool run) {
         }
     }
     if (entry.empty()) {
-        std::cerr << "lynxer: lynxer.config has no 'entry' key "
-                     "(expected e.g. 'entry = src/main.lynx')\n";
+        std::cerr << message("error.project_no_entry",
+                             "lynxer: lynxer.config has no 'entry' key "
+                             "(expected e.g. 'entry = src/main.lynx')")
+                  << '\n';
         return 1;
     }
     if (!endsWith(entry, ".lynx")) {
@@ -1265,8 +1318,9 @@ int buildProject(bool run) {
     {
         std::error_code ec;
         if (!std::filesystem::is_regular_file(entry, ec)) {
-            std::cerr << "lynxer: project entry not found: '" << entry
-                      << "'\n";
+            std::cerr << message("error.project_entry_not_found",
+                             "lynxer: project entry not found: '{0}'",
+                             {{"{0}", entry}}) << '\n';
             return 1;
         }
     }
@@ -1293,7 +1347,10 @@ int buildProject(bool run) {
     std::error_code ec;
     std::filesystem::create_directories("build", ec);
     if (ec) {
-        std::cerr << "lynxer: cannot create build/: " << ec.message() << '\n';
+        std::cerr << message("error.could_not_create_dir",
+                             "lynxer: cannot create {0}/: {1}",
+                             {{"{0}", "build"}, {"{1}", ec.message()}})
+                  << '\n';
         return 1;
     }
     std::string outputPath = "build/" + name;
@@ -1317,7 +1374,9 @@ int buildProject(bool run) {
     const std::string target = pathError ? outputPath : absolute.string();
     const int status = platform::spawnProcess({target});
     if (status < 0) {
-        std::cerr << "lynxer: could not run '" << outputPath << "'\n";
+        std::cerr << message("error.could_not_run_output",
+                             "lynxer: could not run '{0}'",
+                             {{"{0}", outputPath}}) << '\n';
         return 1;
     }
     return status;
@@ -1579,11 +1638,13 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         const std::string& argument = arguments[index];
         if (argument == "-o" || argument == "--output") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: " << argument << " requires a name\n";
+                std::cerr << message("error.requires_name", "lynxer: {0} requires a name",
+                             {{"{0}", argument}}) << '\n';
                 return 1;
             }
             if (!outputName.empty()) {
-                std::cerr << "lynxer: the output name was given twice\n";
+                std::cerr << message("error.output_given_twice",
+                             "lynxer: the output name was given twice") << '\n';
                 return 1;
             }
             outputName = arguments[++index];
@@ -1591,7 +1652,8 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         }
         if (argument == "--include" || argument == "-i") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: " << argument << " requires a file\n";
+                std::cerr << message("error.requires_file", "lynxer: {0} requires a file",
+                             {{"{0}", argument}}) << '\n';
                 return 1;
             }
             inputs.push_back(arguments[++index]);
@@ -1599,7 +1661,8 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         }
         if (argument == "--runtime") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: --runtime requires a library path\n";
+                std::cerr << message("error.runtime_requires_path",
+                             "lynxer: --runtime requires a library path") << '\n';
                 return 1;
             }
             runtimeOption = arguments[++index];
@@ -1607,7 +1670,8 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         }
         if (argument == "--cc") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "lynxer: --cc requires a compiler command\n";
+                std::cerr << message("error.cc_requires_command",
+                             "lynxer: --cc requires a compiler command") << '\n';
                 return 1;
             }
             compiler = arguments[++index];
@@ -1618,8 +1682,9 @@ int emitLibrary(const std::vector<std::string>& arguments) {
             continue;
         }
         if (!outputName.empty()) {
-            std::cerr << "lynxer: unexpected extra argument '" << argument
-                      << "'\n";
+            std::cerr << message("error.unexpected_extra_argument",
+                             "lynxer: unexpected extra argument '{0}'",
+                             {{"{0}", argument}}) << '\n';
             return 1;
         }
         outputName = argument;
@@ -2026,7 +2091,9 @@ int shellMain(int argc, char** argv) {
     }
     if (args[0] == "--debug") {
         if (args.size() < 2) {
-            std::cerr << "lynxer: --debug requires a source file\n";
+            std::cerr << message("error.requires_source_file",
+                             "lynxer: {0} requires a source file",
+                             {{"{0}", "--debug"}}) << '\n';
             return 1;
         }
         const std::string& display = args[1];

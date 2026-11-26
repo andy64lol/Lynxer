@@ -109,7 +109,9 @@ const Variable* Environment::findVariable(const std::string& name) const {
 
 std::string Environment::canonicalName(const std::string& name) const {
     std::string current = name;
-    std::set<std::string> seen;
+    // Borrow chains are almost always one or two links long. A vector avoids
+    // allocating a tree for every name resolution in the common case.
+    std::vector<std::string> seen;
     while (true) {
         const Variable* variable = findVariable(current);
         if (variable == nullptr) {
@@ -118,9 +120,10 @@ std::string Environment::canonicalName(const std::string& name) const {
         if (variable->borrowSource.empty()) {
             return current;
         }
-        if (!seen.insert(current).second) {
+        if (std::find(seen.begin(), seen.end(), current) != seen.end()) {
             return "";
         }
+        seen.push_back(current);
         current = variable->borrowSource;
     }
 }

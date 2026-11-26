@@ -58,6 +58,24 @@ comments). Two keys drive the build:
 directly by the build commands; it does not replace the interpreter's own
 `lynxer.config` that ships beside the executable.
 
+### Customising interpreter messages
+
+The interpreter's `lynxer.config` (loaded from the executable directory, then
+`<prefix>/lib/lynxer`, then the working directory) also holds its user-facing
+messages. Keys use `{0}`/`{1}` placeholders and can be edited to rebrand or
+translate the CLI without rebuilding:
+
+| Key group | Examples |
+|-----------|----------|
+| Version | `version`, `version.line` |
+| Errors | `error.file_not_found`, `error.compile_usage`, `error.emit_library_failed`, `error.project_no_entry`, `error.requires_name` |
+| Status | `status.lint_ok`, `status.compile_ok`, `status.use_instead` |
+| Warnings | `warning.forever_no_break` |
+
+Compiled-in defaults mirror the shipped file exactly, so a binary with no
+config file next to it behaves identically. The full set is listed in
+[`lynxer/lynxer.config`](https://github.com/andy64lol/Lynxer/blob/main/lynxer/lynxer.config).
+
 ```bash
 lynxer --build   # compile `entry` into build/<name> only
 lynxer --run     # compile, then execute build/<name> and pass through its exit code

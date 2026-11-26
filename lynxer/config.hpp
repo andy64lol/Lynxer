@@ -2,6 +2,8 @@
 
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace lynxer {
 
@@ -30,6 +32,13 @@ public:
     std::string format(const std::string& key, const std::string& fallback,
                        const std::string& search,
                        const std::string& replacement) const;
+
+    // Render a configured message with any number of {N} placeholders.
+    // The fallback is used when the key is absent, so behaviour is identical
+    // to a distribution that ships no lynxer.config file.
+    std::string render(
+        const std::string& key, const std::string& fallback,
+        const std::vector<std::pair<std::string, std::string>>& values) const;
 
 private:
     Config();

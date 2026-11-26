@@ -188,6 +188,16 @@ build/</code></pre>
 <tr><td><code>name</code></td><td>Executable name inside <code>build/</code>. Defaults to the entry's base name.</td></tr>
 </table>
 <p><code>main</code> is accepted as an alias for <code>entry</code>. The project config is read directly by the build commands; it does not replace the interpreter's own <code>lynxer.config</code> that ships beside the executable.</p>
+<h3 id="customising-interpreter-messages">Customising interpreter messages</h3>
+<p>The interpreter's <code>lynxer.config</code> (loaded from the executable directory, then <code>&lt;prefix&gt;/lib/lynxer</code>, then the working directory) also holds its user-facing messages. Keys use <code>{0}</code>/<code>{1}</code> placeholders and can be edited to rebrand or translate the CLI without rebuilding:</p>
+<table>
+<tr><th>Key group</th><th>Examples</th></tr>
+<tr><td>Version</td><td><code>version</code>, <code>version.line</code></td></tr>
+<tr><td>Errors</td><td><code>error.file_not_found</code>, <code>error.compile_usage</code>, <code>error.emit_library_failed</code>, <code>error.project_no_entry</code>, <code>error.requires_name</code></td></tr>
+<tr><td>Status</td><td><code>status.lint_ok</code>, <code>status.compile_ok</code>, <code>status.use_instead</code></td></tr>
+<tr><td>Warnings</td><td><code>warning.forever_no_break</code></td></tr>
+</table>
+<p>Compiled-in defaults mirror the shipped file exactly, so a binary with no config file next to it behaves identically. The full set is listed in <a href="https://github.com/andy64lol/Lynxer/blob/main/lynxer/lynxer.config"><code>lynxer/lynxer.config</code></a>.</p>
 <pre><code>lynxer --build   # compile `entry` into build/&lt;name&gt; only
 lynxer --run     # compile, then execute build/&lt;name&gt; and pass through its exit code</code></pre>
 <p>Both commands require a <code>lynxer.config</code> in the working directory and take no arguments. <code>--run</code> returns the program's exit status. <strong>All build artifacts live inside <code>build/</code></strong> — nothing is written next to the sources.</p>
