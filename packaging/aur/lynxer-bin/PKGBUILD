@@ -1,6 +1,6 @@
 # Maintainer: Andy <andy64lolxd@gmail.com>
 pkgname=lynxer-bin
-pkgver=0.1.8.2
+pkgver=0.1.9b2
 pkgrel=1
 pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime (prebuilt)"
 arch=('x86_64' 'aarch64')
@@ -16,9 +16,9 @@ _gh="https://github.com/andy64lol/Lynxer/releases/download/v$pkgver"
 source=("LICENSE::https://raw.githubusercontent.com/andy64lol/Lynxer/v$pkgver/LICENSE")
 sha256sums=('d5cf34db43dd5e0b5619245028129dc169ca3a3d4adb6902025ee67d8635e92a')
 source_x86_64=("lynxer-linux-amd64.zip::$_gh/lynxer-linux-amd64.zip")
-sha256sums_x86_64=('b0dfdf8ff6cbe1c9a56509a28f058b031a2b820d9f874d6203120bd5ec8b26be')
+sha256sums_x86_64=('ccb35b8f11b6277c8e4e3775d87f9590b1cc5333329dc58bc757e69c8643d59e')
 source_aarch64=("lynxer-linux-arm64.zip::$_gh/lynxer-linux-arm64.zip")
-sha256sums_aarch64=('a4b0dbc7b9288b2d09a461938817ff70c45efcba311ffb712c1f52bd1ee3684a')
+sha256sums_aarch64=('f172af5d870ecc31b144294cfd61385b2caaaa4402f7d4dad8d2cdf84a6c0f37')
 
 package() {
   # Never wrap the known-bad build, whatever the release tag claims.
