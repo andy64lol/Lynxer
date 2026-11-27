@@ -173,6 +173,8 @@
 <li>Run (<code>F5</code>), Lint and Format through the external engine, off the UI thread with a timeout. <code>Ctrl+S</code> to save.</li>
 <li><strong>Two engines</strong>: <code>.lynx</code> files run through <code>lynxer</code>; <code>.wynx</code> and <code>.wpf</code> files run through <code>wynxer</code> (<code>build</code> for Run, <code>lint</code>, <code>format --write</code>). Set each binary with <strong>Set Lynxer</strong> / <strong>Set Wynxer</strong> or <code>--lynxer</code> / <code>--wynxer</code> at launch. Wynxer syntax highlighting and completions cover keywords, types, builtins and all 56 WPF element kinds.</li>
 </ul>
+<h2 id="specialised-wynxer-mode">Specialised Wynxer mode</h2>
+<p>When Bobcat starts in a directory containing <code>.wynxcfg</code> and a <code>.wpf</code> page (or you open such a folder), it switches to a project IDE: the brand reads WYNXER, the entry page opens automatically, and the toolbar becomes <strong>Build &amp; Serve</strong> (F5 → <code>wynxer run &lt;dir&gt; --port</code>) and <strong>Check</strong> (F6 → <code>wynxer check &lt;dir&gt;</code>). Format still targets the active file. The status bar shows the project name, script and output directory. The terminal IDE has the same mode with F5/F6/F7.</p>
 <h2 id="build-and-run">Build and run</h2>
 <pre><code>cd bobcat/ide
 cargo build --release

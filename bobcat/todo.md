@@ -35,6 +35,7 @@ for the toolchain. Neither frontend embeds a compiler — both shell out to
 - [x] Run / Lint / Format through `lynxer`, off the UI thread with a timeout.
 - [x] Configurable interpreter path (`Set Lynxer`, `--lynxer`).
 - [x] Wynxer support: `.wynx` / `.wpf` highlighting, engine detection, build/run/lint commands.
+- [x] Specialised mode: auto-detect a Wynxer project (`.wynxcfg` + `.wpf`) in the current directory / opened folder and switch to project tooling (Build & Serve, Check, Format).
 - [x] Wynxer keyword/type/builtin/element completions (56 WPF kinds).
 - [ ] Theme selection / light theme.
 - [ ] Multi-root workspaces.

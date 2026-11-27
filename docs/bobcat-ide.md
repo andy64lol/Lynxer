@@ -27,6 +27,15 @@ highlighting, Run/Lint/Format and output panel are all Rust.
   launch. Wynxer syntax highlighting and completions cover keywords, types,
   builtins and all 56 WPF element kinds.
 
+## Specialised Wynxer mode
+
+When Bobcat starts in a directory containing `.wynxcfg` and a `.wpf` page (or
+you open such a folder), it switches to a project IDE: the brand reads WYNXER,
+the entry page opens automatically, and the toolbar becomes **Build & Serve**
+(F5 → `wynxer run <dir> --port`) and **Check** (F6 → `wynxer check <dir>`).
+Format still targets the active file. The status bar shows the project name,
+script and output directory. The terminal IDE has the same mode with F5/F6/F7.
+
 ## Build and run
 
 ```bash

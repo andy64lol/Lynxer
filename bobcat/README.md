@@ -9,6 +9,10 @@ have been removed, so Bobcat is now the only IDE for the toolchain.
 | **Bobcat CLI** | [`cli/`](cli/) | A standalone full-screen terminal IDE (ratatui) for `.lynx`, `.wynx`, `.wpf` |
 | **Bobcat IDE** | [`ide/`](ide/) | A native GUI IDE (iced), rebranded copy of `lynxer/ide` |
 
+Both IDEs enter a **specialised Wynxer mode** when launched in a project
+with `.wynxcfg` and a `.wpf` page: the entry page opens automatically and the
+toolbar becomes Build & Serve / Check / Format for the whole project.
+
 Both IDEs are clients of the language engines: they detect the file type and
 drive `lynxer` for `.lynx` and `wynxer` for `.wynx`/`.wpf` (highlighting,
 completions, build/lint/format). Neither embeds a compiler.

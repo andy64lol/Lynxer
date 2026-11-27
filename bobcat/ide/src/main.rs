@@ -8,6 +8,7 @@ mod backend;
 mod completions;
 mod diagnostics;
 mod highlighter;
+mod project;
 mod icons;
 mod ui;
 
@@ -216,17 +217,27 @@ struct Ide {
     /// Word for which the user dismissed the popup; suppress it until the
     /// prefix changes so it does not immediately reappear.
     dismissed_prefix: Option<String>,
+    /// Set when the working directory (or an opened folder) is a Wynxer
+    /// project, switching the IDE into its specialised mode.
+    project: Option<project::WynxerProject>,
 }
 
 impl Ide {
     fn new() -> (Self, Task<Message>) {
-        let ide = Ide {
-            root: None,
+        let project = project::detect(std::path::Path::new("."));
+        let root = project.as_ref().map(|p| p.root.clone());
+        let status = project
+            .as_ref()
+            .map(|p| format!("Wynxer project: {}", p.name))
+            .unwrap_or_else(|| "Ready".into());
+        let mut ide = Ide {
+            root,
+            project,
             tree: Vec::new(),
             tabs: Vec::new(),
             active: None,
             output: String::new(),
-            status: "Ready".into(),
+            status,
             lynxer_path: cli_lynxer_path(),
             lynxer_version: String::new(),
             wynxer_path: cli_wynxer_path(),
@@ -241,6 +252,19 @@ impl Ide {
             completion_prefix_len: 0,
             dismissed_prefix: None,
         };
+        // Enter the specialised mode: populate the tree and open the entry
+        // page so the project is immediately usable.
+        if ide.root.is_some() {
+            ide.refresh_tree();
+        }
+        if let Some(entry) = ide
+            .project
+            .as_ref()
+            .map(|p| p.root.join(&p.entry))
+            .filter(|p| p.is_file())
+        {
+            ide.open_file(entry);
+        }
         let lynx_bin = ide.lynxer_path.clone();
         let wynx_bin = ide.wynxer_path.clone();
         let task = Task::batch(vec![
@@ -459,6 +483,31 @@ impl Ide {
         path: &Path,
         mode: CommandMode,
     ) -> Result<(String, Vec<String>, Option<PathBuf>), String> {
+        // Specialised Wynxer mode: operate on the whole project. Run builds
+        // and serves it; Lint validates the project; Format targets a file.
+        if let Some(project) = &self.project {
+            backend::preflight_wynxer(&self.wynxer_path)?;
+            let root = project.root.to_string_lossy().to_string();
+            let args = match mode {
+                CommandMode::Run => vec![
+                    "run".into(),
+                    root,
+                    "--port".into(),
+                    project.port.to_string(),
+                ],
+                CommandMode::Lint => vec!["check".into(), root],
+                CommandMode::Format => vec![
+                    "format".into(),
+                    path.to_string_lossy().to_string(),
+                    "--write".into(),
+                ],
+            };
+            return Ok((
+                self.wynxer_path.clone(),
+                args,
+                Some(project.root.clone()),
+            ));
+        }
         let file = path.to_string_lossy().to_string();
         let cwd = path.parent().map(|p| p.to_path_buf());
         match engine_for(path) {
@@ -577,7 +626,12 @@ impl Ide {
         match message {
             Message::OpenFolder => {
                 if let Some(p) = backend::pick_folder(self.root.as_deref()) {
-                    self.status = format!("Opened {}", p.display());
+                    self.project = project::detect(&p);
+                    self.status = self
+                        .project
+                        .as_ref()
+                        .map(|proj| format!("Wynxer project: {}", proj.name))
+                        .unwrap_or_else(|| format!("Opened {}", p.display()));
                     self.root = Some(p);
                     self.tree.clear();
                     self.refresh_tree();
@@ -911,13 +965,17 @@ impl Ide {
         // ---------------------------------------------------------- top bar
         let run_label = if self.running {
             "Running..."
+        } else if self.project.is_some() {
+            "Build & Serve  F5"
         } else {
             "Run  F5"
         };
+        let brand = if self.project.is_some() { "WYNXER" } else { "LYNXER" };
+        let lint_label = if self.project.is_some() { "Check" } else { "Lint" };
         let top_bar = container(
             row![
                 icons::logo(16.0),
-                text("LYNXER")
+                text(brand)
                     .size(13.0)
                     .font(Font::MONOSPACE)
                     .color(ui::accent()),
@@ -928,7 +986,7 @@ impl Ide {
                 tool_button(icons::FILE_PLUS, "New", Message::NewFile, button::secondary),
                 tool_button(icons::SAVE, "Save", Message::Save, button::secondary),
                 tool_button(icons::PLAY, run_label, Message::Run, button::primary),
-                tool_button(icons::CHECK_CIRCLE, "Lint", Message::Lint, button::secondary),
+                tool_button(icons::CHECK_CIRCLE, lint_label, Message::Lint, button::secondary),
                 tool_button(icons::BRACES, "Format", Message::Format, button::secondary),
                 tool_button(icons::SLIDERS, "Set Lynxer", Message::SetLynxer, button::secondary),
                 tool_button(icons::BRACES, "Set Wynxer", Message::SetWynxer, button::secondary),
@@ -1360,8 +1418,12 @@ impl Ide {
             _ if self.lynxer_version.is_empty() => format!("lynxer: {}", self.lynxer_path),
             _ => format!("Lynxer {}", self.lynxer_version),
         };
+        let project_label = self.project.as_ref().map(|p| {
+            format!("Wynxer project {} ({} -> {}/)", p.name, p.script, p.output)
+        });
         let status_bar = container(
             row![
+                text(project_label.unwrap_or_default()).size(11.0).color(ui::accent()),
                 text(format!("{}  {}", errors, warnings))
                     .size(11.0)
                     .color(if errors > 0 { ui::error() } else { ui::text() }),
@@ -1584,6 +1646,7 @@ mod tests {
             completion_index: 0,
             completion_prefix_len: 0,
             dismissed_prefix: None,
+            project: None,
         };
         let mut content = text_editor::Content::with_text(text_source);
         content.move_to(text_editor::Cursor {
@@ -1651,6 +1714,7 @@ mod tree_tests {
             completion_index: 0,
             completion_prefix_len: 0,
             dismissed_prefix: None,
+            project: None,
         }
     }
 

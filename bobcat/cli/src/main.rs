@@ -4,6 +4,8 @@
 //! into an independent binary. It edits `.lynx`, `.wynx` and `.wpf` files and
 //! drives the matching engine (`lynxer` or `wynxer`) for Run / Lint / Format.
 
+mod project;
+
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
@@ -46,11 +48,16 @@ struct App {
     dirty: bool,
     quit: bool,
     prompt: Option<(PromptAction, String)>,
+    /// Set when launched inside a Wynxer project (`.wynxcfg` + `.wpf`).
+    project: Option<project::WynxerProject>,
 }
 
 impl App {
     fn new() -> Self {
-        Self {
+        // Enter the specialised Wynxer mode automatically when the current
+        // directory looks like a Wynxer project.
+        let project = project::detect(std::path::Path::new("."));
+        let mut app = Self {
             path: None,
             lines: vec![String::new()],
             cursor: (0, 0),
@@ -61,7 +68,22 @@ impl App {
             dirty: false,
             quit: false,
             prompt: None,
+            project: project.clone(),
+        };
+        if let Some(p) = &project {
+            // Open the configured entry page so the specialised mode starts
+            // with the project's page already loaded.
+            let entry = p.root.join(&p.entry);
+            if entry.is_file() {
+                app.open(entry);
+            }
+            app.status = format!(
+                "Wynxer project: {} ({} -> {}/{}) — F5 build+serve, F6 check, F7 format",
+                p.name, p.script, p.output, "index.html"
+            );
+            app.log(&app.status.clone());
         }
+        app
     }
 
     fn engine(&self) -> &'static str {
@@ -121,13 +143,69 @@ impl App {
     }
 
     fn run_command(&mut self, action: Action) {
+        if self.dirty {
+            self.save();
+        }
+        // Specialised Wynxer mode: act on the whole project, not just the
+        // open file. Run builds and serves; Lint validates the project.
+        if let Some(project) = self.project.clone() {
+            let root = project.root.display().to_string();
+            let (program, args): (String, Vec<String>) = match action {
+                Action::Run => (
+                    "wynxer".into(),
+                    vec!["run".into(), root.clone(), "--port".into(), project.port.to_string()],
+                ),
+                Action::Lint => ("wynxer".into(), vec!["check".into(), root]),
+                Action::Format => {
+                    let file = self
+                        .path
+                        .as_ref()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| project.root.join(&project.entry).display().to_string());
+                    ("wynxer".into(), vec!["format".into(), file, "--write".into()])
+                }
+            };
+            self.log(&format!("> {} {}", program, args.join(" ")));
+            self.show_output = true;
+            match Command::new(&program).args(&args).output() {
+                Ok(result) => {
+                    for line in String::from_utf8_lossy(&result.stdout).lines() {
+                        self.log(line);
+                    }
+                    for line in String::from_utf8_lossy(&result.stderr).lines() {
+                        self.log(line);
+                    }
+                    self.status = format!(
+                        "{} exited with code {}",
+                        program,
+                        result.status.code().unwrap_or(-1)
+                    );
+                    if action == Action::Format {
+                        if let Some(path) = self.path.clone() {
+                            if let Ok(text) = fs::read_to_string(&path) {
+                                let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
+                                if lines.is_empty() {
+                                    lines.push(String::new());
+                                }
+                                self.lines = lines;
+                                self.cursor = (0, 0);
+                                self.dirty = false;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    self.status = format!("Cannot run {}: {}", program, e);
+                    self.log(&self.status.clone());
+                }
+            }
+            return;
+        }
+
         let Some(path) = self.path.clone() else {
             self.status = "No file open (Ctrl+O to open)".to_string();
             return;
         };
-        if self.dirty {
-            self.save();
-        }
         let engine = self.engine().to_string();
         let display = path.display().to_string();
         let dir = path
@@ -300,7 +378,14 @@ impl App {
             }
             KeyCode::Char('p') if ctrl => self.show_output = !self.show_output,
             KeyCode::F(1) => {
-                self.log("Keys: Ctrl+O open | Ctrl+S save | F5 run | F6 lint | F7 format | Ctrl+P panel | Ctrl+Q quit");
+                if let Some(project) = &self.project {
+                    self.log(&format!(
+                        "Wynxer project mode ({}): F5 build+serve :{} | F6 check | F7 format {} | Ctrl+O open | Ctrl+Q quit",
+                        project.name, project.port, project.entry
+                    ));
+                } else {
+                    self.log("Keys: Ctrl+O open | Ctrl+S save | F5 run | F6 lint | F7 format | Ctrl+P panel | Ctrl+Q quit");
+                }
                 self.show_output = true;
             }
             KeyCode::F(5) => self.run_command(Action::Run),
@@ -336,15 +421,28 @@ fn ui(frame: &mut Frame, app: &App) {
         ])
         .split(size);
 
-    // Title bar.
-    let title = match &app.path {
-        Some(p) => format!(
-            " Bobcat IDE — {} [{}]{}",
-            p.file_name().and_then(|s| s.to_str()).unwrap_or("?"),
-            app.engine(),
+    // Title bar — show the specialised mode when a Wynxer project was found.
+    let title = if let Some(project) = &app.project {
+        format!(
+            " Bobcat IDE [Wynxer project: {}] — {}{}",
+            project.name,
+            app.path
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .and_then(|s| s.to_str())
+                .unwrap_or(&project.entry),
             if app.dirty { " *" } else { "" }
-        ),
-        None => " Bobcat IDE — no file (Ctrl+O)".to_string(),
+        )
+    } else {
+        match &app.path {
+            Some(p) => format!(
+                " Bobcat IDE — {} [{}]{}",
+                p.file_name().and_then(|s| s.to_str()).unwrap_or("?"),
+                app.engine(),
+                if app.dirty { " *" } else { "" }
+            ),
+            None => " Bobcat IDE — no file (Ctrl+O)".to_string(),
+        }
     };
     frame.render_widget(
         Paragraph::new(title).style(Style::default().bg(Color::DarkGray).fg(Color::White)),
