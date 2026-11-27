@@ -9,3 +9,6 @@ pkg/
 
 # makepkg VCS checkouts
 Lynxer/
+
+# makepkg downloaded source files
+LICENSE
