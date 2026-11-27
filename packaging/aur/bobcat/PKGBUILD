@@ -1,0 +1,43 @@
+# Maintainer: Andy <andy64lolxd@gmail.com>
+pkgname=bobcat
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Standalone terminal and native GUI IDEs for Lynxer and Wynxer"
+arch=('x86_64' 'aarch64')
+url="https://github.com/andy64lol/Lynxer"
+license=('MIT')
+# Bobcat is only a frontend: it shells out to both engines for Run/Lint/Format.
+depends=('lynxer' 'wynxer' 'gcc-libs')
+# The iced GUI needs X11/Wayland and a software renderer at runtime.
+depends+=('libgl' 'libx11' 'libxkbcommon' 'wayland' 'libudev')
+makedepends=('rust' 'git' 'pkgconf')
+_commit=68c8395aeca11247e6dbd0c953329ae7cd511257
+source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
+sha256sums=('SKIP')
+
+_srcdir="Lynxer"
+
+build() {
+  cd "$_srcdir"
+  # The GUI IDE has a long LTO link; build both binaries.
+  make buildBobcat
+}
+
+check() {
+  cd "$_srcdir"
+  make testBobcatCli
+}
+
+package() {
+  cd "$_srcdir"
+
+  install -Dm755 bobcat/cli/target/release/bobcat-cli "$pkgdir/usr/bin/bobcat-cli"
+  install -Dm755 bobcat/ide/target/release/bobcat-ide "$pkgdir/usr/bin/bobcat-ide"
+
+  install -d "$pkgdir/usr/share/doc/$pkgname"
+  for page in bobcat bobcat-cli bobcat-ide; do
+    install -Dm644 "docs/$page.md" "$pkgdir/usr/share/doc/$pkgname/$page.md"
+  done
+  install -Dm644 bobcat/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

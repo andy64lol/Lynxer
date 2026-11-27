@@ -1,0 +1,47 @@
+# Maintainer: Andy <andy64lolxd@gmail.com>
+pkgname=wynxer
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A Lynxer-like web language that compiles .wpf pages and .wynx scripts to HTML, CSS and JS"
+arch=('x86_64' 'aarch64')
+url="https://github.com/andy64lol/Lynxer"
+license=('MIT')
+# Node/npm are optional at runtime: only `wynxer --add/--remove` needs them.
+depends=('gcc-libs')
+optdepends=('nodejs: npm package support via wynxer --add/--remove')
+makedepends=('rust' 'git')
+_commit=68c8395aeca11247e6dbd0c953329ae7cd511257
+source=("git+https://github.com/andy64lol/Lynxer.git#commit=$_commit")
+sha256sums=('SKIP')
+
+# The pinned VCS source checks out to the repository name.
+_srcdir="Lynxer"
+
+build() {
+  cd "$_srcdir"
+  make buildWynxer
+}
+
+check() {
+  cd "$_srcdir"
+  make testWynxer
+}
+
+package() {
+  cd "$_srcdir"
+
+  version="$(./wynxer/target/release/wynxer --version)"
+  if [[ "$version" != "wynxer $pkgver" ]]; then
+    error "Built Wynxer version '$version' does not match pkgver $pkgver"
+    return 1
+  fi
+
+  install -Dm755 wynxer/target/release/wynxer "$pkgdir/usr/bin/wynxer"
+
+  # Documentation and the example project.
+  install -d "$pkgdir/usr/share/doc/$pkgname"
+  cp -r wynxer/docs/. "$pkgdir/usr/share/doc/$pkgname/"
+  install -Dm644 wynxer/README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  cp -r wynxer/examples "$pkgdir/usr/share/doc/$pkgname/examples"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

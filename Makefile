@@ -437,7 +437,7 @@ endif
 SYSCALL_OTHER_ARCH := $(if $(filter amd64,$(SYSCALL_ARCH)),arm64,amd64)
 
 .PHONY: all cargo lynxerToolchain rustToolchain build buildAll buildLynxer buildLynxerArch packageArch buildLynxerArm64 test testAll testLynxer testPackageManifests testLynxerGui testLynxerInstall testLynxerProject testLynxerGlobalDeprecation testLynxerAmd64Syscalls testLynxerArm64Syscalls check checkAll checkLynxerVersion clean cleanLynxer cleanArch cleanAll help
-.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit where
+.PHONY: buildStdlib dist sdk benchLynxer testLynxerEmit where checkAur srcinfo
 .PHONY: buildWynxer testWynxer checkWynxer cleanWynxer buildBobcat buildBobcatCli buildBobcatIde testBobcat testBobcatCli testBobcatIde checkBobcat checkBobcatCli checkBobcatIde cleanBobcat
 .PHONY: lint lintWynxer lintBobcat lintPython
 
@@ -459,8 +459,22 @@ check: testLynxer
 	@echo "✓ Lynxer checks passed."
 
 # Everything: the default checks plus Wynxer and Bobcat compile/lint checks.
-checkAll: check checkWynxer checkBobcat
+checkAll: check checkWynxer checkBobcat checkAur
 	@echo "✓ All checks passed."
+
+# Validate every AUR PKGBUILD's shell syntax and refresh the new .SRCINFO
+# files. A full `makepkg` build is intentionally not part of `make check`.
+checkAur:
+	@for pkg in lynxer lynxer-bin wynxer bobcat; do \
+		(cd packaging/aur/$$pkg && bash -n PKGBUILD) || exit 1; \
+	done
+	@echo "✓ AUR PKGBUILDs parsed."
+
+srcinfo:
+	@for pkg in wynxer bobcat; do \
+		(cd packaging/aur/$$pkg && makepkg --printsrcinfo > .SRCINFO) || exit 1; \
+	done
+	@echo "✓ .SRCINFO regenerated for wynxer and bobcat."
 
 # Conventional alias for a full build.
 all: build
@@ -1641,6 +1655,7 @@ help:
 	@echo "  make check                             Lint syntax.lynx, then run the suite"
 	@echo "  make checkAll                          All checks (Lynxer + Wynxer + Bobcat)"
 	@echo "  make lint                              Clippy (-D warnings) + Python lint"
+	@echo "  make checkAur                          Validate all AUR PKGBUILDs"
 	@echo "  make testLynxerGui                     Graphics fixtures (needs a display)"
 	@echo "  make testLynxerInstall                 --install into a throwaway prefix"
 	@echo "  make testLynxerProject                --init / --build / --run project workflow"

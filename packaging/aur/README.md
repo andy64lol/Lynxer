@@ -62,3 +62,29 @@ headers) and installs the binary to `/usr/bin/lynxer` with the runtime under
 
 This is the light option (no build): most users should prefer it over the source
 package. Publishing it works exactly like the source package below.
+
+## `wynxer` (source)
+
+[`wynxer/PKGBUILD`](wynxer/PKGBUILD) builds the Wynxer web language from the
+pinned commit with `make buildWynxer` and installs `/usr/bin/wynxer` plus its
+docs and example project under `/usr/share/doc/wynxer`. Node.js is an optional
+runtime dependency, needed only for `wynxer --add` / `--remove`.
+
+## `bobcat` (source)
+
+[`bobcat/PKGBUILD`](bobcat/PKGBUILD) builds both Bobcat IDEs with
+`make buildBobcat` and installs `/usr/bin/bobcat-cli` and
+`/usr/bin/bobcat-ide`. Because Bobcat is only a frontend, it **depends on
+`lynxer` and `wynxer`** (plus the X11/Wayland libraries the iced GUI needs).
+The GUI IDE's LTO link makes this a slow build; `check()` runs only the fast
+CLI test suite.
+
+Both packages pin the same commit as `lynxer` so all three are built from one
+consistent tree. Check them locally with:
+
+```console
+$ cd packaging/aur/wynxer && makepkg -f --nodeps
+$ cd ../bobcat && makepkg -f --nodeps
+```
+
+`make cleanArch` removes the generated `src/`, `pkg/` and `*.pkg.tar.*` files.

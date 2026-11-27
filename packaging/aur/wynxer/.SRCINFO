@@ -1,0 +1,16 @@
+pkgbase = wynxer
+	pkgdesc = A Lynxer-like web language that compiles .wpf pages and .wynx scripts to HTML, CSS and JS
+	pkgver = 0.1.0
+	pkgrel = 1
+	url = https://github.com/andy64lol/Lynxer
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = rust
+	makedepends = git
+	depends = gcc-libs
+	optdepends = nodejs: npm package support via wynxer --add/--remove
+	source = git+https://github.com/andy64lol/Lynxer.git#commit=68c8395aeca11247e6dbd0c953329ae7cd511257
+	sha256sums = SKIP
+
+pkgname = wynxer

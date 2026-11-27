@@ -226,6 +226,15 @@ sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></p
 <li><a href="index.html">README</a> — the documentation index and what <code>make testLynxer</code> runs.</li>
 <li><a href="CLI.html">CLI</a> — every flag and exit code.</li>
 </ul>
+<h2 id="arch-linux-aur">Arch Linux (AUR)</h2>
+<p>Three packages are maintained in <a href="https://github.com/andy64lol/Lynxer/tree/main/packaging/aur"><code>packaging/aur/</code></a>:</p>
+<table>
+<tr><th>Package</th><th>Installs</th></tr>
+<tr><td><code>lynxer</code></td><td>The interpreter, stdlib and embedding SDK</td></tr>
+<tr><td><code>wynxer</code></td><td><code>/usr/bin/wynxer</code> plus docs and the example project</td></tr>
+<tr><td><code>bobcat</code></td><td><code>/usr/bin/bobcat-cli</code> and <code>/usr/bin/bobcat-ide</code></td></tr>
+</table>
+<p>Bobcat <strong>depends on <code>lynxer</code> and <code>wynxer</code></strong> because it is only a frontend and shells out to both. Install with an AUR helper, e.g. <code>yay -S lynxer wynxer bobcat</code>.</p>
     </main>
 </div>
 

@@ -148,3 +148,16 @@ paths. The remaining variables are described in more detail in
 
 - [README.md](README.md) — the documentation index and what `make testLynxer` runs.
 - [CLI.md](CLI.md) — every flag and exit code.
+
+## Arch Linux (AUR)
+
+Three packages are maintained in [`packaging/aur/`](https://github.com/andy64lol/Lynxer/tree/main/packaging/aur):
+
+| Package | Installs |
+|---------|----------|
+| `lynxer` | The interpreter, stdlib and embedding SDK |
+| `wynxer` | `/usr/bin/wynxer` plus docs and the example project |
+| `bobcat` | `/usr/bin/bobcat-cli` and `/usr/bin/bobcat-ide` |
+
+Bobcat **depends on `lynxer` and `wynxer`** because it is only a frontend and
+shells out to both. Install with an AUR helper, e.g. `yay -S lynxer wynxer bobcat`.
