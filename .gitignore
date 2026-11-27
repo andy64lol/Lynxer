@@ -26,5 +26,5 @@ modules/
 full_conversation_detailed.json
 editors/
 
-# personal note from the agent (not for the remote)
-.tx
+# private diary (not for the remote)
+diary/
