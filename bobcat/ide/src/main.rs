@@ -24,7 +24,7 @@ use iced::{Element, Font, Length, Task, Theme};
 
 use backend::RunResult;
 use diagnostics::{Diagnostic, Severity};
-use highlighter::LynxerHighlighter;
+use highlighter::{LynxerHighlighter, WynxerHighlighter};
 
 pub fn main() -> iced::Result {
     iced::application(Ide::new, Ide::update, Ide::view)
@@ -47,12 +47,47 @@ fn is_lynx(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// A launcher can pass `--lynxer <path>` to preselect the interpreter, so
-/// Run/Lint/Format work even when `lynxer` is not on PATH.
-fn lynxer_path_from_args(args: impl IntoIterator<Item = String>) -> String {
+/// Wynxer sources: `.wynx` scripts and `.wpf` pages.
+fn is_wynx(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("wynx") || ext.eq_ignore_ascii_case("wpf"))
+        .unwrap_or(false)
+}
+
+/// Which engine drives a file. `.wynx` / `.wpf` go to Wynxer, everything else
+/// to Lynxer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Engine {
+    Lynxer,
+    Wynxer,
+}
+
+fn engine_for(path: &Path) -> Engine {
+    if is_wynx(path) {
+        Engine::Wynxer
+    } else {
+        Engine::Lynxer
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CommandMode {
+    Run,
+    Lint,
+    Format,
+}
+
+/// A launcher can pass `--lynxer <path>` / `--wynxer <path>` to preselect an
+/// engine, so Run/Lint/Format work even when it is not on PATH.
+fn engine_path_from_args(
+    args: impl IntoIterator<Item = String>,
+    flag: &str,
+    default: &str,
+) -> String {
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
-        if arg == "--lynxer" {
+        if arg == flag {
             if let Some(path) = args.next() {
                 if !path.trim().is_empty() {
                     return path;
@@ -60,11 +95,15 @@ fn lynxer_path_from_args(args: impl IntoIterator<Item = String>) -> String {
             }
         }
     }
-    "lynxer".into()
+    default.into()
 }
 
 fn cli_lynxer_path() -> String {
-    lynxer_path_from_args(std::env::args().skip(1))
+    engine_path_from_args(std::env::args().skip(1), "--lynxer", "lynxer")
+}
+
+fn cli_wynxer_path() -> String {
+    engine_path_from_args(std::env::args().skip(1), "--wynxer", "wynxer")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +144,12 @@ enum Message {
         path: String,
         result: Result<String, String>,
     },
+    WynxerChecked(Result<String, String>),
+    WynxerPicked {
+        path: String,
+        result: Result<String, String>,
+    },
+    SetWynxer,
     LintFinished {
         path: PathBuf,
         result: RunResult,
@@ -158,6 +203,8 @@ struct Ide {
     status: String,
     lynxer_path: String,
     lynxer_version: String,
+    wynxer_path: String,
+    wynxer_version: String,
     running: bool,
     show_sidebar: bool,
     show_output: bool,
@@ -182,6 +229,8 @@ impl Ide {
             status: "Ready".into(),
             lynxer_path: cli_lynxer_path(),
             lynxer_version: String::new(),
+            wynxer_path: cli_wynxer_path(),
+            wynxer_version: String::new(),
             running: false,
             show_sidebar: true,
             show_output: true,
@@ -192,11 +241,18 @@ impl Ide {
             completion_prefix_len: 0,
             dismissed_prefix: None,
         };
-        let bin = ide.lynxer_path.clone();
-        let task = Task::perform(
-            async move { backend::check_lynxer(&bin) },
-            Message::LynxerChecked,
-        );
+        let lynx_bin = ide.lynxer_path.clone();
+        let wynx_bin = ide.wynxer_path.clone();
+        let task = Task::batch(vec![
+            Task::perform(
+                async move { backend::check_lynxer(&lynx_bin) },
+                Message::LynxerChecked,
+            ),
+            Task::perform(
+                async move { backend::check_wynxer(&wynx_bin) },
+                Message::WynxerChecked,
+            ),
+        ]);
         (ide, task)
     }
 
@@ -360,7 +416,11 @@ impl Ide {
             return;
         };
         let words = document_words(&tab.content);
-        let list = completions::for_prefix(&prefix, &words);
+        let list = if is_wynx(&tab.path) {
+            completions::wynxer_for_prefix(&prefix, &words)
+        } else {
+            completions::for_prefix(&prefix, &words)
+        };
 
         // Respect an explicit dismissal until the user changes the word.
         if self.dismissed_prefix.as_deref() == Some(prefix.as_str()) {
@@ -393,14 +453,51 @@ impl Ide {
 
     /// Run `lynxer --lint` off the UI thread and fold the result into the
     /// Problems panel. `quiet` keeps the Output panel untouched (auto-lint).
-    fn run_lint(&mut self, path: PathBuf, quiet: bool) -> Task<Message> {
-        if let Err(e) = backend::preflight_lynxer(&self.lynxer_path) {
-            self.set_error(e);
-            return Task::none();
-        }
-        let bin = self.lynxer_path.clone();
+    /// Resolve the engine, arguments and working directory for a command.
+    fn engine_command(
+        &self,
+        path: &Path,
+        mode: CommandMode,
+    ) -> Result<(String, Vec<String>, Option<PathBuf>), String> {
+        let file = path.to_string_lossy().to_string();
         let cwd = path.parent().map(|p| p.to_path_buf());
-        let args = vec!["--lint".to_string(), path.to_string_lossy().to_string()];
+        match engine_for(path) {
+            Engine::Lynxer => {
+                backend::preflight_lynxer(&self.lynxer_path)?;
+                let args = match mode {
+                    CommandMode::Run => vec![file],
+                    CommandMode::Lint => vec!["--lint".into(), file],
+                    CommandMode::Format => vec!["--format".into(), file],
+                };
+                Ok((self.lynxer_path.clone(), args, cwd))
+            }
+            Engine::Wynxer => {
+                backend::preflight_wynxer(&self.wynxer_path)?;
+                let args = match mode {
+                    // Wynxer builds a whole project directory rather than
+                    // running a single script.
+                    CommandMode::Run => vec![
+                        "build".into(),
+                        cwd.as_ref()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_else(|| ".".into()),
+                    ],
+                    CommandMode::Lint => vec!["lint".into(), file],
+                    CommandMode::Format => vec!["format".into(), file, "--write".into()],
+                };
+                Ok((self.wynxer_path.clone(), args, cwd))
+            }
+        }
+    }
+
+    fn run_lint(&mut self, path: PathBuf, quiet: bool) -> Task<Message> {
+        let (bin, args, cwd) = match self.engine_command(&path, CommandMode::Lint) {
+            Ok(values) => values,
+            Err(e) => {
+                self.set_error(e);
+                return Task::none();
+            }
+        };
         Task::perform(
             async move { backend::run_program(bin, args, cwd, Duration::from_secs(30)) },
             move |result| Message::LintFinished {
@@ -413,30 +510,26 @@ impl Ide {
 
     fn spawn_command(
         &mut self,
-        flag: Option<&'static str>,
+        mode: CommandMode,
         label: &'static str,
         reload: bool,
     ) -> Task<Message> {
         if self.running {
             return Task::none();
         }
-        if let Err(e) = backend::preflight_lynxer(&self.lynxer_path) {
-            self.set_error(e);
-            return Task::none();
-        }
         let path = match self.active_tab() {
             Some(tab) => tab.path.clone(),
             None => return Task::none(),
         };
+        let (bin, args, cwd) = match self.engine_command(&path, mode) {
+            Ok(values) => values,
+            Err(e) => {
+                self.set_error(e);
+                return Task::none();
+            }
+        };
         self.save_active();
 
-        let cwd = path.parent().map(|p| p.to_path_buf());
-        let bin = self.lynxer_path.clone();
-        let mut args = Vec::new();
-        if let Some(f) = flag {
-            args.push(f.to_string());
-        }
-        args.push(path.to_string_lossy().to_string());
         let reload_path = if reload { Some(path.clone()) } else { None };
         let relint_path = reload_path.clone();
 
@@ -521,7 +614,7 @@ impl Ide {
                 }
                 Task::none()
             }
-            Message::Run => self.spawn_command(None, "Run", false),
+            Message::Run => self.spawn_command(CommandMode::Run, "Run", false),
             Message::Lint => {
                 let Some(tab) = self.active_tab() else {
                     return Task::none();
@@ -529,7 +622,7 @@ impl Ide {
                 let path = tab.path.clone();
                 self.run_lint(path, false)
             }
-            Message::Format => self.spawn_command(Some("--format"), "Format", true),
+            Message::Format => self.spawn_command(CommandMode::Format, "Format", true),
             Message::SetLynxer => {
                 if let Some(p) = backend::pick_file(None) {
                     let path = p.to_string_lossy().to_string();
@@ -668,7 +761,7 @@ impl Ide {
                         key,
                         iced::keyboard::Key::Named(iced::keyboard::key::Named::F5)
                     ) {
-                        return self.spawn_command(None, "Run", false);
+                        return self.spawn_command(CommandMode::Run, "Run", false);
                     }
                 }
                 Task::none()
@@ -702,6 +795,49 @@ impl Ide {
                         self.status = format!("Lynxer {}", version);
                         self.output.clear();
                         self.diagnostics.retain(|d| d.code != "lynxerMissing");
+                    }
+                    Err(e) => self.set_error(e),
+                }
+                Task::none()
+            }
+            Message::WynxerChecked(Ok(version)) => {
+                self.wynxer_version = version.clone();
+                Task::none()
+            }
+            Message::WynxerChecked(Err(e)) => {
+                // Missing Wynxer is only an error when a Wynxer file is open;
+                // report it as a diagnostic without disturbing the status bar.
+                self.diagnostics.push(Diagnostic {
+                    path: PathBuf::from("<wynxer>"),
+                    severity: Severity::Warning,
+                    line: 0,
+                    column: 0,
+                    code: "wynxerMissing".into(),
+                    message: e,
+                });
+                Task::none()
+            }
+            Message::SetWynxer => {
+                if let Some(p) = backend::pick_file(None) {
+                    let path = p.to_string_lossy().to_string();
+                    return Task::perform(
+                        async move {
+                            let result = backend::check_wynxer(&path);
+                            (path, result)
+                        },
+                        |(path, result)| Message::WynxerPicked { path, result },
+                    );
+                }
+                Task::none()
+            }
+            Message::WynxerPicked { path, result } => {
+                match result {
+                    Ok(version) => {
+                        self.wynxer_path = path;
+                        self.wynxer_version = version.clone();
+                        self.status = format!("Wynxer {}", version);
+                        self.output.clear();
+                        self.diagnostics.retain(|d| d.code != "wynxerMissing");
                     }
                     Err(e) => self.set_error(e),
                 }
@@ -795,6 +931,7 @@ impl Ide {
                 tool_button(icons::CHECK_CIRCLE, "Lint", Message::Lint, button::secondary),
                 tool_button(icons::BRACES, "Format", Message::Format, button::secondary),
                 tool_button(icons::SLIDERS, "Set Lynxer", Message::SetLynxer, button::secondary),
+                tool_button(icons::BRACES, "Set Wynxer", Message::SetWynxer, button::secondary),
             ]
             .spacing(6.0)
             .align_y(iced::alignment::Vertical::Center),
@@ -855,7 +992,11 @@ impl Ide {
                 } else {
                     icons::icon(
                         icons::FILE,
-                        if is_lynx(&row.path) { ui::accent() } else { ui::muted() },
+                        if is_lynx(&row.path) || is_wynx(&row.path) {
+                            ui::accent()
+                        } else {
+                            ui::muted()
+                        },
                         12.0,
                     )
                     .into()
@@ -867,7 +1008,7 @@ impl Ide {
                 };
                 let color = if row.is_dir {
                     ui::accent()
-                } else if is_lynx(&row.path) {
+                } else if is_lynx(&row.path) || is_wynx(&row.path) {
                     ui::text()
                 } else {
                     ui::muted()
@@ -989,6 +1130,9 @@ impl Ide {
                     });
                 if is_lynx(&tab.path) {
                     base.highlight_with::<LynxerHighlighter>((), highlighter::to_format)
+                        .into()
+                } else if is_wynx(&tab.path) {
+                    base.highlight_with::<WynxerHighlighter>((), highlighter::to_format)
                         .into()
                 } else {
                     base.into()
@@ -1191,6 +1335,8 @@ impl Ide {
             .map(|tab| {
                 if is_lynx(&tab.path) {
                     "Lynxer"
+                } else if is_wynx(&tab.path) {
+                    "Wynxer"
                 } else {
                     "Plain text"
                 }
@@ -1203,10 +1349,16 @@ impl Ide {
                 (p.line + 1, p.column + 1)
             })
             .unwrap_or((1, 1));
-        let lynxer_label = if self.lynxer_version.is_empty() {
-            format!("lynxer: {}", self.lynxer_path)
-        } else {
-            format!("Lynxer {}", self.lynxer_version)
+        let engine_label = match self
+            .active_tab()
+            .map(|tab| engine_for(&tab.path))
+        {
+            Some(Engine::Wynxer) if self.wynxer_version.is_empty() => {
+                format!("wynxer: {}", self.wynxer_path)
+            }
+            Some(Engine::Wynxer) => format!("Wynxer {}", self.wynxer_version),
+            _ if self.lynxer_version.is_empty() => format!("lynxer: {}", self.lynxer_path),
+            _ => format!("Lynxer {}", self.lynxer_version),
         };
         let status_bar = container(
             row![
@@ -1221,7 +1373,7 @@ impl Ide {
                     .color(ui::muted()),
                 text("UTF-8").size(11.0).color(ui::muted()),
                 text(language_label).size(11.0).color(ui::accent()),
-                text(lynxer_label).size(11.0).color(ui::muted()),
+                text(engine_label).size(11.0).color(ui::muted()),
             ]
             .spacing(12.0)
             .align_y(iced::alignment::Vertical::Center),
@@ -1340,6 +1492,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn wynx_files_are_detected() {
+        assert!(is_wynx(Path::new("app.wynx")));
+        assert!(is_wynx(Path::new("index.WPF")));
+        assert!(!is_wynx(Path::new("main.lynx")));
+        assert!(!is_wynx(Path::new("program.wynx.bak")));
+        assert_eq!(engine_for(Path::new("app.wynx")), Engine::Wynxer);
+        assert_eq!(engine_for(Path::new("index.wpf")), Engine::Wynxer);
+        assert_eq!(engine_for(Path::new("main.lynx")), Engine::Lynxer);
+        assert_eq!(engine_for(Path::new("notes.txt")), Engine::Lynxer);
+    }
+
+    #[test]
+    fn wynxer_path_from_launcher_args() {
+        let args = ["--wynxer".to_string(), "/tmp/wynxer".to_string()];
+        assert_eq!(
+            engine_path_from_args(args, "--wynxer", "wynxer"),
+            "/tmp/wynxer"
+        );
+        let args = ["--lynxer".to_string(), "/tmp/lynxer".to_string()];
+        assert_eq!(engine_path_from_args(args, "--wynxer", "wynxer"), "wynxer");
+    }
+
+    #[test]
     fn highlighting_is_only_for_lynx_files() {
         assert!(is_lynx(Path::new("main.lynx")));
         assert!(is_lynx(Path::new("MAIN.LYNX")));
@@ -1352,27 +1527,27 @@ mod tests {
 
     #[test]
     fn interpreter_path_argument_overrides_default() {
-        assert_eq!(lynxer_path_from_args(Vec::<String>::new()), "lynxer");
+        assert_eq!(engine_path_from_args(Vec::<String>::new(), "--lynxer", "lynxer"), "lynxer");
         assert_eq!(
-            lynxer_path_from_args(vec![
+            engine_path_from_args(vec![
                 "--lynxer".to_string(),
                 "/opt/lynxer/lynxer".to_string()
-            ]),
+            ], "--lynxer", "lynxer"),
             "/opt/lynxer/lynxer"
         );
         assert_eq!(
-            lynxer_path_from_args(vec!["--lynxer".to_string()]),
+            engine_path_from_args(vec!["--lynxer".to_string()], "--lynxer", "lynxer"),
             "lynxer"
         );
         assert_eq!(
-            lynxer_path_from_args(vec![
+            engine_path_from_args(vec![
                 "--lynxer".to_string(),
                 "  ".to_string()
-            ]),
+            ], "--lynxer", "lynxer"),
             "lynxer"
         );
         assert_eq!(
-            lynxer_path_from_args(vec!["other".to_string(), "x".to_string()]),
+            engine_path_from_args(vec!["other".to_string(), "x".to_string()], "--lynxer", "lynxer"),
             "lynxer"
         );
     }
@@ -1398,6 +1573,8 @@ mod tests {
             status: String::new(),
             lynxer_path: "lynxer".into(),
             lynxer_version: String::new(),
+            wynxer_path: "wynxer".into(),
+            wynxer_version: String::new(),
             running: false,
             show_sidebar: true,
             show_output: true,
@@ -1463,6 +1640,8 @@ mod tree_tests {
             status: String::new(),
             lynxer_path: "lynxer".into(),
             lynxer_version: String::new(),
+            wynxer_path: "wynxer".into(),
+            wynxer_version: String::new(),
             running: false,
             show_sidebar: true,
             show_output: true,

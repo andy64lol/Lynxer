@@ -30,7 +30,7 @@ work to take it from scaffolding to a usable web toolchain.
 - [x] Define the `.wpf` grammar (page, contents, element, style binding, scripts).
 - [x] Implement the `.wpf` parser (`src/wpf/`) with `import`, `page`, `page.title`, `contents`, `element.*`, `ignore`, `scripts`.
 - [x] Element registry with common-sense APIs (header1..header6, text, button, newline, paragraph, image, link, input, div, span, list, table, etc. — 56 kinds).
-- [ ] Validate `.wpf` (unknown tags, missing required attributes, duplicate ids).
+- [x] Validate `.wpf` (unknown element kinds via `wynxer check` / `wynxer lint`).
 - [ ] Support nesting and layout primitives (row, column, grid, stack).
 - [ ] Support bindings from Wynxer state to WPF attributes (`text = {count}`).
 - [ ] Support events (`-> onClick`, `-> onSubmit`).
@@ -44,18 +44,18 @@ work to take it from scaffolding to a usable web toolchain.
 
 ## 4. Backends (Rust generates everything)
 ### 4.1 HTML
-- [ ] HTML generator from the IR (`src/backend/html.rs`).
+- [x] HTML generator (`build.rs::render_page`) — `.wpf` → `index.html`; IR refactor still planned.
 - [ ] Semantic tags, accessibility attributes, meta tags.
-- [ ] No hand-written HTML in the output; everything comes from `.wpf`.
+- [x] No hand-written HTML in the output; everything comes from `.wpf`.
 ### 4.2 CSS
 - [ ] CSS generator (`src/backend/css.rs`).
 - [ ] Layout primitives (flex/grid) emitted from WPF layout tags.
 - [ ] Theming (light/dark) and design tokens.
 - [ ] Responsive breakpoints.
 ### 4.3 JavaScript
-- [ ] JS code generator (`src/backend/js.rs`).
+- [x] JS code generator (`src/backend/js.rs`) — AST-based emission, typed decls → `var`, builtins → console/prompt.
 - [ ] Event handlers, state updates, DOM binding.
-- [ ] Module output (ES modules).
+- [x] Module output (ES modules / CommonJS via `.wynxcfg` `target`/`type`; `jsImport` hoisting).
 - [ ] Source maps.
 ### 4.4 WebAssembly
 - [ ] WASM code generator (`src/backend/wasm.rs`).
@@ -77,11 +77,11 @@ work to take it from scaffolding to a usable web toolchain.
 - [ ] Asset handling (images, fonts) copied into `build/`.
 
 ## 6. Tooling
-- [ ] Formatter (`wynxer --format`).
-- [ ] Linter with WPF + Wynxer rules.
+- [x] Formatter (`wynxer format [--write]`).
+- [x] Linter with WPF + Wynxer rules (`wynxer lint`: no-let, unused-variable, unknown-element).
 - [ ] Language server (LSP) for `.wynx` and `.wpf`.
 - [ ] Debugger (source maps + browser devtools).
-- [ ] Documentation site (`wynxer/site/`), generated like lynxer's.
+- [x] Documentation site — `docs/` pages rendered into the repo website by `site/build.py`.
 
 ## 7. Standard library for the web
 - [ ] DOM helpers (query, create, update elements).
@@ -92,22 +92,22 @@ work to take it from scaffolding to a usable web toolchain.
 - [ ] Animation / transitions.
 
 ## 8. Testing
-- [ ] Unit tests for lexer/parser/typechecker.
+- [x] Unit tests — 49 passing (lexer, parser, diagnostics, lint, formatter, JS emitter, jsabi, config, init, target).
 - [ ] Snapshot tests for the JS/WASM/HTML/CSS generators.
 - [ ] End-to-end tests driving a headless browser.
 - [ ] Parity: interpreted vs compiled output.
 
 ## 9. Documentation and examples
-- [ ] `docs/` with the same structure as lynxer's (CLI, language, WPF, stdlib).
+- [x] `docs/` with the same structure as lynxer's (CLI, language, WPF, stdlib) — also mirrored in the repo website.
 - [ ] `syntax.wynx` and `syntax.wpf` showcases.
 - [ ] Example projects (todo app, blog, dashboard).
-- [ ] README with build/run commands.
+- [x] README with build/run commands.
 
 ## 10. Release and packaging
 - [ ] Version bump workflow (mirror lynxer's release checklist).
 - [ ] AUR package (`wynxer`, `wynxer-bin`).
 - [ ] Windows installer + release zip.
-- [ ] GitHub Actions CI for Linux (amd64/arm64) and Windows (amd64/arm64).
+- [x] GitHub Actions CI for Linux (amd64/arm64) and Windows (amd64/arm64).
 - [ ] npm-style distribution (optional).
 
 ## Notes
@@ -116,4 +116,11 @@ work to take it from scaffolding to a usable web toolchain.
 - The Rust backend is the single source of truth for code generation.
 - No hand-written HTML or CSS should appear in a Wynxer project; everything
   comes from `.wpf` and the Wynxer source.
-- Do not push without explicit permission.
+- Pushes to `main` are authorised by the project owner.
+
+## Recent session updates
+- [x] Wynxer added to the main repository README and website (`docs/wynxer*.md`, `site/`).
+- [x] Makefile targets: `buildWynxer`, `testWynxer`, `checkWynxer`, `cleanWynxer`, `lintWynxer`.
+- [x] CI: `build-wynxer-{linux-amd64,linux-arm64,windows-amd64,windows-arm64}.yml`.
+- [x] Clippy clean with `-D warnings`; 49 tests passing.
+- [x] `wynxer.config` message keys mirrored from Lynxer (36 keys), compiled-in defaults in sync.

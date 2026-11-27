@@ -92,6 +92,12 @@ pub fn parse(output: &str, path: &Path) -> Vec<Diagnostic> {
                 // `lynxer: file:line:col: [code] message` (parser/source errors)
                 let (code, message) = split_code(rest).unwrap_or_default();
                 (Severity::Error, code, message)
+            } else if let Some(message) = rest.strip_prefix("warning: ") {
+                // `wynxer lint`: file:line:col: warning: message
+                (Severity::Warning, String::new(), message.trim().to_string())
+            } else if let Some(message) = rest.strip_prefix("error: ") {
+                // `wynxer lint`: file:line:col: error: message
+                (Severity::Error, String::new(), message.trim().to_string())
             } else if trimmed.starts_with("lynxer:") {
                 (Severity::Error, String::new(), rest.to_string())
             } else {
@@ -175,6 +181,19 @@ mod tests {
         assert_eq!(d.len(), 1);
         assert_eq!(d[0].severity, Severity::Error);
         assert_eq!(d[0].line, 0);
+    }
+
+    #[test]
+    fn parses_wynxer_lint_format() {
+        let d = parse(
+            "x.wynx:3:5: warning: variable 'x' is declared but never read\n",
+            Path::new("x.wynx"),
+        );
+        assert_eq!(d.len(), 1);
+        assert_eq!(d[0].severity, Severity::Warning);
+        assert_eq!(d[0].line, 3);
+        assert_eq!(d[0].column, 5);
+        assert!(d[0].message.contains("never read"));
     }
 
     #[test]

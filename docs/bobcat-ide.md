@@ -21,6 +21,11 @@ highlighting, Run/Lint/Format and output panel are all Rust.
   text).
 - Run (`F5`), Lint and Format through the external engine, off the UI thread
   with a timeout. `Ctrl+S` to save.
+- **Two engines**: `.lynx` files run through `lynxer`; `.wynx` and `.wpf` files
+  run through `wynxer` (`build` for Run, `lint`, `format --write`). Set each
+  binary with **Set Lynxer** / **Set Wynxer** or `--lynxer` / `--wynxer` at
+  launch. Wynxer syntax highlighting and completions cover keywords, types,
+  builtins and all 56 WPF element kinds.
 
 ## Build and run
 
@@ -36,8 +41,10 @@ crates.io packages resolved by Cargo.
 
 ## Runtime dependency
 
-The IDE is a client of the `lynxer` interpreter: startup validation and every
-Run / Lint / Format action shell out to it. It is not needed to build the IDE,
+The IDE is a client of both engines. `.lynx` files use the `lynxer`
+interpreter; `.wynx` / `.wpf` files use the `wynxer` compiler. Startup checks
+both binaries, and every Run / Lint / Format action shells out to the one that
+matches the active file. It is not needed to build the IDE,
 but the IDE refuses to run a program when the engine is missing. Provide it by:
 
 - building it from the repository root with `make build` (or `make lynxer`);

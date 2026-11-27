@@ -167,7 +167,7 @@
 <tr><td><strong>Bobcat CLI</strong></td><td><code>bobcat/cli/</code></td><td>Standalone full-screen terminal IDE (ratatui) for <code>.lynx</code>, <code>.wynx</code>, <code>.wpf</code></td></tr>
 <tr><td><strong>Bobcat IDE</strong></td><td><code>bobcat/ide/</code></td><td>Native GUI IDE (iced) — rebranded copy of <code>lynxer/ide</code></td></tr>
 </table>
-<p>Both IDEs are clients of the language engines: they shell out to <code>lynxer</code> and/or <code>wynxer</code> for Run, Lint and Format. Neither embeds a compiler.</p>
+<p>Both IDEs are clients of the language engines: they detect the file type and drive <code>lynxer</code> for <code>.lynx</code> and <code>wynxer</code> for <code>.wynx</code>/<code>.wpf</code> (highlighting, completions, build/lint/format). Neither embeds a compiler.</p>
 <h2 id="quick-start">Quick start</h2>
 <p>From the repository root:</p>
 <pre><code>make buildBobcatCli   # release binary at bobcat/cli/target/release/bobcat-cli

@@ -26,6 +26,34 @@ pub const TYPES: &[&str] = &[
     "void", "array", "map", "set", "tuple", "ptr", "ref",
 ];
 
+/// Wynxer surface syntax (typed declarations, no `let`).
+pub const WYNXER_KEYWORDS: &[&str] = &[
+    "fn", "pub", "if", "elif", "else", "while", "for", "return", "import",
+    "export", "raise", "try", "catch", "switch", "case", "default", "struct",
+    "enum", "macro", "true", "false", "none", "null", "in",
+];
+
+pub const WYNXER_TYPES: &[&str] = &[
+    "int", "float", "str", "bool", "void", "list", "map", "any", "code", "block",
+];
+
+pub const WYNXER_BUILTINS: &[&str] = &[
+    "println", "print", "input", "js", "jsExpr", "jsImport", "jsRequire",
+    "jsGlobal", "element", "page", "contents", "scripts", "importAs",
+];
+
+/// The 56 `.wpf` element kinds, highlighted as builtins inside pages.
+pub const WYNXER_ELEMENTS: &[&str] = &[
+    "header1", "header2", "header3", "header4", "header5", "header6", "header",
+    "text", "paragraph", "span", "label", "caption", "quote", "code", "button",
+    "link", "input", "textarea", "checkbox", "radio", "select", "option",
+    "submit", "div", "section", "article", "footer", "nav", "aside", "main",
+    "column", "row", "grid", "stack", "container", "card", "panel", "image",
+    "video", "audio", "icon", "avatar", "list", "orderedList", "listItem",
+    "table", "thead", "tbody", "tr", "th", "td", "newline", "spacer", "divider",
+    "hr", "br",
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Token {
     Keyword,
@@ -137,7 +165,12 @@ fn two_byte_operator(b: &[u8], i: usize) -> Option<usize> {
     }
 }
 
-fn tokenize(line: &str) -> Vec<(Range<usize>, Token)> {
+fn tokenize_with(
+    line: &str,
+    keywords: &[&str],
+    types: &[&str],
+    builtins: &[&str],
+) -> Vec<(Range<usize>, Token)> {
     let b = line.as_bytes();
     let mut out = Vec::new();
     let mut i = 0usize;
@@ -244,15 +277,15 @@ fn tokenize(line: &str) -> Vec<(Range<usize>, Token)> {
                 i += 1;
             }
             let word = &line[start..i];
-            let token = if KEYWORDS.contains(&word) {
+            let token = if keywords.contains(&word) {
                 if matches!(word, "true" | "false" | "none") {
                     Some(Token::Constant)
                 } else {
                     Some(Token::Keyword)
                 }
-            } else if TYPES.contains(&word) {
+            } else if types.contains(&word) {
                 Some(Token::Type)
-            } else if BUILTINS.contains(&word) {
+            } else if builtins.contains(&word) {
                 Some(Token::Builtin)
             } else {
                 let mut j = i;
@@ -287,6 +320,49 @@ fn tokenize(line: &str) -> Vec<(Range<usize>, Token)> {
     }
 
     out
+}
+
+fn tokenize(line: &str) -> Vec<(Range<usize>, Token)> {
+    tokenize_with(line, KEYWORDS, TYPES, BUILTINS)
+}
+
+/// Highlighter for `.wynx` scripts and `.wpf` pages.
+pub struct WynxerHighlighter {
+    line: usize,
+}
+
+impl Highlighter for WynxerHighlighter {
+    type Settings = ();
+    type Highlight = Token;
+    type Iterator<'a> = std::vec::IntoIter<(Range<usize>, Token)>;
+
+    fn new(_settings: &Self::Settings) -> Self {
+        Self { line: 0 }
+    }
+
+    fn update(&mut self, _new_settings: &Self::Settings) {}
+
+    fn change_line(&mut self, line: usize) {
+        self.line = line;
+    }
+
+    fn highlight_line(&mut self, line: &str) -> Self::Iterator<'_> {
+        let builtins = wynxer_builtins();
+        let tokens = tokenize_with(line, WYNXER_KEYWORDS, WYNXER_TYPES, &builtins);
+        self.line += 1;
+        tokens.into_iter()
+    }
+
+    fn current_line(&self) -> usize {
+        self.line
+    }
+}
+
+fn wynxer_builtins() -> Vec<&'static str> {
+    let mut words = Vec::with_capacity(WYNXER_BUILTINS.len() + WYNXER_ELEMENTS.len());
+    words.extend_from_slice(WYNXER_BUILTINS);
+    words.extend_from_slice(WYNXER_ELEMENTS);
+    words
 }
 
 #[cfg(test)]
@@ -359,6 +435,16 @@ mod tests {
                 last = range.end;
             }
         }
+    }
+
+    #[test]
+    fn wynxer_highlighter_tracks_lines() {
+        let mut h = WynxerHighlighter::new(&());
+        assert_eq!(h.current_line(), 0);
+        h.highlight_line("fn f() { int x = 5; }");
+        assert_eq!(h.current_line(), 1);
+        h.change_line(0);
+        assert_eq!(h.current_line(), 0);
     }
 
     #[test]

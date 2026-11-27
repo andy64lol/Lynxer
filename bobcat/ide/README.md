@@ -4,7 +4,9 @@ A **native GUI** IDE extracted from Lynxer's IDE, built with
 [iced](https://iced.rs) in pure Rust. No Tauri, no webview, no React, no
 Monaco: the file explorer, tabbed editor, Lynxer syntax highlighting,
 Run/Lint/Format and the output panel are all Rust. Bobcat is a separate
-frontend; Lynxer's original IDE has been removed.
+frontend; Lynxer's original IDE has been removed. It supports two engines:
+`lynxer` for `.lynx` files and `wynxer` (highlighting, completions and
+build/lint/format) for `.wynx` / `.wpf` files.
 
 ## Features
 

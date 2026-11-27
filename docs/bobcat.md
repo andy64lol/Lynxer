@@ -9,8 +9,9 @@ contains two independent frontends; Lynxer's `--cli-ide`/`--gui-ide` and
 | **Bobcat CLI** | `bobcat/cli/` | Standalone full-screen terminal IDE (ratatui) for `.lynx`, `.wynx`, `.wpf` |
 | **Bobcat IDE** | `bobcat/ide/` | Native GUI IDE (iced) — rebranded copy of `lynxer/ide` |
 
-Both IDEs are clients of the language engines: they shell out to `lynxer`
-and/or `wynxer` for Run, Lint and Format. Neither embeds a compiler.
+Both IDEs are clients of the language engines: they detect the file type and
+drive `lynxer` for `.lynx` and `wynxer` for `.wynx`/`.wpf` (highlighting,
+completions, build/lint/format). Neither embeds a compiler.
 
 ## Quick start
 

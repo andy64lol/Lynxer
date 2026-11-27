@@ -297,6 +297,46 @@ pub const BUILTINS: &[&str] = &[
 pub const MIN_PREFIX: usize = 3;
 
 /// Build a de-duplicated, prefix-filtered completion list. Keywords and types
+/// Completion words for `.wynx` / `.wpf` files — keywords, types, builtins,
+/// the 56 element kinds and words from the current document.
+pub fn wynxer_for_prefix(prefix: &str, document_words: &[String]) -> Vec<String> {
+    if prefix.chars().count() < MIN_PREFIX {
+        return Vec::new();
+    }
+    let lower = prefix.to_lowercase();
+    let mut seen = std::collections::HashSet::new();
+    let mut out: Vec<String> = Vec::new();
+
+    let mut add = |word: &str| {
+        if word.len() >= prefix.len()
+            && word.to_lowercase().starts_with(&lower)
+            && seen.insert(word.to_lowercase())
+        {
+            out.push(word.to_string());
+        }
+    };
+
+    for word in crate::highlighter::WYNXER_KEYWORDS {
+        add(word);
+    }
+    for word in crate::highlighter::WYNXER_TYPES {
+        add(word);
+    }
+    for word in crate::highlighter::WYNXER_BUILTINS {
+        add(word);
+    }
+    for word in crate::highlighter::WYNXER_ELEMENTS {
+        add(word);
+    }
+    for word in document_words {
+        add(word);
+    }
+
+    out.sort_by_key(|a| a.to_lowercase());
+    out.truncate(6);
+    out
+}
+
 /// come from the highlighter so the two never drift apart.
 pub fn for_prefix(prefix: &str, document_words: &[String]) -> Vec<String> {
     if prefix.chars().count() < MIN_PREFIX {
@@ -353,6 +393,14 @@ mod tests {
         assert!(for_prefix("p", &[]).is_empty());
         assert!(for_prefix("pr", &[]).is_empty());
         assert!(!for_prefix("pri", &[]).is_empty());
+    }
+
+    #[test]
+    fn wynxer_completions_include_elements() {
+        let list = wynxer_for_prefix("head", &[]);
+        assert!(list.iter().any(|w| w == "header1"));
+        let list = wynxer_for_prefix("jsI", &[]);
+        assert!(list.iter().any(|w| w == "jsImport"));
     }
 
     #[test]

@@ -171,6 +171,7 @@
 <li>Expandable directory tree with Refresh, and <code>Tab</code> inserts four spaces.</li>
 <li>Lynxer syntax highlighting for <code>.lynx</code> files (other files open as plain text).</li>
 <li>Run (<code>F5</code>), Lint and Format through the external engine, off the UI thread with a timeout. <code>Ctrl+S</code> to save.</li>
+<li><strong>Two engines</strong>: <code>.lynx</code> files run through <code>lynxer</code>; <code>.wynx</code> and <code>.wpf</code> files run through <code>wynxer</code> (<code>build</code> for Run, <code>lint</code>, <code>format --write</code>). Set each binary with <strong>Set Lynxer</strong> / <strong>Set Wynxer</strong> or <code>--lynxer</code> / <code>--wynxer</code> at launch. Wynxer syntax highlighting and completions cover keywords, types, builtins and all 56 WPF element kinds.</li>
 </ul>
 <h2 id="build-and-run">Build and run</h2>
 <pre><code>cd bobcat/ide
@@ -178,7 +179,7 @@ cargo build --release
 ./target/release/bobcat-ide</code></pre>
 <p>Requires a Rust toolchain and the system libraries iced needs to open a window (X11 / Wayland, a GPU or software renderer). All Rust dependencies are crates.io packages resolved by Cargo.</p>
 <h2 id="runtime-dependency">Runtime dependency</h2>
-<p>The IDE is a client of the <code>lynxer</code> interpreter: startup validation and every Run / Lint / Format action shell out to it. It is not needed to build the IDE, but the IDE refuses to run a program when the engine is missing. Provide it by:</p>
+<p>The IDE is a client of both engines. <code>.lynx</code> files use the <code>lynxer</code> interpreter; <code>.wynx</code> / <code>.wpf</code> files use the <code>wynxer</code> compiler. Startup checks both binaries, and every Run / Lint / Format action shells out to the one that matches the active file. It is not needed to build the IDE, but the IDE refuses to run a program when the engine is missing. Provide it by:</p>
 <ul>
 <li>building it from the repository root with <code>make build</code> (or <code>make lynxer</code>);</li>
 <li>putting <code>lynxer</code> on <code>PATH</code>;</li>

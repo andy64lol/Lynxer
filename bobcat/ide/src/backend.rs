@@ -2,10 +2,10 @@
 //!
 //! This is the old Tauri `src-tauri/src/lib.rs` command layer, rewritten as
 //! plain functions: file I/O, native dialogs (rfd) and running the `lynxer`
-//! interpreter with a timeout. No Tauri, no webview, no JS bridge.
+//! or `wynxer` executable with a timeout. No Tauri, no webview, no JS bridge.
 //!
-//! The IDE has a hard runtime dependency on the `lynxer` executable: the
-//! startup check and every Run / Lint / Format action shell out to it.
+//! The IDE is a client of both engines: `.lynx` files are driven by `lynxer`,
+//! while `.wynx` / `.wpf` files are driven by `wynxer`.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -112,27 +112,29 @@ fn looks_like_path(bin: &str) -> bool {
 
 const MISSING_HINT: &str =
     "Build Lynxer with 'make build' from the repo root, or pick it with 'Set Lynxer'.";
+const MISSING_WYNX_HINT: &str =
+    "Build Wynxer with 'make buildWynxer' from the repo root, or pick it with 'Set Wynxer'.";
 
-/// Validate that `bin` is a usable Lynxer interpreter.
+/// Validate that `bin` is a usable engine executable (`lynxer` or `wynxer`).
 ///
 /// An explicit path must exist and be a file; then `bin --version` must exit
 /// cleanly with a non-empty version. Every failure returns an actionable
 /// message rather than a silent or cryptic error.
-pub fn check_lynxer(bin: &str) -> Result<String, String> {
+pub fn check_engine(bin: &str, label: &str, hint: &str) -> Result<String, String> {
     if bin.trim().is_empty() {
-        return Err("The Lynxer executable path is empty. Use 'Set Lynxer'.".into());
+        return Err(format!("The {label} executable path is empty. Use 'Set {label}'."));
     }
     if looks_like_path(bin) {
         let path = Path::new(bin);
         if !path.exists() {
             return Err(format!(
-                "Lynxer executable not found at '{}'. {}",
+                "{label} executable not found at '{}'. {}",
                 path.display(),
-                MISSING_HINT
+                hint
             ));
         }
         if !path.is_file() {
-            return Err(format!("Lynxer path '{}' is not a file.", path.display()));
+            return Err(format!("{label} path '{}' is not a file.", path.display()));
         }
     }
 
@@ -143,11 +145,11 @@ pub fn check_lynxer(bin: &str) -> Result<String, String> {
         Duration::from_secs(10),
     );
     if result.timed_out {
-        return Err(format!("Lynxer '{}' did not respond within 10s.", bin));
+        return Err(format!("{label} '{}' did not respond within 10s.", bin));
     }
     if result.spawn_error || result.code != 0 {
         return Err(format!(
-            "Lynxer '{}' failed to run (exit {}): {}",
+            "{label} '{}' failed to run (exit {}): {}",
             bin,
             result.code,
             result.stderr.trim()
@@ -155,29 +157,47 @@ pub fn check_lynxer(bin: &str) -> Result<String, String> {
     }
     let version = result.stdout.trim().to_string();
     if version.is_empty() {
-        return Err(format!("Lynxer '{}' printed no version on --version.", bin));
+        return Err(format!("{label} '{}' printed no version on --version.", bin));
     }
     Ok(version)
+}
+
+/// Validate that `bin` is a usable Lynxer interpreter.
+pub fn check_lynxer(bin: &str) -> Result<String, String> {
+    check_engine(bin, "Lynxer", MISSING_HINT)
+}
+
+/// Validate that `bin` is a usable Wynxer compiler.
+pub fn check_wynxer(bin: &str) -> Result<String, String> {
+    check_engine(bin, "Wynxer", MISSING_WYNX_HINT)
 }
 
 /// Cheap, non-blocking pre-flight for an explicit interpreter path. A bare
 /// name on `PATH` cannot be checked without spawning, so `run_program`
 /// validates it when the command is actually launched.
-pub fn preflight_lynxer(bin: &str) -> Result<(), String> {
+pub fn preflight_engine(bin: &str, label: &str, hint: &str) -> Result<(), String> {
     if bin.trim().is_empty() {
-        return Err("The Lynxer executable path is empty. Use 'Set Lynxer'.".into());
+        return Err(format!("The {label} executable path is empty. Use 'Set {label}'."));
     }
     if looks_like_path(bin) {
         let path = Path::new(bin);
         if !path.is_file() {
             return Err(format!(
-                "Lynxer executable not found at '{}'. {}",
+                "{label} executable not found at '{}'. {}",
                 path.display(),
-                MISSING_HINT
+                hint
             ));
         }
     }
     Ok(())
+}
+
+pub fn preflight_lynxer(bin: &str) -> Result<(), String> {
+    preflight_engine(bin, "Lynxer", MISSING_HINT)
+}
+
+pub fn preflight_wynxer(bin: &str) -> Result<(), String> {
+    preflight_engine(bin, "Wynxer", MISSING_WYNX_HINT)
 }
 
 /// Run `bin` with `args` in `cwd`, capturing stdout/stderr. Kills the child
